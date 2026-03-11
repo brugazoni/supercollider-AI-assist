@@ -1,0 +1,30 @@
+services:
+  supercollider-gui:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.gui
+    image: supercollider-gui
+    container_name: sc_gui
+    volumes:
+      # Mount a directory for code to work with
+      - ./code_input:/app/code_input
+      # Persistence for user extensions
+      - ./user_extensions:/root/.local/share/SuperCollider/Extensions
+      # Persistence for downloaded quarks
+      - ./quarks:/root/.local/share/SuperCollider/downloaded-quarks
+      # Config persistence
+      - ./config:/root/.config/SuperCollider
+      # X11 socket for Linux/WSL (comment out if using Windows native Docker)
+      # - /tmp/.X11-unix:/tmp/.X11-unix
+    environment:
+      # DISPLAY will be set by the run script based on your OS
+      - DISPLAY=${DISPLAY}
+      # Disable MIT-SHM for better X11 compatibility
+      - QT_X11_NO_MITSHM=1
+      # Use indirect OpenGL rendering
+      - LIBGL_ALWAYS_INDIRECT=1
+    # Network host mode for easier X11 forwarding (adjust for security if needed)
+    network_mode: host
+    # Keep container alive
+    tty: true
+    stdin_open: true

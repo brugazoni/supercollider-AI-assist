@@ -542,10 +542,13 @@ void DocumentManager::onFileChanged(const QString& path) {
         Document* doc = it.value();
         if (doc->mFilePath == path) {
             QFileInfo info(doc->mFilePath);
+
+            // 1. Check if the file on disk is newer than the last time we saved it.
             if (doc->mSaveTime < info.lastModified()) {
-                doc->mDoc->setModified(true);
-                doc->mSaveTime = info.lastModified();
-                emit changedExternally(doc);
+                // Force auto-reload regardless of modified state
+                if (reload(doc)) {
+                    MainWindow::instance()->showStatusMessage(tr("Automatically reloaded: %1").arg(doc->mFilePath));
+                }
             }
         }
     }

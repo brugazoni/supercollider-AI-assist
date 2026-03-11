@@ -698,7 +698,7 @@ void GenericCodeEditor::mousePressEvent(QMouseEvent* e) {
                                          .arg(e->position().x())
                                          .arg(e->position().y())
 #endif
-                                         .arg(e->modifiers())
+                                         .arg(static_cast<int>(e->modifiers()))
                                          .arg(button),
                                      true);
     }
@@ -732,7 +732,7 @@ void GenericCodeEditor::mouseDoubleClickEvent(QMouseEvent* e) {
                                          .arg(e->position().x())
                                          .arg(e->position().y())
 #endif
-                                         .arg(e->modifiers())
+                                         .arg(static_cast<int>(e->modifiers()))
                                          .arg(button),
                                      true);
     }
@@ -766,7 +766,7 @@ void GenericCodeEditor::mouseReleaseEvent(QMouseEvent* e) {
                                          .arg(e->position().x())
                                          .arg(e->position().y())
 #endif
-                                         .arg(e->modifiers())
+                                         .arg(static_cast<int>(e->modifiers()))
                                          .arg(button),
                                      true);
     }

@@ -85,17 +85,17 @@ void DocumentsDialog::init(Mode mode, const QList<Document*>& docs) {
         btn->setIcon(QIcon::fromTheme("view-refresh"));
         connect(btn, SIGNAL(clicked()), this, SLOT(reloadSelected()));
 
-        btn = dialogBtnBox->addButton(tr("Over&write"), QDialogButtonBox::ActionRole);
-        btn->setIcon(QIcon::fromTheme("document-save"));
-        connect(btn, SIGNAL(clicked()), this, SLOT(saveSelected()));
+        //btn = dialogBtnBox->addButton(tr("Over&write"), QDialogButtonBox::ActionRole);
+        //btn->setIcon(QIcon::fromTheme("document-save"));
+        //connect(btn, SIGNAL(clicked()), this, SLOT(saveSelected()));
 
-        btn = dialogBtnBox->addButton(tr("&Ignore"), QDialogButtonBox::AcceptRole);
-        btn->setIcon(QIcon::fromTheme("window-close"));
-        connect(btn, SIGNAL(clicked()), this, SLOT(ignoreSelected()));
+        //btn = dialogBtnBox->addButton(tr("&Ignore"), QDialogButtonBox::AcceptRole);
+        //btn->setIcon(QIcon::fromTheme("window-close"));
+        //connect(btn, SIGNAL(clicked()), this, SLOT(ignoreSelected()));
 
-        btn = dialogBtnBox->addButton(tr("&Close"), QDialogButtonBox::AcceptRole);
-        btn->setIcon(QIcon::fromTheme("window-close"));
-        connect(btn, SIGNAL(clicked()), this, SLOT(closeSelected()));
+        //btn = dialogBtnBox->addButton(tr("&Close"), QDialogButtonBox::AcceptRole);
+        //btn->setIcon(QIcon::fromTheme("window-close"));
+        //connect(btn, SIGNAL(clicked()), this, SLOT(closeSelected()));
     } else {
         defaultBtn = btn = dialogBtnBox->addButton(tr("&Save"), QDialogButtonBox::ActionRole);
         btn->setIcon(QIcon::fromTheme("document-save"));

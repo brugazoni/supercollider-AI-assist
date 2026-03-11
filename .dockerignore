@@ -1,0 +1,38 @@
+# Ignore build artifacts and caches
+build/
+out/
+CMakeCache.txt
+CMakeFiles/
+DartConfiguration.tcl
+Testing/
+
+# Git internals
+.git/
+.github/
+
+# IDE and editor files
+.vs/
+.vscode/
+*.user
+
+# Docker directory itself (to avoid recursion)
+docker/code_input/
+docker/config/
+docker/quarks/
+docker/user_extensions/
+
+# Large external libraries that will be fetched during build
+# (uncomment if you want to use upstream instead of local)
+# external_libraries/
+
+# Windows/macOS specific
+*.exe
+*.dll
+*.dylib
+*.app/
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~

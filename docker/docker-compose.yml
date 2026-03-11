@@ -1,0 +1,20 @@
+services:
+  sc-syntax-checker:
+    build: .
+    image: supercollider-syntax-checker
+    container_name: sc_syntax_checker
+    volumes:
+      # Mount a directory for code to be checked
+      - ./code_input:/app/code_input
+      # Persistence for user extensions
+      - ./user_extensions:/root/.local/share/SuperCollider/Extensions
+      # Persistence for downloaded quarks
+      - ./quarks:/root/.local/share/SuperCollider/downloaded-quarks
+      # Optional: Config persistence
+      - ./config:/root/.config/SuperCollider
+    environment:
+      # Helps QT know we are headless (though xvfb handles the heavy lifting)
+      - QT_QPA_PLATFORM=offscreen
+    # Keep container alive for interactive attachment
+    tty: true
+    stdin_open: true
