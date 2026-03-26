@@ -1,0 +1,27 @@
+[project]
+name = "sc-gen-rag"
+version = "0.1.0"
+description = "LLM-driven music generation through SuperCollider code synthesis with hybrid RAG"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+dependencies = [
+    "langchain",
+    "langchain-community",
+    "langchain-huggingface",
+    "langchain-text-splitters",
+    "chromadb",
+    "sentence-transformers",
+    "rank-bm25",
+    "google-generativeai",
+    "ollama",
+    "python-dotenv",
+    "google-auth-oauthlib",
+    "google-api-python-client",
+]
+
+[tool.pdm]
+distribution = false
+
+[tool.pdm.scripts]
+start = "python main.py"
+build-db = "python build_vectordb.py"

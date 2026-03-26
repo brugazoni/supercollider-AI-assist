@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# PDM
+.pdm-python
+
+# Environment / secrets
+.env
+credentials.json
+token.json
+
+# Generated data
+vectordb_knowledge_base/
+vectordb_sc_help/
+
+# IDE
+.vscode/
+.idea/
+*.swp

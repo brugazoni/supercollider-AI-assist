@@ -237,7 +237,15 @@ private:
     void handleEnableTextChangedScRequest(const QString& data);
     void handleEnableTextMirrorScRequest(const QString& data);
     void syncLangDocument(Document*);
+    void autoEvaluateLastRegion(Document*);
 
+public Q_SLOTS:
+    void setAutoEvaluateEnabled(bool enabled) { mAutoEvaluateEnabled = enabled; }
+    
+public:
+    bool isAutoEvaluateEnabled() const { return mAutoEvaluateEnabled; }
+
+private:
     typedef QHash<QByteArray, Document*>::iterator DocIterator;
 
     QHash<QByteArray, Document*> mDocHash;
@@ -247,6 +255,7 @@ private:
     static const int mMaxRecent = 10;
 
     bool mTextMirrorEnabled;
+    bool mAutoEvaluateEnabled;  // Toggle for auto-evaluating new code on reload
     QString mCurrentDocumentPath;
     class Document* mCurrentDocument;
     bool mGlobalKeyDownEnabled, mGlobalKeyUpEnabled;

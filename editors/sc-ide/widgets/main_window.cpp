@@ -415,6 +415,13 @@ void MainWindow::createActions() {
     connect(action, SIGNAL(triggered(bool)), this, SLOT(lookupReferencesForCursor()));
     settings->addAction(action, "ide-lookup-references-for-cursor", ideCategory);
 
+    mActions[AutoEvaluateExternallyModified] = action = new QAction(tr("Auto-Evaluate Externally Modified Files"), this);
+    action->setCheckable(true);
+    action->setChecked(Main::instance()->documentManager()->isAutoEvaluateEnabled());
+    action->setStatusTip(tr("Toggle whether the IDE automatically evaluates externally updated documents"));
+    connect(action, SIGNAL(triggered(bool)), mMain->documentManager(), SLOT(setAutoEvaluateEnabled(bool)));
+    settings->addAction(action, "ide-auto-evaluate-external", ideCategory);
+
     // Settings
     mActions[ShowSettings] = action = new QAction(tr("Preferences"), this);
 #ifdef Q_OS_MAC
@@ -637,6 +644,8 @@ void MainWindow::createMenus() {
     menu->addAction(mActions[LookupImplementation]);
     menu->addAction(mActions[LookupReferencesForCursor]);
     menu->addAction(mActions[LookupReferences]);
+    menu->addSeparator();
+    menu->addAction(mActions[AutoEvaluateExternallyModified]);
 
     menuBar->addMenu(menu);
 

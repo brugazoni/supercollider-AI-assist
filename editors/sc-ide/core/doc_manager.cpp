@@ -253,6 +253,7 @@ void Document::removeTmpFile() {
 DocumentManager::DocumentManager(Main* main, Settings::Manager* settings):
     QObject(main),
     mTextMirrorEnabled(true),
+    mAutoEvaluateEnabled(true),
     mCurrentDocument(NULL),
     mGlobalKeyDownEnabled(false),
     mGlobalKeyUpEnabled(false) {
@@ -548,9 +549,57 @@ void DocumentManager::onFileChanged(const QString& path) {
                 // Force auto-reload regardless of modified state
                 if (reload(doc)) {
                     MainWindow::instance()->showStatusMessage(tr("Automatically reloaded: %1").arg(doc->mFilePath));
+
+                    // Auto-evaluate the last region if enabled
+                    if (mAutoEvaluateEnabled) {
+                        autoEvaluateLastRegion(doc);
+                    }
                 }
             }
         }
+    }
+}
+
+void DocumentManager::autoEvaluateLastRegion(Document* doc) {
+    if (!doc || !doc->textDocument())
+        return;
+
+    QString text = doc->textDocument()->toPlainText();
+    if (text.isEmpty())
+        return;
+
+    // Scan backwards to find the last top-level parenthesized region.
+    // In SC, a top-level region is a '(' at the start of a line matched
+    // with its closing ')'.
+    int depth = 0;
+    int regionEnd = -1;
+    int regionStart = -1;
+
+    for (int i = text.length() - 1; i >= 0; --i) {
+        QChar ch = text[i];
+        if (ch == ')') {
+            if (depth == 0)
+                regionEnd = i;
+            depth++;
+        } else if (ch == '(') {
+            depth--;
+            if (depth == 0 && regionEnd >= 0) {
+                // Check if '(' is at the start of a line (column 0)
+                bool atLineStart = (i == 0 || text[i - 1] == '\n');
+                if (atLineStart) {
+                    regionStart = i;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (regionStart >= 0 && regionEnd >= 0 && regionEnd > regionStart) {
+        QString regionText = text.mid(regionStart, regionEnd - regionStart + 1);
+        regionText.replace(QChar(0x2029), QChar('\n'));
+        Main::evaluateCode(regionText);
+        MainWindow::instance()->showStatusMessage(
+            tr("Auto-evaluated last region (%1 chars)").arg(regionText.length()));
     }
 }
 
