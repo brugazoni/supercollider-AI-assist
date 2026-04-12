@@ -205,7 +205,6 @@ def syntax_validate_node(state: AgentState, config: RunnableConfig):
     print("-- [node] syntax validation")
     code = state['current_code_block']
     attempts = state.get('syntax_check_attempts', 0)
-    validator = config.get('configurable', {}).get('sclang_validator')
 
     is_valid, error_msg = _tier1_structural_check(code)
     if not is_valid:
@@ -218,33 +217,11 @@ def syntax_validate_node(state: AgentState, config: RunnableConfig):
         }
     print("  ✓ Tier 1 structural check: PASSED")
 
-    if validator and validator.is_ready:
-        print("  -- [node] Tier 2: sclang subprocess validation running...")
-        is_valid, error_msg = validator.validate(code)
-        
-        if is_valid:
-            print("  ✓ Tier 2 sclang block validation: PASSED")
-            return {
-                "syntax_valid": True,
-                "syntax_errors": None,
-                "interaction_log": ["  > Syntax validation PASSED (Tier 1 + Tier 2 sclang)"]
-            }
-        else:
-            print(f"  ✗ Tier 2 sclang block validation: FAILED")
-            formatted_error = f"SuperCollider Parse/Syntax Error:\\n{error_msg}"
-            return {
-                "syntax_valid": False,
-                "syntax_errors": formatted_error,
-                "syntax_check_attempts": attempts + 1,
-                "interaction_log": [f"  > Syntax validation FAILED (Tier 2 sclang):\\n{error_msg}"]
-            }
-    else:
-        print("  ⚠ Tier 2 skipped (validator not available) — assuming valid.")
-        return {
-            "syntax_valid": True,
-            "syntax_errors": None,
-            "interaction_log": ["  > Syntax validation PASSED (Tier 1 only, Tier 2 skipped)"]
-        }
+    return {
+        "syntax_valid": True,
+        "syntax_errors": None,
+        "interaction_log": ["  > Syntax validation PASSED (Tier 1)"]
+    }
 
 def syntax_correction_node(state: AgentState):
     attempts = state.get('syntax_check_attempts', 0)
@@ -289,20 +266,16 @@ def llm_review_node(state: AgentState):
     original_provider = cfg.CURRENT_LLM_PROVIDER
     cfg.CURRENT_LLM_PROVIDER = provider
     if provider == "gemini": cfg.CURRENT_MODEL_NAME = cfg.GEMINI_MODEL
-    elif provider == "ollama": cfg.CURRENT_MODEL_NAME = cfg.OLLAMA_MODEL
     elif provider == "anthropic": cfg.CURRENT_MODEL_NAME = cfg.ANTHROPIC_MODEL
     elif provider == "openai": cfg.CURRENT_MODEL_NAME = cfg.OPENAI_MODEL
-    elif provider == "deepseek": cfg.CURRENT_MODEL_NAME = cfg.DEEPSEEK_MODEL
     
     client = LLMClient()
     result, token_info = client.generate(prompt, sys_instr)
     
     cfg.CURRENT_LLM_PROVIDER = original_provider
     if original_provider == "gemini": cfg.CURRENT_MODEL_NAME = cfg.GEMINI_MODEL
-    elif original_provider == "ollama": cfg.CURRENT_MODEL_NAME = cfg.OLLAMA_MODEL
     elif original_provider == "anthropic": cfg.CURRENT_MODEL_NAME = cfg.ANTHROPIC_MODEL
     elif original_provider == "openai": cfg.CURRENT_MODEL_NAME = cfg.OPENAI_MODEL
-    elif original_provider == "deepseek": cfg.CURRENT_MODEL_NAME = cfg.DEEPSEEK_MODEL
     
     return {
         "current_code_block": result,
@@ -668,9 +641,14 @@ def log_to_drive_node(state: AgentState):
 
 # --- Graph Construction ---
 def build_graph(validation_prefs=None):
-    if validation_prefs is None:
-        validation_prefs = {"enabled": True, "mode": "2-tier", "llm_provider": "gemini", "scope": "programmatic"}
-        
+    """Build the one-shot generation graph.
+    
+    Pipeline: load_resources → generate_plan → review_plan → generate_initial
+              → write_output → add_comments → summarize_comments → log_to_drive → END
+    
+    All validation and correction loops have been removed.
+    Code review is handled exclusively by the Fix tab in the IDE.
+    """
     workflow = StateGraph(AgentState)
 
     # Nodes
@@ -678,21 +656,12 @@ def build_graph(validation_prefs=None):
     workflow.add_node("generate_plan", generate_plan_node)
     workflow.add_node("review_plan", review_plan_node)
     workflow.add_node("generate_initial", initial_generation_node)
-    workflow.add_node("syntax_validate", syntax_validate_node)
-    workflow.add_node("syntax_correction", syntax_correction_node)
-    workflow.add_node("llm_review_node", llm_review_node)
     workflow.add_node("write_output", write_output_node)
-    workflow.add_node("verify_output", verification_node)
-    workflow.add_node("correction_auto", correction_auto_node)
-    workflow.add_node("correction_manual", correction_manual_node)
-    workflow.add_node("correction_external", correction_external_node)
-    workflow.add_node("apply_patch", apply_patch_node)
-    workflow.add_node("summarize_improvements", summarize_improvements_node)
     workflow.add_node("add_comments", add_comments_node)
     workflow.add_node("summarize_comments", summarize_comments_node)
     workflow.add_node("log_to_drive", log_to_drive_node)
 
-    # Edges: generation -> optional validation -> write -> verify
+    # Linear edges
     workflow.add_edge(START, "load_resources")
     workflow.add_edge("load_resources", "generate_plan")
     workflow.add_edge("generate_plan", "review_plan")
@@ -710,60 +679,9 @@ def build_graph(validation_prefs=None):
         "add_comments": "add_comments"
     })
 
-    # Validation Router
-    if not validation_prefs.get("enabled", True):
-        workflow.add_edge("generate_initial", "write_output")
-    elif validation_prefs.get("mode") == "llm":
-        workflow.add_edge("generate_initial", "llm_review_node")
-        workflow.add_edge("llm_review_node", "write_output")
-    else:
-        workflow.add_edge("generate_initial", "syntax_validate")
-        def syntax_router(state: AgentState):
-            if state.get("syntax_valid"): return "write_output"
-            import config as cfg
-            attempts = state.get("syntax_check_attempts", 0)
-            if attempts < cfg.MAX_SYNTAX_RETRIES: return "syntax_correction"
-            else: return "write_output"
-            
-        workflow.add_conditional_edges("syntax_validate", syntax_router, {
-            "write_output": "write_output",
-            "syntax_correction": "syntax_correction"
-        })
-        workflow.add_edge("syntax_correction", "syntax_validate")
-
-    workflow.add_edge("write_output", "verify_output")
-
-    # The Verification Router
-    def verify_router(state: AgentState):
-        if state["user_abort"]:
-            return "add_comments"
-
-        if state["is_correct"]:
-            if state.get("fix_mode"): # If a fix mode was active, summarize improvements
-                return "summarize_improvements"
-            else: # Otherwise, if it was correct from the start or after initial generation
-                return "add_comments"
-
-        else:
-            mode = state.get("fix_mode")
-            if mode == "auto": return "correction_auto"
-            if mode == "manual": return "correction_manual"
-            if mode == "external": return "correction_external"
-            return "add_comments"
-
-    workflow.add_conditional_edges("verify_output", verify_router, {
-        "correction_auto": "correction_auto",
-        "correction_manual": "correction_manual",
-        "correction_external": "correction_external",
-        "summarize_improvements": "summarize_improvements",
-        "add_comments": "add_comments"
-    })
-
-    workflow.add_edge("correction_auto", "apply_patch")
-    workflow.add_edge("apply_patch", "verify_output")
-    workflow.add_edge("correction_manual", "verify_output")
-    workflow.add_edge("correction_external", "verify_output")
-    workflow.add_edge("summarize_improvements", "add_comments")
+    # After generation, write directly — no validation loops
+    workflow.add_edge("generate_initial", "write_output")
+    workflow.add_edge("write_output", "add_comments")
     workflow.add_edge("add_comments", "summarize_comments")
     workflow.add_edge("summarize_comments", "log_to_drive")
     workflow.add_edge("log_to_drive", END)

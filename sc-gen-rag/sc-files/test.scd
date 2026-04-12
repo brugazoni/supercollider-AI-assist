@@ -1,667 +1,1006 @@
-// Set a base fadeTime for Ndefs for smoother transitions, and initialize globals
-// Initialize globals (Ndef class does not accept a global fadeTime)
-(
-t = TempoClock.default; // Initialize 't' so t.tempo operations work
-Pdef.defaultQuant = 1;  // Initialize to prevent nil errors in Pfunc calculations
-)
 
-// --- I. INTRODUCCIÓN: EL LATIDO INSTRUMENTS ---
+
+// --- PARKER SOLAR PROBE INSTRUMENTS ---
 (
-// Ndef(\golpe): Low-frequency, short-duration impulse (knuckle tap)
-Ndef(\golpe).clear;
-Ndef(\golpe, {
-	|freq=180, rq=0.08, amp=0.4, t_trig=1|
-	var env, sig;
-	env = EnvGen.ar(Env.perc(0.005, 0.05), t_trig);
-	// Use WhiteNoise with BPF for a more organic, woody tap sound
-	sig = BPF.ar(WhiteNoise.ar(1), freq, rq);
+Ndef(\voidPad).clear;
+Ndef(\voidPad, {
+	|freq=40, amp=0.3, t_trig=1, hpfFreq=20|
+	var env, sig, sub;
+	env = EnvGen.ar(Env([0, 1, 0.8, 0], [2, 3, 3]), t_trig);
+	sig = Saw.ar([freq, freq * 1.01]);
+	sub = SinOsc.ar([freq * 0.5, freq * 0.505]);
+	sig = RLPF.ar(sig + sub, freq * 3, 0.4);
+	sig = HPF.ar(sig, hpfFreq);
+	sig * env * amp;
+}).play;
+
+Ndef(\probePulse).clear;
+Ndef(\probePulse, {
+	|freq=2000, modFreq=500, modIndex=1, amp=0.35, t_trig=1|
+	var env, mod, sig;
+	env = EnvGen.ar(Env.perc(0.005, 0.1), t_trig);
+	mod = SinOsc.ar(modFreq) * modIndex * freq;
+	sig = SinOsc.ar(freq + mod);
 	Pan2.ar(sig * env * amp, 0);
 }).play;
 
-// Ndef(\cajonKick): Deeper, slightly longer impulse (cajón bass)
-Ndef(\cajonKick).clear;
-Ndef(\cajonKick, {
-	|freq=80, decayscale=1.0, amp=0.6, t_trig=1|
-	var env, exciter, sig;
-	env = EnvGen.ar(Env.perc(0.01, 0.15), t_trig);
-	exciter = PinkNoise.ar * env;
-	// DynKlank for a resonant body sound
-	sig = DynKlank.ar(
-		`[ // Changed from #[ to `[
-			[1, 1.5, 2.1, 2.8] * freq, // Frequencies
-			[1, 0.7, 0.4, 0.2],        // Amplitudes
-			[0.15, 0.1, 0.08, 0.05]    // Ring times
-		],
-		exciter,
-		decayscale: decayscale // Controls overall decay
-	);
-	sig = LPF.ar(sig, freq * 3); // Warm the kick
-	Pan2.ar(sig * amp, Rand(-0.1, 0.1));
+Ndef(\venusGravity).clear;
+Ndef(\venusGravity, {
+	|freq=80, sweepDur=4, amp=0.5, t_trig=1, pan=0|
+	var env, sweep, sig;
+	env = EnvGen.ar(Env.perc(0.1, sweepDur), t_trig);
+	sweep = EnvGen.ar(Env([freq * 6, freq, freq * 0.2], [0.1, sweepDur * 0.9], \exp), t_trig);
+	sig = Pulse.ar(sweep, 0.3) + Saw.ar(sweep * 1.01);
+	sig = RLPF.ar(sig, sweep * 1.5, 0.2);
+	Pan2.ar(sig * env * amp, pan);
+}).play;
+
+Ndef(\solarWind).clear;
+Ndef(\solarWind, {
+	|amp=0.25, t_trig=1, bpfFreq=2000, rq=0.1|
+	var env, sig;
+	env = EnvGen.ar(Env.perc(0.01, 0.2), t_trig);
+	sig = Array.fill(4, { PinkNoise.ar() + (WhiteNoise.ar() * 0.5) });
+	sig = BPF.ar(sig, bpfFreq, rq);
+	Splay.ar(sig) * env * amp;
 }).play;
 )
 
-// --- I. INTRODUCCIÓN: EL LATIDO EFFECTS ---
+// --- PARKER SOLAR PROBE EFFECTS ---
 (
-// Ndef(\golpe) reverb
-Ndef(\golpe)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.2, 0.2) };
-Ndef(\golpe).set(\wet10, 0); // Initialize dry
+// Reverb (Index 10)
+Ndef(\voidPad)[10] = \filter -> { |in| GVerb.ar(in.sum, 200, 8, 0.5, 0.5, 15, 0.5, 0.7, 0.5) };
+Ndef(\voidPad).set(\wet10, 0);
+
+// Delay (Index 11)
+Ndef(\probePulse)[11] = \filter -> { |in| CombL.ar(in, 0.5, 0.15, \decayTime.kr(0.5)) };
+Ndef(\probePulse).set(\wet11, 0);
+
+// Distortion (Index 12)
+Ndef(\solarWind)[12] = \filter -> { |in| (in * \drive.kr(5)).tanh }; // Changed to tanh for warmer, smoother saturation
+Ndef(\solarWind).set(\wet12, 0);
 )
 
-// --- I. INTRODUCCIÓN: EL LATIDO SEQUENCES ---
+// --- PARKER SOLAR PROBE SEQUENCES ---
 (
-Pbindef(\golpeSeq,
-	\dur, 1/4,
-	\amp, Pseq([0.6, 0.4, 0.6, 0.4], inf), // Accented pulse
-	\t_trig, 1
-);
+Pbindef(\voidSeq, \dur, 8, \freq, Pseq([40, 42, 38, 45], inf), \t_trig, 1);
+Pbindef(\probeSeq, \dur, 2, \freq, 2000, \modFreq, 500, \modIndex, 1, \t_trig, 1);
+Pbindef(\venusSeq, \dur, 8, \freq, 80, \sweepDur, 4, \pan, Pseq([-0.8, 0.8], inf), \t_trig, 1);
+Pbindef(\solarSeq, \dur, Pwhite(0.05, 0.15), \bpfFreq, Pwhite(1000, 5000), \rq, 0.1, \t_trig, 1);
 
-Pbindef(\cajonKickSeq,
-	\dur, 1/4,
-	\legato, 0.7,
-	\amp, Pseq([0.8, 0, 0.5, 0], inf), // Syncopated low-end
-	\t_trig, 1
-);
+// Quantization for synchronization
+Ndef(\voidPad).quant = 1;
+Ndef(\probePulse).quant = 1;
+Ndef(\venusGravity).quant = 1;
+Ndef(\solarWind).quant = 1;
 
-Ndef(\golpe).quant = 1;
-Ndef(\cajonKick).quant = 1;
-
-Ndef(\golpe)[1] = \set -> Pbindef(\golpeSeq);
-Ndef(\cajonKick)[1] = \set -> Pbindef(\cajonKickSeq);
+// Set fade times for smooth transitions
+Ndef(\voidPad).fadeTime = 3;
+Ndef(\probePulse).fadeTime = 1;
+Ndef(\venusGravity).fadeTime = 2;
+Ndef(\solarWind).fadeTime = 2;
 )
 
-// --- II. EXPLORACIÓN BINARIA Y TERNARIA INSTRUMENTS ---
+
+// --- PARKER SOLAR PROBE LIVE CODING TWEAKS ---
+
+// =============================================================================
+// Movement I: Launch & Vacuum (Intro / Static Loop)
+// =============================================================================
+
+Ndef(\voidPad)[1] = \set -> Pbindef(\voidSeq);
+Ndef(\probePulse)[1] = \set -> Pbindef(\probeSeq);
+
+Ndef(\voidPad).xset(\wet10, 1.0); // 100% wet massive reverb establishing deep space
+// Ndef(\voidPad).xset(\wet10, 0); // Revert reverb
+
+Ndef(\probePulse).xset(\wet11, 0); // Dry isolated ping representing the lonely probe
+// Ndef(\probePulse).xset(\wet11, 0.5); // Revert delay
+
+
+// =============================================================================
+// Movement II: Venus Gravity Assists (Development)
+// =============================================================================
+
+Ndef(\venusGravity)[1] = \set -> Pbindef(\venusSeq); // Introduce the huge orbital whips
+// Pbindef(\venusSeq).stop; // Revert Venus flybys
+
+Pbindef(\probeSeq, \dur, 1); // Velocity increases
+// Pbindef(\probeSeq, \dur, 2); // Revert velocity
+
+Pbindef(\probeSeq, \dur, 0.5); // Velocity increases further
+// Pbindef(\probeSeq, \dur, 1); // Revert velocity
+
+Ndef(\probePulse).xset(\wet11, 0.4); // Add sonic trails for kinetic movement
+// Ndef(\probePulse).xset(\wet11, 0); // Revert delay
+
+Pbindef(\probeSeq, \modIndex, 4); // Tone becomes metallic and stressed from G-forces
+// Pbindef(\probeSeq, \modIndex, 1); // Revert tone
+
+
+// =============================================================================
+// Movement III: Piercing the Corona (Radical Contrast)
+// =============================================================================
+
+Pbindef(\venusSeq).stop; // Leave planetary bodies behind
+// Ndef(\venusGravity)[1] = \set -> Pbindef(\venusSeq); // Revert Venus
+
+Ndef(\voidPad).xset(\hpfFreq, 400); // Radically thin the low end to make space for the sun
+// Ndef(\voidPad).xset(\hpfFreq, 20); // Revert low end
+
+Ndef(\solarWind)[1] = \set -> Pbindef(\solarSeq); // Plunge into the blistering solar wind
+// Pbindef(\solarSeq).stop; // Revert solar wind
+
+Ndef(\solarWind).xset(\wet12, 1.0, \drive, 10); // Overwhelming scorched wall of harsh noise
+// Ndef(\solarWind).xset(\wet12, 0, \drive, 1); // Revert distortion
+
+Pbindef(\probeSeq, \freq, Pn(Pgeom(1500, 1.15, 12), inf)); // Erratic, ascending pitch sweeps
+// Pbindef(\probeSeq, \freq, 2000); // Revert pitch
+
+
+// =============================================================================
+// Movement IV: 0.064% The Speed of Light (Climax)
+// =============================================================================
+
+Pbindef(\probeSeq, \dur, 0.0625); // Push to incredible, audio-rate speeds
+// Pbindef(\probeSeq, \dur, 0.5); // Revert sequence duration
+
+Ndef(\probePulse).xset(\decayTime, 8, \wet11, 0.85); // Near-infinite blinding streaks
+// Ndef(\probePulse).xset(\decayTime, 0.5, \wet11, 0.4); // Revert delay feedback
+
+Ndef(\solarWind).xset(\rq, 1.0); // Open noise bandpass entirely for maximum stereo chaos
+// Ndef(\solarWind).xset(\rq, 0.1); // Revert noise filter
+
+
+// =============================================================================
+// Movement V: Telemetry & Void (Outro)
+// =============================================================================
+
+Pbindef(\solarSeq).stop; // Emerge from the corona
+// Ndef(\solarWind)[1] = \set -> Pbindef(\solarSeq); // Revert to solar wind
+
+Ndef(\solarWind).xset(\wet12, 0, \drive, 1); // Immediately kill the intense heat
+// Ndef(\solarWind).xset(\wet12, 1.0, \drive, 10); // Revert to heat
+
+Pbindef(\probeSeq, \dur, 2, \freq, 400); // Slow down significantly, Doppler pitch drop
+// Pbindef(\probeSeq, \dur, 0.0625, \freq, Pn(Pgeom(1500, 1.15, 12), inf)); // Revert Doppler
+
+
+// =============================================================================
+// FADE OUT & ENDING
+// =============================================================================
 (
-// Ndef(\cajonSnare): Sharper, mid-frequency click/thwack
-Ndef(\cajonSnare).clear;
-Ndef(\cajonSnare, {
-	|freq=3000, rq=0.05, amp=0.3, t_trig=1|
-	var env, sig;
-	env = EnvGen.ar(Env.perc(0.001, 0.08), t_trig);
-	// BandPassFilter WhiteNoise for a sharp snare-like sound
-	sig = BPF.ar(WhiteNoise.ar(1), freq, rq, 4);
-	Pan2.ar(sig * env * amp, Rand(-0.3, 0.3));
-}).play;
+Pbindef(\voidSeq).stop;
+Pbindef(\probeSeq).stop;
+Pbindef(\venusSeq).stop;
+Pbindef(\solarSeq).stop;
 
-// Ndef(\palmas): Short, sharp, high-frequency claps
-Ndef(\palmas).clear;
-Ndef(\palmas, {
-	|freq=8000, rq=0.01, amp=0.25, t_trig=1|
-	var env, sig;
-	env = EnvGen.ar(Env.perc(0.001, 0.03), t_trig);
-	// High-passed Crackle for a crisp clap texture
-	sig = HPF.ar(Crackle.ar(1.9, 0.5), freq);
-	Splay.ar(sig * env * amp); // Use Splay for wide stereo
-}).play;
+Ndef(\voidPad).fadeTime = 8;
+Ndef(\probePulse).fadeTime = 8;
+Ndef(\venusGravity).fadeTime = 8;
+Ndef(\solarWind).fadeTime = 8;
 
-// Ndef(\rasgueado): Short, rich, percussive broadband sound for guitar strumming
-Ndef(\rasgueado).clear;
-Ndef(\rasgueado, {
-	|freq=150, rq=0.1, amp=0.5, atk=0.01, rel=0.2, t_trig=1|
-	var env, sig;
-	env = EnvGen.ar(Env.perc(atk, rel), t_trig);
-	// Blip for rich harmonics, filtered for percussive strum
-	sig = Blip.ar(freq, 20); // 20 harmonics
-	sig = BPF.ar(sig, freq * 4, rq); // Shape it with a BPF
-	Pan2.ar(sig * env * amp, Rand(-0.4, 0.4));
-}).play;
+Ndef(\voidPad).clear(8);
+Ndef(\probePulse).clear(8);
+Ndef(\venusGravity).clear(8);
+Ndef(\solarWind).clear(8);
+)
 
-// Ndef(\bass): Clean sine wave for a walking bassline
-Ndef(\bass).clear;
-Ndef(\bass, {
-	|freq=60, amp=0.5, rel=0.7, filterFreq=200, t_trig=1|
-	var env, sig;
-	env = EnvGen.ar(Env.perc(0.01, rel), t_trig);
+// --- BLOCK 1: TWEAK_SEQUENCE ---
+(
+Pbindef(\probeSeq, \freq, Pn(Pwhite(1800, 2500, 8), inf)); // Introduce high-pitched, erratic blips for navigation
+// Pbindef(\probeSeq, \freq, 2000); // Revert to fixed frequency
+)
+
+// --- GLOBAL SETUP (already assumed to be run, but for completeness) ---
+(
+s.options.numBuffers = 1024 * 256; // Increase for longer samples or complex reverb
+s.options.memSize = 8192 * 16;     // Increase server memory
+s.options.maxNodes = 2048;         // More nodes for complex patterns/synths
+s.options.numOutputBusChannels = 2;
+s.options.numInputBusChannels = 2;
+s.boot;
+)
+
+s.sync;
+
+(
+t = TempoClock.default;
+t.tempo = 60/60; // 60 BPM
+Pdef.defaultQuant = 1; // Quantize patterns to 1 beat by default
+)
+
+// Clear any existing Ndefs or Pbindefs to ensure a clean start
+(
+Ndef.clear;
+Pbindef.clear;
+)
+
+
+// --- Section 1: Gentle Unveiling (Intro) INSTRUMENTS ---
+(
+Ndef(\baseTone).clear;
+Ndef(\baseTone, {
+	|freq=100, amp=0.4, modFreq=0.2, modIndex=0.01, pan=0|
+	var mod, sig;
+	// Low-frequency amplitude modulation to give a "breathing" quality
+	mod = SinOsc.ar(modFreq) * modIndex;
+	sig = SinOsc.ar(freq * (1 + mod)); // Carrier modulated by LFO
+	Pan2.ar(sig * amp, pan);
+}).play;
+)
+
+// --- Section 1: Gentle Unveiling (Intro) EFFECTS ---
+(
+// Reverb for baseTone (Index 10)
+Ndef(\baseTone)[10] = \filter -> { |in, revDecay=0.8| FreeVerb.ar(in.sum, 1, 0.7, revDecay) };
+Ndef(\baseTone).set(\wet10, 0); // Initially dry
+
+// Delay for baseTone (Index 11) - defined but kept dry for now
+Ndef(\baseTone)[11] = \filter -> { |in, delayTime=0.4, delFeedback=0.3| CombL.ar(in, delayTime, delayTime, delFeedback) };
+Ndef(\baseTone).set(\wet11, 0);
+)
+
+// --- Section 1: Gentle Unveiling (Intro) LIVE CODING TWEAKS ---
+(
+Ndef(\baseTone).fadeTime = 8; // Set fade time for smooth crossfades
+Ndef(\baseTone).xset(\amp, 0.3); // Slowly fade in the base tone
+// Ndef(\baseTone).xset(\amp, 0); // Revert amp
+Ndef(\baseTone).xset(\wet10, 0.4); // Gently introduce spacious reverb
+// Ndef(\baseTone).xset(\wet10, 0); // Revert reverb
+)
+
+
+// --- Section 2: Drifting Harmonies (Development) INSTRUMENTS ---
+(
+Ndef(\harmony).clear;
+Ndef(\harmony, {
+	|freq=150, amp=0.2, pan=(-0.6)|
+	var sig;
 	sig = SinOsc.ar(freq);
-	sig = LPF.ar(sig, filterFreq); // Keep it warm
-	Pan2.ar(sig * env * amp, 0);
+	Pan2.ar(sig * amp, pan);
 }).play;
 )
 
-// --- II. EXPLORACIÓN BINARIA Y TERNARIA EFFECTS ---
+// --- Section 2: Drifting Harmonies (Development) EFFECTS ---
 (
-// Ndef(\palmas) delay
-Ndef(\palmas)[11] = \filter -> { |in| CombL.ar(in.sum, 0.2, 0.08, 0.3) }; // Short slapback
-Ndef(\palmas).set(\wet11, 0);
-
-// Ndef(\rasgueado) reverb
-Ndef(\rasgueado)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.4, 0.3) };
-Ndef(\rasgueado).set(\wet10, 0);
+// Reverb for harmony (Index 10)
+Ndef(\harmony)[10] = \filter -> { |in, revDecay=0.8| FreeVerb.ar(in.sum, 1, 0.7, revDecay) };
+Ndef(\harmony).set(\wet10, 0); // Initially dry
 )
 
-// --- II. EXPLORACIÓN BINARIA Y TERNARIA SEQUENCES ---
+// --- Section 2: Drifting Harmonies (Development) SEQUENCES ---
 (
-// Binary (4/4) rhythm
-Pbindef(\cajonSnareSeq,
-	\dur, 1/4,
-	\amp, Pseq([0, 0.4, 0, 0.3], inf),
-	\t_trig, 1
+// Pbindef for baseTone - gentle arpeggiation
+Pbindef(\baseSeq,
+	\dur, 2, // Slow, sustained notes
+	\degree, Pseq([0, 2, 4, 7, 9, 7, 4, 2], inf), // Arpeggiated pattern
+	\scale, Scale.majorPentatonic, // Simple, consonant scale
+	\root, 40, // Base MIDI note
+	\legato, 1.0 // Fully sustained
 );
+// Assign a scale-based frequency to baseTone. The Ndef's `freq` arg will be overwritten by this.
+Pbindef(\baseSeq, \freq, Pkey(\degree).midicps);
+Ndef(\baseTone).quant = 1;
+Ndef(\baseTone)[1] = \set -> Pbindef(\baseSeq);
 
-Pbindef(\palmasSeq,
-	\dur, 1/4,
-	\amp, Pseq([0.5, 0.7, 0.5, 0.7], inf),
-	\t_trig, 1
+// Pbindef for harmony - slow panning and consonant intervals
+Pbindef(\harmonySeq,
+	\dur, 4, // Even slower notes for harmony
+	\degree, Pseq([4, 7, 0, 2, 0, 7, 4, 7], inf), // Consonant to base tone, but shifting
+	\scale, Scale.majorPentatonic,
+	\root, 47, // Offset for harmony
+	\legato, 1.0,
+	\pan, Pseq([-0.6, 0.6, -0.4, 0.4, -0.2, 0.2, 0, 0], inf).wrap(-0.8, 0.8) // Slow, drifting pan
 );
-
-Pbindef(\rasgueadoSeq,
-	\dur, 1/2,
-	\amp, Pseq([0.6, 0.0, 0.4, 0.0], inf),
-	\freq, Pseq([120, 150, 100, 130], inf),
-	\t_trig, 1
-);
-
-Pbindef(\bassSeq,
-	\dur, 1,
-	\degree, Pseq([0, 2, 4, 5], inf) + 36, // Root, M2, M3, P4
-	\amp, 0.4,
-	\rel, 0.8,
-	\t_trig, 1
-);
-
-Ndef(\cajonSnare).quant = 1;
-Ndef(\palmas).quant = 1;
-Ndef(\rasgueado).quant = 1;
-Ndef(\bass).quant = 1;
-
-Ndef(\cajonSnare)[1] = \set -> Pbindef(\cajonSnareSeq);
-Ndef(\palmas)[1] = \set -> Pbindef(\palmasSeq);
-Ndef(\rasgueado)[1] = \set -> Pbindef(\rasgueadoSeq);
-Ndef(\bass)[1] = \set -> Pbindef(\bassSeq);
+Pbindef(\harmonySeq, \freq, Pkey(\degree).midicps);
+Ndef(\harmony).quant = 1;
+Ndef(\harmony)[1] = \set -> Pbindef(\harmonySeq);
 )
 
-// --- III. LA RUEDA DE DOCE INSTRUMENTS ---
+// --- Section 2: Drifting Harmonies (Development) LIVE CODING TWEAKS ---
 (
-// Ndef(\melodiaPluck): Karplus-Strong string model
-Ndef(\melodiaPluck).clear;
-Ndef(\melodiaPluck, {
-	|freq=220, amp=0.7, bright=0.5, atk=0.005, rel=0.7, t_trig=1|
-	var env, exciter, sig;
-	env = EnvGen.ar(Env.perc(atk, rel), t_trig);
-	// Short noise burst for excitation
-	exciter = WhiteNoise.ar(0.2) * EnvGen.ar(Env.perc(0.001, 0.005), t_trig);
-	// Pluck UGen for string sound
-	sig = Pluck.ar(exciter, t_trig, 0.5, 1/freq, 3, bright); // 0.5 is maxdelaytime, bright is coef
-	Pan2.ar(sig * env * amp, Rand(-0.2, 0.2));
+Ndef(\baseTone).xset(\wet11, 0.3); // Introduce subtle, long delay on baseTone
+// Ndef(\baseTone).xset(\wet11, 0); // Revert delay
+
+Ndef(\harmony).fadeTime = 6; // Set fade time for harmony
+Ndef(\harmony).xset(\amp, 0.15); // Gently fade in the harmony tone
+// Ndef(\harmony).xset(\amp, 0); // Revert amp
+Ndef(\harmony).xset(\wet10, 0.3); // Gently introduce reverb on harmony
+// Ndef(\harmony).xset(\wet10, 0); // Revert reverb
+)
+
+
+// --- Section 3: Phase Shift (Radical Contrast) LIVE CODING TWEAKS ---
+
+// baseTone pattern shifts to slightly higher/new harmonic color
+(
+Pbindef(\baseSeq,
+	\root, 52, // Shift base tone octave up
+	// \root, 40, // Revert root
+	\degree, Pseq([0, 3, 5, 8, 10, 8, 5, 3], inf) // New, slightly more dissonant arpeggio
+	// \degree, Pseq([0, 2, 4, 7, 9, 7, 4, 2], inf) // Revert degree
+);
+Ndef(\baseTone).xset(\modIndex, 0.03); // Amplitude modulation slightly more pronounced
+// Ndef(\baseTone).xset(\modIndex, 0.01); // Revert modIndex
+)
+
+// harmony frequency morphs to a different consonant interval or subtle beat frequency
+(
+Pbindef(\harmonySeq,
+	\root, 58, // Shift harmony root to create new intervals with baseTone
+	// \root, 47, // Revert root
+	\degree, Pseq([5, 8, 1, 3, 1, 8, 5, 8], inf), // New harmonic intervals
+	// \degree, Pseq([4, 7, 0, 2, 0, 7, 4, 7], inf), // Revert degree
+	\pan, Pseq([-0.8, 0.8, -0.6, 0.6, -0.4, 0.4, -0.2, 0.2], inf).wrap(-0.9, 0.9) // Wider, slightly faster pan
+	// \pan, Pseq([-0.6, 0.6, -0.4, 0.4, -0.2, 0.2, 0, 0], inf).wrap(-0.8, 0.8) // Revert pan
+);
+)
+
+// Delay feedback slightly increased for baseTone
+Ndef(\baseTone).xset(\delFeedback, 0.5);
+// Ndef(\baseTone).xset(\delFeedback, 0.3); // Revert delFeedback
+
+// Reverb decay time slightly lengthened for baseTone
+Ndef(\baseTone).xset(\revDecay, 1.2);
+// Ndef(\baseTone).xset(\revDecay, 0.8); // Revert revDecay
+
+// Reverb decay time slightly lengthened for harmony
+Ndef(\harmony).xset(\revDecay, 1.2);
+// Ndef(\harmony).xset(\revDecay, 0.8); // Revert revDecay
+
+
+// --- Section 4: Dissolution (Outro) ---
+(
+Pbindef(\baseSeq).stop; // Stop baseTone arpeggio, current note sustains
+Pbindef(\harmonySeq).stop; // Stop harmony arpeggio, current note sustains
+
+Ndef(\harmony).fadeTime = 10; // Long fade out for harmony
+Ndef(\harmony).xset(\amp, 0); // Fade out harmony
+// Ndef(\harmony).xset(\amp, 0.15); // Revert amp
+
+Ndef(\baseTone).fadeTime = 12; // Even longer fade out for baseTone
+Ndef(\baseTone).xset(\amp, 0); // Fade out baseTone
+// Ndef(\baseTone).xset(\amp, 0.3); // Revert amp
+
+// Momentarily increase wetness to emphasize decaying tails
+Ndef(\baseTone).xset(\wet10, 0.9, \wet11, 0.8); // Max out reverb and delay on baseTone
+// Ndef(\baseTone).xset(\wet10, 0.4, \wet11, 0.3); // Revert wetness for baseTone
+Ndef(\harmony).xset(\wet10, 0.9); // Max out reverb on harmony
+// Ndef(\harmony).xset(\wet10, 0.3); // Revert wetness for harmony
+
+// Schedule the eventual full fade out of effects and clearing of Ndefs
+(
+var fadeTimeFinal = 20; // Total time for tails to fully decay
+
+// Gradually reduce effect wetness
+~cleanupTimer = TempoClock.default.sched(thisThread.beats + 5, {
+	Ndef(\baseTone).fadeTime = 10;
+	Ndef(\baseTone).xset(\wet10, 0, \wet11, 0); // Fade out baseTone effects
+	Ndef(\harmony).fadeTime = 10;
+	Ndef(\harmony).xset(\wet10, 0); // Fade out harmony effects
+});
+
+// Clear Ndefs after everything has faded out
+~cleanupTimer = TempoClock.default.sched(thisThread.beats + fadeTimeFinal, {
+	Ndef(\baseTone).clear(5); // Clear with a final fade buffer
+	Ndef(\harmony).clear(5);
+	"Composition ended.".postln;
+});
+)
+
+// --- Instrument Definitions ---
+(
+// Ndef(\rainNoise): Continuous, evolving atmospheric texture
+Ndef(\rainNoise).clear;
+Ndef(\rainNoise, {
+	|amp=0.1, filterFreq=200, rq=0.1, t_trig=1, pan=0|
+	var sig;
+	sig = PinkNoise.ar();
+	sig = RLPF.ar(sig, filterFreq, rq);
+	Pan2.ar(sig * amp, pan); // Stereo spread
 }).play;
-)
+Ndef(\rainNoise).fadeTime = 2;
 
-// --- III. LA RUEDA DE DOCE EFFECTS ---
-(
-// Ndef(\melodiaPluck) reverb and delay
-Ndef(\melodiaPluck)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.6, 0.4) };
-Ndef(\melodiaPluck).set(\wet10, 0);
-
-Ndef(\melodiaPluck)[11] = \filter -> { |in| CombL.ar(in, 0.5, 0.25, 1.2) }; // Subtle, longer delay
-Ndef(\melodiaPluck).set(\wet11, 0);
-)
-
-// --- III. LA RUEDA DE DOCE SEQUENCES ---
-(
-// 12-beat cycle for Soleá / Peteneras (accents on 12)
-// ~soleaCycleDur will be dynamically set based on defaultQuant (1 beat = 1/4 dur in a 4/4 measure)
-// So, if defaultQuant = 1, a 1/4 note gets 1 second. A 12-beat cycle should then be 12*1 second = 12 seconds.
-// But compás is typically much faster. Let's make ~soleaCycleDur control the entire cycle duration.
-// Let's assume t.tempo = 60/80 (0.75 beat duration) so a 12-beat cycle is 12 * 0.75 = 9 seconds
-~soleaCycleDur = Pfunc { Pdef.defaultQuant.value * 12 * (60 / t.tempo) / 4 }; // 12 beats, scaled by actual tempo and then by 4/4 assumption. Simplified.
-
-// Let's explicitly define a *base beat duration* for 12-beat cycles and use that as the fundamental `\dur` unit
-~base12BeatUnit = Pfunc { Pdef.defaultQuant.value * (60 / t.tempo) * (1/4) }; // If t.tempo = 60 (1s/beat), this is 0.25s per 'unit'
-
-Pbindef(\golpeSeqSolea,
-	\dur, ~base12BeatUnit, // Each dur is 1/12th of the cycle duration
-	\amp, Pseq([0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3, 0.2, 0.3, 0.7], inf), // Accent on 12
-	\t_trig, 1
-);
-
-Pbindef(\cajonKickSeqSolea,
-	\dur, ~base12BeatUnit,
-	\amp, Pseq([0.5, 0, 0, 0.4, 0, 0, 0.3, 0, 0, 0.5, 0, 0.8], inf),
-	\t_trig, 1
-);
-
-Pbindef(\cajonSnareSeqSolea,
-	\dur, ~base12BeatUnit,
-	\amp, Pseq([0, 0.2, 0, 0.2, 0, 0.3, 0, 0.2, 0.3, 0, 0, 0.4], inf),
-	\t_trig, 1
-);
-
-Pbindef(\palmasSeqSolea,
-	\dur, ~base12BeatUnit,
-	\amp, Pseq([0.4, 0.6, 0.4, 0.6, 0.4, 0.7, 0.4, 0.6, 0.4, 0.6, 0.4, 0.8], inf),
-	\t_trig, 1
-);
-
-Pbindef(\rasgueadoSeqSolea,
-	\dur, ~base12BeatUnit * Pseq(([2, 1, 2, 1, 2, 1, 2, 1].normalizeSum * 12), inf), // Longer strokes over the 12 beats
-	\amp, Pseq([0.6, 0, 0.5, 0, 0.7, 0, 0.6, 0.0], inf),
-	\freq, Pseq([130, 0, 100, 0, 150, 0, 120, 0], inf),
-	\t_trig, Pseq([1, 0], inf) // Only trigger on downbeats for the longer strokes
-);
-
-Pbindef(\melodiaPluckSeq,
-	\dur, ~base12BeatUnit * Pseq(([3, 1, 2, 2, 4].normalizeSum * 12), inf), // Slow, melancholic melody
-	\degree, Pseq([0, -2, -4, -5, -7], inf) + 48, // C major scale in MIDI
-	\amp, Pseq([0.7, 0.6, 0.7, 0.5, 0.8], inf),
-	\rel, Pkey(\dur) * 0.8,
-	\t_trig, 1
-);
-)
-
-// --- IV. BULERÍAS: EL FUEGO SEQUENCES ---
-(
-// 12-beat Bulerías cycle (accents on 3rd, 6th, 8th, 10th, 12th beats)
-~baseBuleriasBeatUnit = Pfunc { Pdef.defaultQuant.value * (60 / t.tempo) * (1/4) }; // Faster overall unit
-
-Pbindef(\golpeSeqBulerias,
-	\dur, ~baseBuleriasBeatUnit,
-	\amp, Pseq([0.2, 0.2, 0.7, 0.2, 0.2, 0.7, 0.2, 0.7, 0.2, 0.7, 0.2, 0.8], inf),
-	\t_trig, 1
-);
-
-Pbindef(\cajonKickSeqBulerias,
-	\dur, ~baseBuleriasBeatUnit,
-	\amp, Pseq([0.5, 0, 0.8, 0, 0, 0.7, 0, 0.8, 0, 0.7, 0, 0.9], inf),
-	\t_trig, 1
-);
-
-Pbindef(\cajonSnareSeqBulerias,
-	\dur, ~baseBuleriasBeatUnit,
-	\amp, Pseq([0, 0.3, 0.5, 0.2, 0.4, 0.6, 0.2, 0.5, 0.7, 0.3, 0.5, 0.8], inf),
-	\t_trig, 1
-);
-
-Pbindef(\palmasSeqBulerias,
-	\dur, ~baseBuleriasBeatUnit * Pseq([2, 2, 2, 2, 2, 2], inf), // Palmas in groups of 6 beats (2 units each)
-	\amp, Pseq([0.8, 0.7, 0.9, 0.7, 0.8, 1.0], inf),
-	\t_trig, 1
-);
-
-Pbindef(\rasgueadoSeqBulerias,
-	\dur, ~baseBuleriasBeatUnit * Pseq(([1, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5].normalizeSum * 12), inf), // Fast, intricate strumming
-	\amp, Pseq([0.8, 0.6, 0.7, 0.9, 0.7, 0.8, 1.0, 0.8, 0.9], inf),
-	\freq, Pseq([180, 200, 160, 220, 170, 190, 240, 180, 210], inf),
-	\t_trig, 1
-);
-
-Pbindef(\melodiaPluckSeqBulerias,
-	\dur, ~baseBuleriasBeatUnit * Pseq(([1, 1, 0.5, 0.5, 1, 1, 0.5, 0.5].normalizeSum * 12), inf), // Faster, percussive melody
-	\degree, Pseq([0, 2, 4, 5, 7, 9, 11, 12], inf) + 60, // Higher and faster
-	\amp, Pseq([0.8, 0.7, 0.6, 0.7, 0.9, 0.8, 0.7, 0.9], inf),
-	\rel, Pkey(\dur) * 0.7,
-	\t_trig, 1
-);
-)
-
-// --- V. AIRE LIBRE INSTRUMENTS ---
-(
-// Ndef(\pads): Evolving, sustained chords with detuned sine waves
-Ndef(\pads).clear;
-Ndef(\pads, {
-	|freq=110, amp=0.2, sus=5.0, detune=0.005, t_trig=1|
+// Ndef(\drops): Sparse, percussive "raindrop" sounds
+Ndef(\drops).clear;
+Ndef(\drops, {
+	|amp=0.25, freq=1000, rq=0.5, t_trig=1, pan=0|
 	var env, sig;
-	env = EnvGen.ar(Env([0, 1, 1, 0], [0.5, sus, 1.0], \sine), t_trig);
-	// Mix of detuned sine waves for a lush pad
-	sig = Mix.fill(4, { |i|
-		var f = freq * (1 + (detune * (i-1.5)));
-		// Replaced LFO with SinOsc.kr for the subtle pitch modulation
-		SinOsc.ar(f + SinOsc.kr(0.1 + (i*0.02), 0, 2));
-	});
-	Splay.ar(sig * env * amp);
+	env = EnvGen.ar(Env.perc(0.001, 0.05), t_trig); // Very short percussive envelope
+	sig = WhiteNoise.ar();
+	sig = BPF.ar(sig, freq, rq); // Bandpass filter for a distinct "plink"
+	Pan2.ar(sig * env * amp, pan);
+}).play;
+Ndef(\drops).fadeTime = 0.1;
+
+// Ndef(\chimes): Gentle, bell-like or metallic tones (FM Synthesis)
+Ndef(\chimes).clear;
+Ndef(\chimes, {
+	|freq=440, amp=0.05, t_trig=1, modRatio1=2, modRatio2=3.5, modIndexScale=1, pan=0|
+	var indexEnv, ampEnv, mod1, mod2, car;
+	// Percussive envelope for modulation intensity and amplitude
+	indexEnv = EnvGen.kr(Env.perc(0.001, 0.2), t_trig); // Quick decay for metallic strike
+	ampEnv = EnvGen.kr(Env.perc(0.001, 0.5), t_trig); // Longer decay for bell sustain
+
+	// Parallel FM synthesis (Bell algorithm from KB)
+	mod1 = SinOsc.ar(freq * modRatio1) * (freq * modRatio1 * indexEnv * modIndexScale);
+	mod2 = SinOsc.ar(freq * modRatio2) * (freq * 0.5 * indexEnv * modIndexScale);
+	car = SinOsc.ar(freq + mod1 + mod2);
+	Pan2.ar(car * ampEnv * amp, pan);
+}).play;
+Ndef(\chimes).fadeTime = 2;
+
+// Ndef(\bells): Richer, more resonant and sustained bell sounds (DynKlank)
+Ndef(\bells).clear;
+Ndef(\bells, {
+	|fund=110, amp=0.3, t_trig=1, decayscale=1, pan=0|
+	var env, freqs, amps, ringtimes, sig;
+
+	// Generate harmonics for a bell-like sound using DynKlank
+	freqs = #[1, 2.01, 3.03, 4.16, 5.25, 6.33, 7.61, 8.85, 9.99] * fund;
+	amps = #[1.0, 0.7, 0.5, 0.4, 0.3, 0.2, 0.15, 0.1, 0.05];
+	ringtimes = #[4, 2, 1.5, 1, 0.8, 0.6, 0.5, 0.4, 0.3] * decayscale;
+
+	env = EnvGen.ar(Env.perc(0.01, 4), t_trig, levelScale: amp); // Long decay for sustained bell
+	sig = DynKlank.ar(`[freqs, amps, ringtimes], Impulse.ar(0, 0, env));
+	Pan2.ar(sig, pan);
+}).play;
+Ndef(\bells).fadeTime = 4;
+
+// Ndef(\bassPad): Low-frequency, sustained harmonic foundation
+Ndef(\bassPad).clear;
+Ndef(\bassPad, {
+	|freq=40, amp=0.1, t_trig=1, atk=4, sus=4, rel=8, filterFreq=200, rq=0.2, pan=0|
+	var env, sig, sub;
+	env = EnvGen.ar(Env([0, 1, 1, 0], [atk, sus, rel]), t_trig); // Long ADSR-like envelope
+	sig = Saw.ar([freq, freq * 1.005]); // Slightly detuned saw for warmth
+	sub = SinOsc.ar([freq * 0.5, freq * 0.501]); // Sub-octave sine for depth
+	sig = RLPF.ar(sig + sub, filterFreq, rq);
+	Pan2.ar(sig * env * amp, pan);
+}).play;
+Ndef(\bassPad).fadeTime = 4;
+)
+
+// --- Effect Definitions ---
+
+(
+// Ndef(\rainNoise) effects (Index 10: Reverb)
+Ndef(\rainNoise)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.8, 0.5) }; // Reverb: room size 0.8, damping 0.5
+Ndef(\rainNoise).set(\wet10, 0); // Initially dry
+
+// Ndef(\drops) effects (Index 11: Delay)
+Ndef(\drops)[11] = \filter -> { |in| CombL.ar(in, 0.1, 0.05, 0.8) }; // Delay: max delay 0.1s, delay time 0.05s, decay 0.8s
+Ndef(\drops).set(\wet11, 0); // Initially dry
+
+// Ndef(\chimes) effects (Index 10: Reverb, Index 11: Delay)
+Ndef(\chimes)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.7, 0.2) }; // Reverb: room size 0.7, damping 0.2
+Ndef(\chimes).set(\wet10, 0); // Initially dry
+Ndef(\chimes)[11] = \filter -> { |in| CombL.ar(in, 0.5, 0.3, 1.0) }; // Delay: max delay 0.5s, delay time 0.3s, decay 1.0s
+Ndef(\chimes).set(\wet11, 0); // Initially dry
+
+// Ndef(\bells) effects (Index 10: Reverb, Index 11: Delay)
+Ndef(\bells)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.9, 0.7) }; // Reverb: room size 0.9, damping 0.7 (cathedral-like)
+Ndef(\bells).set(\wet10, 0); // Initially dry
+Ndef(\bells)[11] = \filter -> { |in| CombL.ar(in, 1.0, 0.8, 4.0) }; // Delay: max delay 1.0s, delay time 0.8s, decay 4.0s (lush)
+Ndef(\bells).set(\wet11, 0); // Initially dry
+
+// Ndef(\bassPad) effects (Index 10: Reverb)
+Ndef(\bassPad)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.6, 0.8) }; // Reverb: room size 0.6, damping 0.8
+Ndef(\bassPad).set(\wet10, 0); // Initially dry
+)
+
+// --- Sequence Definitions ---
+
+(
+// Pbindef(\rainNoiseSeq): Controls Ndef(\rainNoise) filter cutoff
+Pbindef(\rainNoiseSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\rainNoise).nodeID }),
+	\args, #[\filterFreq],
+	\filterFreq, Pn(Pseg(200, 1000, 60, \lin), inf) // Slowly raise cutoff from 200 to 1000 over 60s
+);
+
+// Pbindef(\dropSeq): Controls Ndef(\drops) timing, pitch, and panning
+Pbindef(\dropSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\drops).nodeID }),
+	\args, #[\t_trig, \freq, \pan],
+	\t_trig, 1,
+	\dur, Pn(Pwrand([2, 1, 0.5], [0.5, 0.3, 0.2], inf), inf), // Irregular timing
+	\freq, Pn(Pwhite(500, 2000, inf), inf), // Random high frequencies
+	\pan, Pn(Pwhite((-0.8), 0.8, inf), inf) // Random panning
+);
+
+// Pbindef(\chimeSeq): Sequences Ndef(\chimes) melodic phrases
+Pbindef(\chimeSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\chimes).nodeID }),
+	\args, #[\t_trig, \freq, \amp, \pan],
+	\t_trig, 1,
+	\dur, Pn(Pwrand([1, 0.75, 0.5], [0.6, 0.3, 0.1], inf), inf), // Slow, varied rhythm
+	\freq, Pn(Pseq([60, 64, 67, 72].midicps, inf), inf), // Simple, hopeful major arpeggio
+	\amp, Pn(Pseq([0.1, 0.15, 0.2, 0.18], inf), inf), // Dynamic amplitudes
+	\pan, Pn(Pseq([(-0.4), 0.4, (-0.2), 0.2], inf), inf)
+);
+
+// Pbindef(\bellSeq): Sequences Ndef(\bells) harmonic progressions (root notes)
+Pbindef(\bellSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\bells).nodeID }),
+	\args, #[\t_trig, \fund, \pan],
+	\t_trig, 1,
+	\dur, Pn(Pwrand([4, 2, 1], [0.6, 0.3, 0.1], inf), inf), // Slower, more sustained phrases
+	\fund, Pn(Pseq([
+		60, // C Major root
+		58, // Bb Major root
+		62  // D Major root
+	].midicps, inf), inf),
+	\pan, Pn(Pseq([(-0.6), 0.6, 0.0], inf), inf) // Panning for chord elements
+);
+
+// Pbindef(\bassPadSeq): Sequences Ndef(\bassPad) sustained notes
+Pbindef(\bassPadSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\bassPad).nodeID }),
+	\args, #[\t_trig, \freq, \atk, \sus, \rel, \pan],
+	\t_trig, 1,
+	\dur, 8, // Long, sustained notes
+	\freq, Pn(Pseq([36, 34, 38].midicps, inf), inf), // Root notes for chords
+	\atk, 4, \sus, 4, \rel, 8, // Long envelopes
+	\pan, 0 // Centered
+);
+)
+
+// --- Section 1: Rainy Intro ---
+
+(
+// Initial setup for rainNoise and drops
+Ndef(\rainNoise).xset(\amp, 0.1, \filterFreq, 200, \rq, 0.1, \pan, 0); // Initial low cutoff, centered
+// Ndef(\rainNoise).xset(\amp, 0.1, \filterFreq, 200, \rq, 0.1, \pan, 0); // Revert
+Ndef(\rainNoise).set(\wet10, 0.8); // Very wet reverb for atmosphere
+// Ndef(\rainNoise).set(\wet10, 0); // Revert
+
+Ndef(\drops).xset(\amp, 0.25); // Slightly higher amplitude for drops
+// Ndef(\drops).xset(\amp, 0.25); // Revert
+Ndef(\drops).set(\wet11, 0.4); // Subtle splash/drip echo
+// Ndef(\drops).set(\wet11, 0); // Revert
+
+Ndef(\rainNoise).quant = 1;
+Ndef(\rainNoise)[1] = \set -> Pbindef(\rainNoiseSeq); // Start rainNoise cutoff evolution
+
+Ndef(\drops).quant = 1;
+Ndef(\drops)[1] = \set -> Pbindef(\dropSeq); // Start raindrop sequence
+)
+
+// --- Section 2: Emerging Light (Transition after ~1.5 - 2 minutes) ---
+// Execute these lines to transition to Section 2
+(
+// Rain transformation: filter cutoff continues to rise, amplitude slightly decreases
+Pbindef(\rainNoiseSeq, \filterFreq, Pn(Pseg(1000, 3000, 90, \lin), inf)); // Continue raising cutoff over 90s
+// Pbindef(\rainNoiseSeq, \filterFreq, Pn(Pseg(200, 1000, 60, \lin), inf)); // Revert
+Ndef(\rainNoise).xset(\amp, 0.08); // Slight amplitude reduction
+// Ndef(\rainNoise).xset(\amp, 0.1); // Revert
+
+// Drops evolution: more regular timing, softer character, lower amplitude
+Pbindef(\dropSeq, \dur, Pn(Pwrand([1.5, 1, 0.75], [0.4, 0.4, 0.2], inf), inf)); // More regular rhythm
+// Pbindef(\dropSeq, \dur, Pn(Pwrand([2, 1, 0.5], [0.5, 0.3, 0.2], inf), inf)); // Revert
+Ndef(\drops).xset(\amp, 0.15); // Lower amplitude
+// Ndef(\drops).xset(\amp, 0.25); // Revert
+
+// Introduction of Chimes: soft melodic line
+Ndef(\chimes).xset(\amp, 0.05); // Start very quietly
+// Ndef(\chimes).xset(\amp, 0); // Revert (to silence)
+Ndef(\chimes).set(\wet10, 0.6); // Sparkling reverb
+// Ndef(\chimes).set(\wet10, 0); // Revert
+Ndef(\chimes).set(\wet11, 0.5); // Shimmering echoes
+// Ndef(\chimes).set(\wet11, 0); // Revert
+
+Ndef(\chimes).quant = 1;
+Ndef(\chimes)[1] = \set -> Pbindef(\chimeSeq); // Start chime melody
+)
+
+// --- Section 3: Easter Bells & Rain (Open-Ended Loop) (Transition after ~1.5 minutes) ---
+// Execute these lines to transition to Section 3
+(
+// Fade out Chimes and introduce Bells and BassPad
+Pbindef(\chimeSeq).stop; // Stop chime melody
+Ndef(\chimes).clear(4); // Fade out chimes gracefully over 4 seconds
+
+Ndef(\bells).xset(\amp, 0.3); // Overall amplitude for main bells
+// Ndef(\bells).xset(\amp, 0); // Revert (to silence)
+Ndef(\bells).set(\wet10, 0.8); // Cathedral-like reverb
+// Ndef(\bells).set(\wet10, 0); // Revert
+Ndef(\bells).set(\wet11, 0.6); // Lush, evolving echoes
+// Ndef(\bells).set(\wet11, 0); // Revert
+Ndef(\bells).quant = 1;
+Ndef(\bells)[1] = \set -> Pbindef(\bellSeq); // Start bell chord progressions
+
+Ndef(\bassPad).xset(\amp, 0.1); // Subtle background bass
+// Ndef(\bassPad).xset(\amp, 0); // Revert (to silence)
+Ndef(\bassPad).set(\wet10, 0.5); // Depth reverb for bass
+// Ndef(\bassPad).set(\wet10, 0); // Revert
+Ndef(\bassPad).quant = 1;
+Ndef(\bassPad)[1] = \set -> Pbindef(\bassPadSeq); // Start bass pad foundation
+
+// Rain persistence: shimmering drone, recedes further
+Pbindef(\rainNoiseSeq).stop; // Stop filterFreq pattern for static value
+Ndef(\rainNoise).xset(\filterFreq, 4000); // Sustained brighter filter cutoff
+// Ndef(\rainNoise).xset(\filterFreq, 3000); // Revert (if rainNoiseSeq had finished at 3000)
+Ndef(\rainNoise).xset(\amp, 0.05); // Recedes further, acts as a drone
+// Ndef(\rainNoise).xset(\amp, 0.08); // Revert
+
+// Rhythmic drops: more defined, subtle movement
+Pbindef(\dropSeq, \dur, Pn(Pwrand([1, 0.75, 0.5], [0.3, 0.4, 0.3], inf), inf)); // Slightly more rhythmic
+// Pbindef(\dropSeq, \dur, Pn(Pwrand([1.5, 1, 0.75], [0.4, 0.4, 0.2], inf), inf)); // Revert
+Ndef(\drops).xset(\amp, 0.1); // Maintain subtle presence
+// Ndef(\drops).xset(\amp, 0.15); // Revert
+)
+
+(
+// --- RAINING EASTER INSTRUMENTS ---
+// Rain Noise (Atmosphere)
+Ndef(\rainNoise).clear;
+Ndef(\rainNoise, {
+	|freq=200, rq=0.1, amp=0.1, pan=0|
+	var sig;
+	sig = PinkNoise.ar();
+	sig = RLPF.ar(sig, freq, rq);
+	Pan2.ar(sig * amp, pan);
 }).play;
 
-// Ndef(\melodiaFree): Sustained, glissando-capable melodic voice (FM synthesis)
-Ndef(\melodiaFree).clear;
-Ndef(\melodiaFree, {
-	|freq=220, amp=0.4, sus=4.0, modIndex=1.5, modFreq=200, sweepRate=0.05, t_trig=1|
-	var env, mod, car, sweepLFO;
-	env = EnvGen.ar(Env([0, 1, 1, 0], [1.0, sus, 2.0]), t_trig);
-	sweepLFO = LFTri.ar(sweepRate).range(0.98, 1.02); // Slow pitch sweep
-	mod = SinOsc.ar(modFreq * sweepLFO) * modIndex;
-	car = SinOsc.ar(freq * sweepLFO + mod);
+// Rain Drops (Percussive elements)
+Ndef(\drops).clear;
+Ndef(\drops, {
+	|freq=1000, amp=0.25, pan=0, t_trig=1, sustain=0.05, rq=0.1, atk=0.001|
+	var env, sig;
+	env = EnvGen.ar(Env.perc(atk, sustain), t_trig);
+	sig = WhiteNoise.ar();
+	sig = RLPF.ar(sig, freq, rq);
+	Pan2.ar(sig * env * amp, pan);
+}).play;
+
+// Chimes (Delicate Bell-like Tones - FM based)
+Ndef(\chimes).clear;
+Ndef(\chimes, {
+	|freq=440, amp=0.0, t_trig=1, modRatio=2.0, modIndex=1.0, atk=0.001, rel=0.5|
+	var env, mod, car, sig;
+	env = EnvGen.ar(Env.perc(atk, rel), t_trig);
+	mod = SinOsc.ar(freq * modRatio);
+	car = SinOsc.ar(freq + (mod * freq * modIndex));
 	Pan2.ar(car * env * amp, 0);
 }).play;
-)
 
-// --- V. AIRE LIBRE EFFECTS ---
-(
-// Ndef(\pads) reverb and delay
-Ndef(\pads)[10] = \filter -> { |in| GVerb.ar(in.sum, 100, 8, 0.7, 0.8, 15, 0.5) }; // Lush GVerb
-Ndef(\pads).set(\wet10, 0);
+// Bells (Rich, Resonant Bell Sounds - Layered SinOsc)
+Ndef(\bells).clear;
+Ndef(\bells, {
+	|freq=440, amp=0.0, t_trig=1, atk=0.1, rel=3.0, detune=0.005, lfoRate=0.1|
+	var env, sig, partials, ratios, amps;
+	env = EnvGen.ar(Env.perc(atk, rel), t_trig);
 
-Ndef(\pads)[11] = \filter -> { |in| CombL.ar(in.sum, 1.5, 0.8, 5.0) }; // Long feedback delay
-Ndef(\pads).set(\wet11, 0);
+	// Bell partials and amplitudes (can be fine-tuned)
+	ratios = #[1.0, 1.5, 2.0, 2.7, 3.0, 3.5, 4.0];
+	amps = #[1.0, 0.7, 0.5, 0.4, 0.3, 0.2, 0.1];
 
-// Ndef(\melodiaFree) reverb and delay
-Ndef(\melodiaFree)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.9, 0.5) };
-Ndef(\melodiaFree).set(\wet10, 0);
+	// Create multiple detuned sinoscs
+	partials = ratios.collect { |ratio, i|
+		var f_offset = LFTri.kr(lfoRate + (i * 0.01)).range(1, 1 + detune); // subtle LFO on detune
+		SinOsc.ar(freq * ratio * f_offset) * amps.at(i);
+	};
 
-Ndef(\melodiaFree)[11] = \filter -> { |in| AllpassC.ar(in, 2.0, 1.0, 6.0) }; // Diffused long delay
-Ndef(\melodiaFree).set(\wet11, 0);
-)
+	sig = Splay.ar(partials);
+	sig = (sig * env * amp); // Overall amp with envelope
+	Pan2.ar(sig, 0); // pan is always 0, splay handles spread
+}).play;
 
-// --- V. AIRE LIBRE SEQUENCES ---
-(
-// For ambient section, Pbindefs will be triggered manually or with very slow patterns.
-Pbindef(\melodiaFreeSeq,
-	\dur, 8, // Very long notes
-	\freq, Pseq([110, 146.83, 98, 130.81], inf), // A2, D3, G2, C3
-	\legato, 4, // Glissando between notes
-	\amp, 0.6,
-	\sus, Pkey(\dur) * 0.9,
-	\t_trig, 1
-);
-
-Pbindef(\padsSeq,
-	\dur, 16,
-	\freq, Pseq([65.4, 82.4, 98, 130.8], inf), // C2, E2, G2, C3
-	\amp, 0.3,
-	\sus, 15,
-	\t_trig, 1
-);
-)
-
-// --- MASTER MIXING & GLOBAL EFFECTS ---
-(
-// Define a master Ndef to apply global effects (e.g., low-pass filter).
-// This Ndef will receive all audio from the main output bus (0 and 1) and process it.
-Ndef(\masterMix).clear;
-Ndef(\masterMix, {
-	var in = In.ar(0, 2); // Receive audio from the main output bus
-	var lpfCutoff = \lpfCutoff.kr(20000); // Global LPF cutoff frequency
-	var lpfRes = \lpfRes.kr(0.1);
-	var masterAmp = \amp.kr(1.0);
-	in = RLPF.ar(in, lpfCutoff, lpfRes); // Apply global low-pass filter
-	Out.ar(0, in * masterAmp); // Send processed audio back to the main output
+// Bass Pad (Low-Frequency Harmonic Foundation)
+Ndef(\bassPad).clear;
+Ndef(\bassPad, {
+	|freq=40, amp=0.0, t_trig=1, atk=2.0, sus=3.0, rel=5.0, lpfFreq=500, lpfRQ=0.5|
+	var env, sig;
+	env = EnvGen.ar(Env([0, 1, 0.8, 0], [atk, sus, rel]), t_trig);
+	sig = Saw.ar([freq, freq * 1.005]); // Slightly detuned saws
+	sig = RLPF.ar(sig, lpfFreq, lpfRQ);
+	sig = sig * env * amp;
+	sig ! 2; // Stereo output
 }).play;
 )
 
-
-// --- COMPOSITION CONTROL (Initial State and Performance Arc) ---
-
-// Initial setup with minimal sounds (Phase I)
+// --- RAINING EASTER EFFECTS ---
 (
-// Ensure all Ndefs are initially stopped and dry before setting up the first phase
-Ndef(\golpe).stop; Ndef(\cajonKick).stop; Ndef(\cajonSnare).stop;
-Ndef(\palmas).stop; Ndef(\rasgueado).stop; Ndef(\bass).stop;
-Ndef(\melodiaPluck).stop; Ndef(\pads).stop; Ndef(\melodiaFree).stop;
+// Rain Noise effects (Index 10: Reverb)
+Ndef(\rainNoise)[10] = \filter -> { |in| FreeVerb.ar(in.sum, 1, 0.7, 0.2) }; // wetness 1 for internal mix
+Ndef(\rainNoise).set(\wet10, 0);
 
-// Clear patterns from any previous runs
-Pbindef(\golpeSeq).stop; Pbindef(\cajonKickSeq).stop; Pbindef(\cajonSnareSeq).stop;
-Pbindef(\palmasSeq).stop; Pbindef(\rasgueadoSeq).stop; Pbindef(\bassSeq).stop;
-Pbindef(\golpeSeqSolea).stop; Pbindef(\cajonKickSeqSolea).stop; Pbindef(\cajonSnareSeqSolea).stop;
-Pbindef(\palmasSeqSolea).stop; Pbindef(\rasgueadoSeqSolea).stop; Pbindef(\bassSeqSolea).stop;
-Pbindef(\melodiaPluckSeq).stop; Pbindef(\golpeSeqBulerias).stop; Pbindef(\cajonKickSeqBulerias).stop;
-Pbindef(\cajonSnareSeqBulerias).stop; Pbindef(\palmasSeqBulerias).stop; Pbindef(\rasgueadoSeqBulerias).stop;
-Pbindef(\melodiaPluckSeqBulerias).stop; Pbindef(\bassSeqBulerias).stop; Pbindef(\padsSeq).stop;
-Pbindef(\melodiaFreeSeq).stop; Pbindef(\golpeOutro).stop;
+// Rain Drops effects (Index 11: Delay)
+Ndef(\drops)[11] = \filter -> { |in| CombL.ar(in, 0.2, 0.05, 1.0) }; // Delay time 0.05s, feedback 1.0s
+Ndef(\drops).set(\wet11, 0);
 
-// Reset all wet levels to 0
-Ndef(\golpe).set(\wet10, 0);
-Ndef(\palmas).set(\wet11, 0); Ndef(\palmas).set(\wet10, 0); // Also adding reverb slot for later
-Ndef(\rasgueado).set(\wet10, 0);
-Ndef(\melodiaPluck).set(\wet10, 0, \wet11, 0);
-Ndef(\pads).set(\wet10, 0, \wet11, 0);
-Ndef(\melodiaFree).set(\wet10, 0, \wet11, 0);
+// Chimes effects (Index 10: Reverb, Index 11: Delay)
+Ndef(\chimes)[10] = \filter -> { |in| FreeVerb.ar(in.sum, 1, 0.8, 0.5) };
+Ndef(\chimes).set(\wet10, 0);
+Ndef(\chimes)[11] = \filter -> { |in| CombL.ar(in, 0.5, 0.3, 3.0) }; // Delay time 0.3s, feedback 3.0s
+Ndef(\chimes).set(\wet11, 0);
 
-// Bring in Phase I instruments and sequences
-Ndef(\golpe).play;
-Ndef(\cajonKick).play;
+// Bells effects (Index 10: Reverb, Index 11: Delay)
+Ndef(\bells)[10] = \filter -> { |in| FreeVerb.ar(in.sum, 1, 0.9, 0.8) };
+Ndef(\bells).set(\wet10, 0);
+Ndef(\bells)[11] = \filter -> { |in| CombL.ar(in, 1.0, 0.8, 5.0) }; // Delay time 0.8s, feedback 5.0s
+Ndef(\bells).set(\wet11, 0);
 
-Ndef(\golpe)[1] = \set -> Pbindef(\golpeSeq);
-Ndef(\cajonKick)[1] = \set -> Pbindef(\cajonKickSeq);
-
-// Initial effect settings for Phase I
-Ndef(\golpe).xset(\wet10, 0.2); // short, dry reverb
-// Ndef(\golpe).xset(\wet10, 0); // Revert
-
-// Set initial tempo
-t.tempo = 60/80; // 80 BPM
-// t.tempo = 60/60; // Revert
+// Bass Pad effects (Index 10: Reverb)
+Ndef(\bassPad)[10] = \filter -> { |in| FreeVerb.ar(in.sum, 1, 0.6, 0.3) };
+Ndef(\bassPad).set(\wet10, 0);
 )
 
-// --- LIVE CODING TWEAKS (Simulated Performance Progression) ---
-
-// --- Phase II. Exploración Binaria y Ternaria ---
-// Introduce cajonSnare, palmas, rasgueado, bass with 4/4 rhythm
+// --- RAINING EASTER SEQUENCES ---
 (
-Ndef(\cajonSnare).play; Ndef(\cajonSnare).xset(\amp, 0.3); // Bring in cajon snare
-// Ndef(\cajonSnare).xset(\amp, 0); // Revert
-Ndef(\palmas).play; Ndef(\palmas).xset(\amp, 0.25); // Bring in palmas
-// Ndef(\palmas).xset(\amp, 0); // Revert
-Ndef(\rasgueado).play; Ndef(\rasgueado).xset(\amp, 0.5); // Bring in rasgueado
-// Ndef(\rasgueado).xset(\amp, 0); // Revert
-Ndef(\bass).play; Ndef(\bass).xset(\amp, 0.4); // Bring in bassline
-// Ndef(\bass).xset(\amp, 0); // Revert
+// Pbindef for Rain Noise filter sweep
+Pbindef(\rainNoiseSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\rainNoise).nodeID }),
+	\freq, Pn(Pseg([200, 1000], [60], \lin), inf), // Initial sweep for Section 1
+	\rq, 0.1,
+	\args, #[\freq, \rq]
+);
+Ndef(\rainNoise).quant = 1;
 
-Ndef(\cajonSnare)[1] = \set -> Pbindef(\cajonSnareSeq);
-Ndef(\palmas)[1] = \set -> Pbindef(\palmasSeq);
-Ndef(\rasgueado)[1] = \set -> Pbindef(\rasgueadoSeq);
-Ndef(\bass)[1] = \set -> Pbindef(\bassSeq);
+// Pbindef for Rain Drops
+Pbindef(\dropSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\drops).nodeID }),
+	\dur, Pn(Pwrand([2, 1, 0.5], [0.5, 0.3, 0.2], 8), inf), // Section 1 timing
+	\freq, Pn(Pwhite(500, 2000, 16), inf),
+	\pan, Pn(Pwhite(-0.8, 0.8, 16), inf),
+	\t_trig, 1,
+	\amp, 0.25, // Initial amplitude for drops
+	\args, #[\dur, \freq, \pan, \t_trig, \amp]
+);
+Ndef(\drops).quant = 1;
 
-// Apply effects for Phase II
-Ndef(\palmas).xset(\wet11, 0.1); // Add short delay to palmas
-// Ndef(\palmas).xset(\wet11, 0); // Revert
-Ndef(\rasgueado).xset(\wet10, 0.3); // Add short reverb to rasgueado
-// Ndef(\rasgueado).xset(\wet10, 0); // Revert
+// Pbindef for Chimes
+Pbindef(\chimeSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\chimes).nodeID }),
+	\dur, Pn(Pwrand([1, 0.75, 0.5], [0.6, 0.3, 0.1], 8), inf), // Section 2 timing
+	\freq, Pn(Pseq([60, 64, 67, 72].midicps, inf), inf),
+	\amp, 0.2, // Chimes overall amp, sequence will set this
+	\t_trig, 1,
+	\modRatio, 2.0,
+	\modIndex, 1.0,
+	\args, #[\dur, \freq, \amp, \t_trig, \modRatio, \modIndex]
+);
+Ndef(\chimes).quant = 1;
+
+// Pbindef for Bells
+Pbindef(\bellSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\bells).nodeID }),
+	\dur, Pn(Pwrand([4, 2, 1], [0.6, 0.3, 0.1], 8), inf), // Section 3 timing
+	\freq, Pn(Pseq([Ptuple([60, 67, 72]), Ptuple([58, 65, 70]), Ptuple([62, 69, 74])].midicps, inf), inf),
+	\amp, 0.3, // Bells overall amplitude
+	\t_trig, 1,
+	\detune, 0.005,
+	\lfoRate, 0.1,
+	\args, #[\dur, \freq, \amp, \t_trig, \detune, \lfoRate]
+);
+Ndef(\bells).quant = 1;
+
+// Pbindef for Bass Pad
+Pbindef(\bassPadSeq,
+	\type, \set,
+	\id, Pfunc({ Ndef(\bassPad).nodeID }),
+	\dur, 8, // Section 3 timing
+	\freq, Pn(Pseq([36, 34, 38].midicps, inf), inf),
+	\amp, 0.1, // Bass Pad overall amplitude
+	\t_trig, 1,
+	\atk, 2.0,
+	\sus, 3.0,
+	\rel, 5.0,
+	\lpfFreq, 500,
+	\lpfRQ, 0.5,
+	\args, #[\dur, \freq, \amp, \t_trig, \atk, \sus, \rel, \lpfFreq, \lpfRQ]
+);
+Ndef(\bassPad).quant = 1;
 )
 
-// --- Phase III. La Rueda de Doce ---
-// Transition to 12-beat cycle (Soleá/Peteneras accentuation - on 12)
-(
-// Stop current 4/4 patterns and switch to 12-beat soleá cycle patterns
-Pbindef(\golpeSeq).stop; Pbindef(\cajonKickSeq).stop;
-Pbindef(\cajonSnareSeq).stop; Pbindef(\palmasSeq).stop;
-Pbindef(\rasgueadoSeq).stop; Pbindef(\bassSeq).stop;
+// --- RAINING EASTER LIVE CODING SECTIONS ---
 
-Ndef(\golpe)[1] = \set -> Pbindef(\golpeSeqSolea);
-Ndef(\cajonKick)[1] = \set -> Pbindef(\cajonKickSeqSolea);
-Ndef(\cajonSnare)[1] = \set -> Pbindef(\cajonSnareSeqSolea);
-Ndef(\palmas)[1] = \set -> Pbindef(\palmasSeqSolea);
-Ndef(\rasgueado)[1] = \set -> Pbindef(\rasgueadoSeqSolea);
-// Define bassSeqSolea here for a richer bassline in 12-beat context
-Pbindef(\bassSeqSolea,
-	\dur, ~base12BeatUnit * Pseq(([3, 1, 2, 2, 4].normalizeSum * 12), inf),
-	\degree, Pseq([0, -2, -4, -5, -7], inf) + 36,
-	\amp, 0.45,
-	\rel, Pkey(\dur) * 0.9,
+// Set Ndef fade times for smooth transitions
+(
+Ndef(\rainNoise).fadeTime = 2;
+Ndef(\drops).fadeTime = 1;
+Ndef(\chimes).fadeTime = 2;
+Ndef(\bells).fadeTime = 3;
+Ndef(\bassPad).fadeTime = 4;
+)
+
+// --- SECTION 1: Rainy Intro (Initial setup & gradual introduction) ---
+(
+"--- Section 1: Rainy Intro ---".postln;
+
+// Rain Noise: Starts quietly, heavily reverbed
+Ndef(\rainNoise).xset(\amp, 0.1, \freq, 200, \rq, 0.1);
+Ndef(\rainNoise).xset(\wet10, 0.8); // Very wet reverb
+Ndef(\rainNoise)[1] = \set -> Pbindef(\rainNoiseSeq); // Start filter sweep for rain
+// Ndef(\rainNoise).xset(\amp, 0.1, \freq, 200, \rq, 0.1); // Revert to previous state
+// Ndef(\rainNoise).xset(\wet10, 0); // Revert to previous state
+
+// Rain Drops: Sparse, irregular clicks with subtle delay
+Ndef(\drops).xset(\amp, 0.25);
+Ndef(\drops).xset(\wet11, 0.4); // Subtle splash delay
+Ndef(\drops)[1] = \set -> Pbindef(\dropSeq);
+// Ndef(\drops).xset(\amp, 0); // Revert to previous state
+// Ndef(\drops).xset(\wet11, 0); // Revert to previous state
+)
+
+// --- SECTION 2: Emerging Light (Chimes introduced, rain evolves) ---
+// This block would typically be evaluated ~1.5 - 2 minutes into the piece.
+(
+"--- Section 2: Emerging Light ---".postln;
+
+// Rain Noise: Continue filter sweep, subtle amplitude reduction
+Pbindef(\rainNoiseSeq).set(\freq, Pn(Pseg([1000, 3000], [90], \lin), inf)); // Continue raising cutoff over 90 seconds
+// Pbindef(\rainNoiseSeq).set(\freq, Pn(Pseg([200, 1000], [60], \lin), inf)); // Revert to initial part of sweep.
+Ndef(\rainNoise).xset(\amp, 0.08); // Slight amplitude reduction
+// Ndef(\rainNoise).xset(\amp, 0.1); // Revert amplitude
+
+// Rain Drops: More regular, slightly softer amplitude
+Pbindef(\dropSeq).set(\dur, Pn(Pwrand([1.5, 1, 0.75], [0.4, 0.4, 0.2], 8), inf), \amp, 0.15); // More regular, less amplitude
+// Pbindef(\dropSeq).set(\dur, Pn(Pwrand([2, 1, 0.5], [0.5, 0.3, 0.2], 8), inf), \amp, 0.25); // Revert timing and amplitude
+
+// Chimes: Introduced softly with sparkling reverb and shimmering delay
+Ndef(\chimes).xset(\amp, 0.05); // Start very quietly
+Ndef(\chimes).xset(\wet10, 0.6, \wet11, 0.5); // Reverb and delay
+Ndef(\chimes)[1] = \set -> Pbindef(\chimeSeq);
+// Ndef(\chimes).xset(\amp, 0); // Revert to previous state
+// Ndef(\chimes).xset(\wet10, 0, \wet11, 0); // Revert to previous state
+)
+
+// --- SECTION 3: Easter Bells & Rain (Main loop, open-ended) ---
+// This block would typically be evaluated ~3 - 3.5 minutes into the piece.
+(
+"--- Section 3: Easter Bells & Rain ---".postln;
+
+// Chimes: Fade out
+Ndef(\chimes).xset(\amp, 0.0); // Chimes fade out
+// Ndef(\chimes).xset(\amp, 0.05); // Revert chimes amplitude
+
+// Bells: Introduced as dominant, resonant element with cathedral-like reverb
+Ndef(\bells).xset(\amp, 0.3); // Set overall amplitude for bells
+Ndef(\bells).xset(\wet10, 0.8, \wet11, 0.6); // Long reverb, lush delay
+Ndef(\bells)[1] = \set -> Pbindef(\bellSeq);
+// Ndef(\bells).xset(\amp, 0); // Revert to previous state
+// Ndef(\bells).xset(\wet10, 0, \wet11, 0); // Revert to previous state
+
+// Bass Pad: Deep, warm harmonic foundation
+Ndef(\bassPad).xset(\amp, 0.1); // Subtle background bass
+Ndef(\bassPad).xset(\wet10, 0.5); // Depth from reverb
+Ndef(\bassPad)[1] = \set -> Pbindef(\bassPadSeq);
+// Ndef(\bassPad).xset(\amp, 0); // Revert to previous state
+// Ndef(\bassPad).xset(\wet10, 0); // Revert to previous state
+
+// Rain Noise: Becomes an ethereal, high-frequency drone. Stop sweep and set fixed values.
+Pbindef(\rainNoiseSeq).stop; // Stop the filter sweep
+// Pbindef(\rainNoiseSeq).play; // Revert by restarting the sweep (will continue from its last state)
+Ndef(\rainNoise).xset(\freq, 4000, \amp, 0.05, \rq, 0.2); // Set sustained brighter filter cutoff, lower amp, slight resonance
+// Ndef(\rainNoise).xset(\freq, 3000, \amp, 0.08, \rq, 0.1); // Revert to section 2 rainNoise state
+
+// Rain Drops: More rhythmic, subtle texture
+Pbindef(\dropSeq).set(\dur, Pn(Pwrand([1, 0.75, 0.5], [0.3, 0.4, 0.3], 8), inf), \amp, 0.1); // More rhythmic, lower amp
+// Pbindef(\dropSeq).set(\dur, Pn(Pwrand([1.5, 1, 0.75], [0.4, 0.4, 0.2], 8), inf), \amp, 0.15); // Revert drops timing and amplitude
+)
+
+// --- THE WHIM AND THE WALTZ INSTRUMENTS ---
+(
+Ndef(\whimPluck).clear;
+Ndef(\whimPluck, {
+	|freq=400, amp=0.2, t_trig=1, modIndex=2, modRatio=2.5, pan=0|
+	var env, mod, sig;
+	// Delicate, short percussive envelope
+	env = EnvGen.ar(Env.perc(0.005, 0.15), t_trig);
+	// Bright FM synthesis for spontaneous high-frequency energy
+	mod = SinOsc.ar(freq * modRatio) * modIndex * freq;
+	sig = SinOsc.ar(freq + mod);
+	Pan2.ar(sig * env * amp, pan);
+}).play;
+
+Ndef(\grandPad).clear;
+Ndef(\grandPad, {
+	|freq=#[200, 200, 200], amp=0.0, t_trig=1, cutoff=800|
+	var env, sig;
+	// Lush, long envelope triggered strictly by the sequence
+	env = EnvGen.ar(Env([0, 1, 0.8, 0], [2, 4, 2]), t_trig);
+	// Thick, detuned sawtooth bed (array multiplication creates 9 oscillators total for chords)
+	sig = Saw.ar(freq) + Saw.ar(freq * 1.005) + Saw.ar(freq * 0.995);
+	// Carve out highs so the pluck can slice through
+	sig = RLPF.ar(sig, cutoff, 0.4);
+	Splay.ar(sig) * env * amp;
+}).play;
+)
+
+// --- THE WHIM AND THE WALTZ EFFECTS ---
+(
+// whimPluck Reverb (Index 10)
+Ndef(\whimPluck)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.6, 0.2) };
+Ndef(\whimPluck).set(\wet10, 0.2); // Subtle base space
+
+// whimPluck Delay (Index 11)
+Ndef(\whimPluck)[11] = \filter -> { |in| CombC.ar(in, 1, \delayTime.kr(0.2), 2.5) };
+Ndef(\whimPluck).set(\wet11, 0);
+
+// grandPad Reverb (Index 10)
+Ndef(\grandPad)[10] = \filter -> { |in| GVerb.ar(in.sum, 200, 8) }; // Mono-summed to avoid phasing
+Ndef(\grandPad).set(\wet10, 0);
+
+// grandPad Chorus/Modulation (Index 11)
+Ndef(\grandPad)[11] = \filter -> { |in| 
+	var chorus = DelayC.ar(in, 0.05, SinOsc.kr([0.3, 0.4]).range(0.005, 0.015));
+	in * 0.7 + (chorus * 0.5);
+};
+Ndef(\grandPad).set(\wet11, 1); // Permanent widening
+)
+
+// --- THE WHIM AND THE WALTZ SEQUENCES ---
+(
+Pbindef(\whimSeq,
+	\dur, Pwhite(0.1, 0.6, inf), // Erratic, spontaneous durations
+	\freq, Pexprand(600, 2000, inf), // Scattered high pitches
 	\t_trig, 1
 );
-Ndef(\bass)[1] = \set -> Pbindef(\bassSeqSolea);
+Ndef(\whimPluck).quant = 1;
+Ndef(\whimPluck)[1] = \set -> Pbindef(\whimSeq);
 
-// Introduce melodic pluck
-Ndef(\melodiaPluck).play; Ndef(\melodiaPluck).xset(\amp, 0.7);
-// Ndef(\melodiaPluck).xset(\amp, 0); // Revert
-Ndef(\melodiaPluck)[1] = \set -> Pbindef(\melodiaPluckSeq);
-
-// Apply effects for Phase III
-Ndef(\melodiaPluck).xset(\wet10, 0.5, \wet11, 0.3); // Medium decay reverb and subtle long delay
-// Ndef(\melodiaPluck).xset(\wet10, 0, \wet11, 0); // Revert
-
-// Slightly increase tempo
-t.tempo = 60/70; // 70 BPM
-// t.tempo = 60/80; // Revert
-)
-
-// --- Phase IV. Bulerías: El Fuego ---
-// Climax with intense 12-beat Bulerías cycle (accents 3, 6, 8, 10, 12)
-(
-// Stop Soleá patterns and switch to Bulerías patterns
-Pbindef(\golpeSeqSolea).stop; Pbindef(\cajonKickSeqSolea).stop;
-Pbindef(\cajonSnareSeqSolea).stop; Pbindef(\palmasSeqSolea).stop;
-Pbindef(\rasgueadoSeqSolea).stop; Pbindef(\bassSeqSolea).stop;
-Pbindef(\melodiaPluckSeq).stop;
-
-Ndef(\golpe)[1] = \set -> Pbindef(\golpeSeqBulerias);
-Ndef(\cajonKick)[1] = \set -> Pbindef(\cajonKickSeqBulerias);
-Ndef(\cajonSnare)[1] = \set -> Pbindef(\cajonSnareSeqBulerias);
-Ndef(\palmas)[1] = \set -> Pbindef(\palmasSeqBulerias);
-Ndef(\rasgueado)[1] = \set -> Pbindef(\rasgueadoSeqBulerias);
-Ndef(\melodiaPluck)[1] = \set -> Pbindef(\melodiaPluckSeqBulerias);
-
-// Ndef(\bass) adapted for Bulerías
-Pbindef(\bassSeqBulerias,
-	\dur, ~baseBuleriasBeatUnit * Pseq(([1, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5].normalizeSum * 12), inf),
-	\degree, Pseq([0, 2, 4, 5, 7, 9, 11, 12], inf) + 36, // Adapted to faster rhythm
-	\amp, 0.5,
-	\rel, Pkey(\dur) * 0.7,
+Pbindef(\padSeq,
+	\dur, 8,
+	\scale, Scale.harmonicMinor,
+	// Sweeping minor-to-majorish chord progressions
+	\degree, Pseq([[0, 2, 4], [3, 5, 7], [-1, 1, 3], [2, 4, 6]], inf),
 	\t_trig, 1
 );
-Ndef(\bass)[1] = \set -> Pbindef(\bassSeqBulerias);
-
-// Increase rasgueado prominence and complexity
-Ndef(\rasgueado).xset(\amp, 0.7);
-// Ndef(\rasgueado).xset(\amp, 0.5); // Revert
-
-// Apply effects for Phase IV
-Ndef(\rasgueado).xset(\freq, 250, \rq, 0.08); // Sharper rasgueado, simulating hpFreq (no explicit hpFreq arg)
-// Ndef(\rasgueado).xset(\freq, 150, \rq, 0.1); // Revert
-Ndef(\palmas).xset(\wet11, 0.05); // Shorten delay time for tightness
-// Ndef(\palmas).xset(\wet11, 0.1); // Revert
-
-// Reduce reverb on most elements for a drier, more immediate sound
-Ndef(\golpe).xset(\wet10, 0.1); // Less reverb
-// Ndef(\golpe).xset(\wet10, 0.2); // Revert
-Ndef(\rasgueado).xset(\wet10, 0.2); // Less reverb
-// Ndef(\rasgueado).xset(\wet10, 0.3); // Revert
-Ndef(\melodiaPluck).xset(\wet10, 0.3, \wet11, 0.1); // Less reverb and delay
-// Ndef(\melodiaPluck).xset(\wet10, 0.5, \wet11, 0.3); // Revert
-
-// Fastest tempo
-t.tempo = 60/50; // 50 BPM (fastest)
-// t.tempo = 60/70; // Revert
+Ndef(\grandPad).quant = 1;
+Ndef(\grandPad)[1] = \set -> Pbindef(\padSeq);
 )
 
-// --- Phase V. Aire Libre ---
-// Radical contrast: Free-form, sustained sonic exploration
+// --- THE WHIM AND THE WALTZ LIVE CODING TWEAKS ---
+
+// 1. THE SPONTANEOUS APPLICATION (Development)
+Ndef(\whimPluck).xset(\wet11, 0.4); // Delay gradually begins to overlap the chaotic random plucks
+// Ndef(\whimPluck).xset(\wet11, 0); // Revert delay to dry
+
+// 2. THE ACCEPTANCE LETTER (Radical Contrast)
+// Execute these simultaneously: the pad violently fades in while the pluck is forced into discipline
 (
-// Stop all rhythmic Pbindefs and fade out rhythmic Ndefs
-Pbindef(\golpeSeqBulerias).stop; Pbindef(\cajonKickSeqBulerias).stop;
-Pbindef(\cajonSnareSeqBulerias).stop; Pbindef(\palmasSeqBulerias).stop;
-Pbindef(\rasgueadoSeqBulerias).stop; Pbindef(\bassSeqBulerias).stop;
-Pbindef(\melodiaPluckSeqBulerias).stop;
-
-// Clear Ndefs with fade time
-Ndef(\golpe).clear(2); Ndef(\cajonKick).clear(2);
-Ndef(\cajonSnare).clear(2); Ndef(\palmas).clear(2);
-Ndef(\rasgueado).clear(2); Ndef(\bass).clear(2);
-Ndef(\melodiaPluck).clear(2);
-
-// Bring in pads and free melody
-Ndef(\pads).play; Ndef(\pads).xset(\amp, 0.2); // Fade in pads
-// Ndef(\pads).xset(\amp, 0); // Revert
-Ndef(\melodiaFree).play; Ndef(\melodiaFree).xset(\amp, 0.4); // Fade in free melody
-// Ndef(\melodiaFree).xset(\amp, 0); // Revert
-
-Ndef(\pads)[1] = \set -> Pbindef(\padsSeq);
-Ndef(\melodiaFree)[1] = \set -> Pbindef(\melodiaFreeSeq);
-
-// Apply effects for Phase V
-Ndef(\pads).xset(\wet10, 0.9, \wet11, 0.5); // Lush reverb and long delay for pads
-// Ndef(\pads).xset(\wet10, 0, \wet11, 0); // Revert
-Ndef(\melodiaFree).xset(\wet10, 0.8, \wet11, 0.6); // Long reverb and diffused delay for melody
-// Ndef(\melodiaFree).xset(\wet10, 0, \wet11, 0); // Revert
-
-// (No explicit tempo setting as it's free-form)
+Ndef(\grandPad).fadeTime = 2;
+Ndef(\grandPad).xset(\amp, 0.3); // Grand pad floods the empty low-end
+Pbindef(\whimSeq, \dur, 0.25, \freq, Pseq([800, 1200, 1000, 1500, 900, 1800], inf)); // Clamped to strict 16th-note arpeggios
 )
+// Ndef(\grandPad).xset(\amp, 0); // Revert pad volume
+// Pbindef(\whimSeq, \dur, Pwhite(0.1, 0.6, inf), \freq, Pexprand(600, 2000, inf)); // Revert to scattered whim
 
-// --- Phase VI. Retorno del Compás ---
-// Re-establish driving 12-beat rhythm (Bulerías variations)
+// 3. THE CHOREOGRAPHER'S WALTZ (Static Loop)
 (
-// Fade out ambient elements
-Pbindef(\padsSeq).stop; Ndef(\pads).clear(2);
-Pbindef(\melodiaFreeSeq).stop; Ndef(\melodiaFree).clear(2);
-
-// Re-introduce rhythmic Ndefs, starting with kick and golpe
-Ndef(\cajonKick).play; Ndef(\cajonKick).xset(\amp, 0.6); // Fade in
-// Ndef(\cajonKick).xset(\amp, 0); // Revert
-Ndef(\golpe).play; Ndef(\golpe).xset(\amp, 0.4); // Fade in
-// Ndef(\golpe).xset(\amp, 0); // Revert
-
-Ndef(\cajonKick)[1] = \set -> Pbindef(\cajonKickSeqBulerias); // Re-use Bulerías pattern
-Ndef(\golpe)[1] = \set -> Pbindef(\golpeSeqBulerias);
-
-// Gradually layer in palmas and snare
-{
-	Ndef(\cajonSnare).play; Ndef(\cajonSnare).xset(\amp, 0.3);
-	Ndef(\cajonSnare)[1] = \set -> Pbindef(\cajonSnareSeqBulerias);
-	Ndef(\palmas).play; Ndef(\palmas).xset(\amp, 0.25);
-	Ndef(\palmas)[1] = \set -> Pbindef(\palmasSeqBulerias);
-}.defer(4); // After 4 beats
-
-// Rejoin rasgueado and melodic pluck
-{
-	Ndef(\rasgueado).play; Ndef(\rasgueado).xset(\amp, 0.6);
-	Ndef(\rasgueado)[1] = \set -> Pbindef(\rasgueadoSeqBulerias);
-	Ndef(\melodiaPluck).play; Ndef(\melodiaPluck).xset(\amp, 0.75); // Slightly more prominent
-	Ndef(\melodiaPluck)[1] = \set -> Pbindef(\melodiaPluckSeqBulerias);
-	Ndef(\bass).play; Ndef(\bass).xset(\amp, 0.5);
-	Ndef(\bass)[1] = \set -> Pbindef(\bassSeqBulerias);
-}.defer(8); // After 8 beats
-
-// Tempo is brisk but controlled
-t.tempo = 60/60; // 60 BPM (moderate brisk tempo)
-// t.tempo = 60/50; // Revert to previous faster tempo
-
-// Effects: Initially more reverb, then reduce
-Ndef(\golpe).xset(\wet10, 0.3); // More reverb for softer re-entry
-// Ndef(\golpe).xset(\wet10, 0.1); // Revert
-Ndef(\rasgueado).xset(\wet10, 0.4); // More reverb
-// Ndef(\rasgueado).xset(\wet10, 0.2); // Revert
-Ndef(\melodiaPluck).xset(\wet10, 0.6, \wet11, 0.4); // More reverb/delay
-// Ndef(\melodiaPluck).xset(\wet10, 0.3, \wet11, 0.1); // Revert
+Pbindef(\whimSeq, \dur, 1/3); // Whim pluck rhythm shifted to a waltz-like triplet
+Ndef(\grandPad).xset(\wet10, 0.8); // GVerb pushes the pad into a continuous cinematic blur
+Ndef(\whimPluck).xset(\delayTime, 0.375, \wet11, 0.65); // Delay locks into a dancing dotted rhythm
 )
+// Pbindef(\whimSeq, \dur, 0.25); // Revert whim to 16th notes
+// Ndef(\grandPad).xset(\wet10, 0); // Revert pad reverb to dry
+// Ndef(\whimPluck).xset(\delayTime, 0.2, \wet11, 0.4); // Revert pluck delay timing
 
-// --- Phase VII. Fin del Baile (Outro) ---
+
+// --- OPEN-ENDED CONCLUSION ---
+// The piece intentionally remains in this driving, hypnotic loop (The Choreographer's Waltz)
+// for continuous live-coding expansion. 
+// However, if an explicit fade-out is required, uncomment and execute the block below:
+
+/*
 (
-// Decelerate the rhythm
-t.tempo = 60/80; // Slow down to 80 BPM
-// t.tempo = 60/60; // Revert
-
-// Sequentially stop Pbindefs and fade Ndefs
-// Fade rasgueado first
-Pbindef(\rasgueadoSeqBulerias).stop; Ndef(\rasgueado).clear(2);
-// Ndef(\rasgueado).play; Ndef(\rasgueado).xset(\amp, 0.6); Ndef(\rasgueado)[1] = \set -> Pbindef(\rasgueadoSeqBulerias); // Revert
-
-// Then bass and cajon snare
-{ Pbindef(\bassSeqBulerias).stop; Ndef(\bass).clear(2); }.defer(4);
-// { Ndef(\bass).play; Ndef(\bass).xset(\amp, 0.5); Ndef(\bass)[1] = \set -> Pbindef(\bassSeqBulerias); }.defer(4); // Revert
-{ Pbindef(\cajonSnareSeqBulerias).stop; Ndef(\cajonSnare).clear(2); }.defer(4);
-// { Ndef(\cajonSnare).play; Ndef(\cajonSnare).xset(\amp, 0.3); Ndef(\cajonSnare)[1] = \set -> Pbindef(\cajonSnareSeqBulerias); }.defer(4); // Revert
-
-// Melodic pluck fades
-{ Pbindef(\melodiaPluckSeqBulerias).stop; Ndef(\melodiaPluck).clear(3); }.defer(8);
-// { Ndef(\melodiaPluck).play; Ndef(\melodiaPluck).xset(\amp, 0.75); Ndef(\melodiaPluck)[1] = \set -> Pbindef(\melodiaPluckSeqBulerias); }.defer(8); // Revert
-
-// Increase global reverb for sense of vastness
-Ndef(\golpe).xset(\wet10, 0.8);
-// Ndef(\golpe).xset(\wet10, 0.3); // Revert
-Ndef(\palmas).set(\wet10, 0); // Assign a reverb filter to palmas if not already
-Ndef(\palmas)[10] = \filter -> { |in| FreeVerb.ar(in, 1, 0.7, 0.3) };
-Ndef(\palmas).xset(\wet10, 0.7, \wet11, 0.3); // Introduce reverb + delay
-// Ndef(\palmas).xset(\wet10, 0, \wet11, 0.05); // Revert
-
-// End with sparse palmas and golpe, then a final accent from golpe.
-// Gradually thin out palmas and kick
-{ Pbindef(\cajonKickSeqBulerias).stop; Ndef(\cajonKick).clear(2); }.defer(12);
-// { Ndef(\cajonKick).play; Ndef(\cajonKick).xset(\amp, 0.6); Ndef(\cajonKick)[1] = \set -> Pbindef(\cajonKickSeqBulerias); }.defer(12); // Revert
-
-{
-	Pbindef(\palmasSeqBulerias).stop; Ndef(\palmas).clear(2);
-	Pbindef(\golpeSeqBulerias).stop; // Stop main patterns
-
-	// A final sparse golpe pattern
-	Pbindef(\golpeOutro, \dur, 1, \amp, Pseq([0.5, 0, 0.8, 0, 0.5, 0], inf), \t_trig, 1);
-	Ndef(\golpe)[1] = \set -> Pbindef(\golpeOutro);
-	Ndef(\golpe).xset(\freq, 100); // Deeper final taps
-	// Ndef(\golpe).xset(\freq, 180); // Revert
-}.defer(16);
-
-// Final fade out for golpe and clear all
-{
-	Pbindef(\golpeOutro).stop;
-	Ndef(\golpe).clear(5); // Long fade for the final taps
-	Ndef(\masterMix).clear(5); // Fade out the global LPF
-	Ndef.clear(6); // Clear all remaining Ndefs after masterMix fades
-	t.tempo = 60/60; // Reset tempo to default
-}.defer(24);
+Pbindef(\whimSeq).stop;
+Pbindef(\padSeq).stop;
+Ndef(\whimPluck).fadeTime = 6;
+Ndef(\grandPad).fadeTime = 6;
+Ndef(\whimPluck).clear(6);
+Ndef(\grandPad).clear(6);
 )
+*/

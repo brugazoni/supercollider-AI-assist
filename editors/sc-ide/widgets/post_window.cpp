@@ -20,6 +20,7 @@
 
 #include "main_window.hpp"
 #include "post_window.hpp"
+#include "ai_assist_widget.hpp"
 #include "util/gui_utilities.hpp"
 #include "../core/main.hpp"
 #include "../core/settings/manager.hpp"
@@ -38,6 +39,7 @@
 #include <QKeyEvent>
 #include <QTextDocumentFragment>
 #include <QMimeData>
+#include <QTimer>
 
 namespace ScIDE {
 
@@ -375,7 +377,13 @@ PostDocklet::PostDocklet(QWidget* parent): Docklet(tr("Post window"), parent) {
     setAllowedAreas(Qt::BottomDockWidgetArea | Qt::RightDockWidgetArea | Qt::LeftDockWidgetArea);
 
     mPostWindow = new PostWindow;
-    setWidget(mPostWindow);
+
+    // Create AiAssistWidget wrapping the PostWindow as its first tab
+    mAiAssist = new AiAssistWidget(mPostWindow);
+    setWidget(mAiAssist);
+
+    // Connect document lifecycle signals once the event loop starts (Main is fully ready)
+    QTimer::singleShot(0, mAiAssist, &AiAssistWidget::connectDocumentSignals);
 
     // This adds the QAction defined in PostWindow::createActions to the toolbar attached to the post window.
     toolBar()->addAction(mPostWindow->mActions[PostWindow::AutoScroll]);

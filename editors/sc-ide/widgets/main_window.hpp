@@ -113,8 +113,6 @@ public:
         ShowAbout,
         ShowAboutQT,
 
-        AutoEvaluateExternallyModified,
-
         ActionCount
     };
 

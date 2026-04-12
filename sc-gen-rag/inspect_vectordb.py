@@ -21,7 +21,6 @@ from langchain_core.documents import Document
 
 DB_MAP = {
     "knowledge-base": config.KNOWLEDGE_DB_PATH,
-    "sc-help": config.SCHELP_DB_PATH,
 }
 
 

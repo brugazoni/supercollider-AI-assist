@@ -17,13 +17,10 @@ def main():
     print("==========================================")
     print(f"  SC-Graph | Provider: {config.CURRENT_LLM_PROVIDER}")
     print(f"  Knowledge DB: {config.KNOWLEDGE_DB_PATH}")
-    print(f"  SC Help DB:   {config.SCHELP_DB_PATH}")
     print("==========================================")
 
-    kb_exists = os.path.exists(config.KNOWLEDGE_DB_PATH)
-    sc_exists = os.path.exists(config.SCHELP_DB_PATH)
-    if not kb_exists or not sc_exists:
-        print("Vector Database(s) not found. Building initial indexes...")
+    if not os.path.exists(config.KNOWLEDGE_DB_PATH):
+        print("Vector Database not found. Building initial index...")
         rag_engine.build_all()
 
     # --- Mode Selection ---
@@ -49,16 +46,16 @@ def main():
 
     if validation_prefs["enabled"]:
         print("\n  Correction Mode:")
-        print("  (1) 2-Tier Sclang System (Fast, strict syntax & runtime checking)")
+        print("  (1) 2-Tier Structural System (Fast, strict syntax checking)")
         print("  (2) LLM Review (AI-powered analysis before testing)")
         val_mode = input(">> Mode (1/2) [default: 1]: ").strip()
         
         if val_mode == "2":
             validation_prefs["mode"] = "llm"
             print("\n  Select LLM API for review:")
-            print("  [gemini, ollama, anthropic, openai, deepseek]")
+            print("  [gemini, anthropic, openai]")
             provider = input(f">> Provider [default: {config.CURRENT_LLM_PROVIDER}]: ").strip().lower()
-            if provider in ["gemini", "ollama", "anthropic", "openai", "deepseek"]:
+            if provider in ["gemini", "anthropic", "openai"]:
                 validation_prefs["llm_provider"] = provider
             
             print("\n  Review Scope:")
@@ -87,12 +84,6 @@ def main():
     # --- One-Shot Mode ---
     from agent_graph import build_graph
 
-    validator = None
-    if validation_prefs.get("enabled") and validation_prefs.get("mode") == "2-tier":
-        from sclang_validator import SclangValidator
-        validator = SclangValidator()
-        validator.start()
-
     app = build_graph(validation_prefs=validation_prefs)
 
     while True:
@@ -109,9 +100,8 @@ def main():
                 "user_query": user_input,
                 "validation_prefs": validation_prefs
             }
-            graph_config = {"configurable": {"sclang_validator": validator}} if validator else {}
             
-            app.invoke(invoke_state, config=graph_config)
+            app.invoke(invoke_state)
             print("\nSession Complete.")
             
         except KeyboardInterrupt:

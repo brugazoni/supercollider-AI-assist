@@ -227,6 +227,8 @@ void ScProcess::evaluateCode(QString const& commandString, bool silent) {
         return;
     }
 
+    emit codeEvaluated(commandString, silent);
+
     QByteArray bytesToWrite = commandString.toUtf8();
     size_t writtenBytes = write(bytesToWrite);
     if (writtenBytes != bytesToWrite.size()) {

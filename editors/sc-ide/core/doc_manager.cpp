@@ -33,6 +33,7 @@
 #include <QMessageBox>
 #include <QTextBlock>
 #include <QApplication>
+#include <QScrollBar>
 
 #include <yaml-cpp/yaml.h>
 
@@ -253,7 +254,7 @@ void Document::removeTmpFile() {
 DocumentManager::DocumentManager(Main* main, Settings::Manager* settings):
     QObject(main),
     mTextMirrorEnabled(true),
-    mAutoEvaluateEnabled(true),
+    mAutoEvaluateEnabled(false),
     mCurrentDocument(NULL),
     mGlobalKeyDownEnabled(false),
     mGlobalKeyUpEnabled(false) {
@@ -376,8 +377,27 @@ bool DocumentManager::reload(Document* doc) {
     QByteArray bytes(file.readAll());
     file.close();
 
+    int oldCursorPos = -1;
+    int oldScrollPos = -1;
+    if (GenericCodeEditor* editor = doc->lastActiveEditor()) {
+        oldCursorPos = editor->textCursor().position();
+        if (editor->verticalScrollBar())
+            oldScrollPos = editor->verticalScrollBar()->value();
+    }
+
     doc->mDoc->setPlainText(decodeDocument(bytes));
     doc->mDoc->setModified(false);
+
+    if (GenericCodeEditor* editor = doc->lastActiveEditor()) {
+        if (oldCursorPos >= 0) {
+            QTextCursor cursor = editor->textCursor();
+            cursor.setPosition(qMin(oldCursorPos, doc->mDoc->characterCount() > 0 ? doc->mDoc->characterCount() - 1 : 0));
+            editor->setTextCursor(cursor);
+        }
+        if (oldScrollPos >= 0 && editor->verticalScrollBar()) {
+            editor->verticalScrollBar()->setValue(oldScrollPos);
+        }
+    }
 
     QFileInfo info(doc->mFilePath);
     doc->mSaveTime = info.lastModified();

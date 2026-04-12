@@ -300,16 +300,12 @@ def _tier1_structural_check(code: str) -> tuple[bool, str]:
 
 
 def syntax_validate_node(state: IncrementalState, config: RunnableConfig):
-    """Validate the current code block using structural checks (Tier 1) and sclang subprocess (Tier 2)."""
+    """Validate the current code block using structural checks (Tier 1)."""
     print("-- [node] syntax validation")
     code = state['current_code_block']
     attempts = state.get('syntax_check_attempts', 0)
-    validator = config.get('configurable', {}).get('sclang_validator')
 
     # --- Tier 1: Fast local structural checks ---
-    if getattr(config, 'AUTO_VALIDATION_DEBUG_MESSAGES', False):
-        print(f"  [debug] Tier 1 structural check starting for code:\n-----CODE-----\n{code}\n--------------")
-    
     is_valid, error_msg = _tier1_structural_check(code)
 
     if not is_valid:
@@ -322,39 +318,11 @@ def syntax_validate_node(state: IncrementalState, config: RunnableConfig):
         }
     print("  ✓ Tier 1 structural check: PASSED")
 
-    # --- Tier 2: sclang Subprocess Validation ---
-    if validator and validator.is_ready:
-        print("  -- [node] Tier 2: sclang subprocess validation running...")
-        is_valid, error_msg = validator.validate(code)
-        
-        if is_valid:
-            print("  ✓ Tier 2 sclang block validation: PASSED")
-            return {
-                "syntax_valid": True,
-                "syntax_errors": None,
-                "interaction_log": ["  > Syntax validation PASSED (Tier 1 + Tier 2 sclang)"],
-            }
-        else:
-            print(f"  ✗ Tier 2 sclang block validation: FAILED")
-            if getattr(config, 'AUTO_VALIDATION_DEBUG_MESSAGES', False):
-                print(f"  [debug] Sclang validation error output:\n{error_msg}")
-            
-            # Format sclang error for the LLM
-            formatted_error = f"SuperCollider Parse/Syntax Error:\n{error_msg}"
-            return {
-                "syntax_valid": False,
-                "syntax_errors": formatted_error,
-                "syntax_check_attempts": attempts + 1,
-                "interaction_log": [f"  > Syntax validation FAILED (Tier 2 sclang):\n{error_msg}"],
-            }
-    else:
-        # Fallback if validator isn't running
-        print("  ⚠ Tier 2 skipped (validator not available) — assuming valid.")
-        return {
-            "syntax_valid": True,
-            "syntax_errors": None,
-            "interaction_log": ["  > Syntax validation PASSED (Tier 1 only, Tier 2 skipped)"],
-        }
+    return {
+        "syntax_valid": True,
+        "syntax_errors": None,
+        "interaction_log": ["  > Syntax validation PASSED (Tier 1)"],
+    }
 
 
 def syntax_correction_node(state: IncrementalState):
@@ -429,10 +397,8 @@ def llm_review_node(state: IncrementalState):
     original_provider = config.CURRENT_LLM_PROVIDER
     config.CURRENT_LLM_PROVIDER = provider
     if provider == "gemini": config.CURRENT_MODEL_NAME = config.GEMINI_MODEL
-    elif provider == "ollama": config.CURRENT_MODEL_NAME = config.OLLAMA_MODEL
     elif provider == "anthropic": config.CURRENT_MODEL_NAME = config.ANTHROPIC_MODEL
     elif provider == "openai": config.CURRENT_MODEL_NAME = config.OPENAI_MODEL
-    elif provider == "deepseek": config.CURRENT_MODEL_NAME = config.DEEPSEEK_MODEL
     
     client = LLMClient()
     result, token_info = client.generate(prompt, sys_instr)
@@ -440,10 +406,8 @@ def llm_review_node(state: IncrementalState):
     # Restore defaults
     config.CURRENT_LLM_PROVIDER = original_provider
     if original_provider == "gemini": config.CURRENT_MODEL_NAME = config.GEMINI_MODEL
-    elif original_provider == "ollama": config.CURRENT_MODEL_NAME = config.OLLAMA_MODEL
     elif original_provider == "anthropic": config.CURRENT_MODEL_NAME = config.ANTHROPIC_MODEL
     elif original_provider == "openai": config.CURRENT_MODEL_NAME = config.OPENAI_MODEL
-    elif original_provider == "deepseek": config.CURRENT_MODEL_NAME = config.DEEPSEEK_MODEL
     
     # Use re to strip wrap if LLM responded with it, so extract_new_block structure passes natively or force it.
     # LLM instruction mandates returning strict `( ... )` enclosed blocks.
@@ -877,127 +841,34 @@ def log_to_drive_node(state: IncrementalState):
 # ---------------------------------------------------------------------------
 
 def build_incremental_graph(auto_execute=False, validation_prefs=None):
-    if validation_prefs is None:
-        validation_prefs = {"enabled": True, "mode": "2-tier", "llm_provider": "gemini", "scope": "programmatic"}
-        
+    """Build the incremental block-by-block composition graph.
+    
+    Pipeline: load_resources → classify_block → generate_block
+              → extract_new_block → write_block → update_composition → END
+    
+    All validation and correction loops have been removed.
+    Code review is handled exclusively by the Fix tab in the IDE.
+    """
     workflow = StateGraph(IncrementalState)
 
-    # Nodes — always present
+    # Nodes
     workflow.add_node("load_resources", load_resources_node)
     workflow.add_node("classify_block", classify_block_node)
     workflow.add_node("generate_block", generate_block_node)
+    workflow.add_node("extract_new_block", extract_new_block_node)
     workflow.add_node("write_block", write_block_node)
-    workflow.add_node("verify_block", verify_block_node)
     workflow.add_node("update_composition", update_composition_node)
-    workflow.add_node("correction_auto", correction_auto_node)
-    workflow.add_node("correction_manual", correction_manual_node)
-    workflow.add_node("correction_external", correction_external_node)
-    workflow.add_node("apply_patch", apply_patch_node)
-    workflow.add_node("summarize_improvements", summarize_improvements_node)
     workflow.add_node("add_comments", add_comments_node)
     workflow.add_node("summarize_comments", summarize_comments_node)
     workflow.add_node("log_to_drive", log_to_drive_node)
 
-    # Auto-execute nodes (only added when auto-execute is on)
-    if auto_execute:
-        workflow.add_node("extract_new_block", extract_new_block_node)
-        workflow.add_node("syntax_validate", syntax_validate_node)
-        workflow.add_node("syntax_correction", syntax_correction_node)
-        workflow.add_node("llm_review_node", llm_review_node)
-
-    # --- Common start ---
+    # Linear edges — no validation or correction loops
     workflow.add_edge(START, "load_resources")
     workflow.add_edge("load_resources", "classify_block")
     workflow.add_edge("classify_block", "generate_block")
-
-    if auto_execute:
-        workflow.add_edge("generate_block", "extract_new_block")
-        
-        # Validation Routing
-        if not validation_prefs.get("enabled", True):
-            # Bypass validation entirely
-            workflow.add_edge("extract_new_block", "write_block")
-        
-        elif validation_prefs.get("mode") == "llm":
-            # Route through LLM Review Node
-            workflow.add_edge("extract_new_block", "llm_review_node")
-            workflow.add_edge("llm_review_node", "write_block")
-            
-        else:
-            # Traditional 2-Tier Validation
-            workflow.add_edge("extract_new_block", "syntax_validate")
-    
-            def syntax_router(state: IncrementalState):
-                if state.get("syntax_valid"):
-                    return "write_block"
-                attempts = state.get("syntax_check_attempts", 0)
-                if attempts < config.MAX_SYNTAX_RETRIES:
-                    return "syntax_correction"
-                else:
-                    return "write_block_fallback"
-    
-            workflow.add_conditional_edges("syntax_validate", syntax_router, {
-                "write_block": "write_block",
-                "syntax_correction": "syntax_correction",
-                "write_block_fallback": "write_block",
-            })
-    
-            # Correction loops back to validation
-            workflow.add_edge("syntax_correction", "syntax_validate")
-
-        # After write_block, route based on validation status
-        def post_write_router(state: IncrementalState):
-            if state.get("syntax_valid") or (not state.get("validation_prefs", {}).get("enabled", True)):
-                # Validated successfully or validation completely bypassed — skip manual verification
-                return "update_composition"
-            else:
-                # Max retries hit — fall back to manual verify
-                return "verify_block"
-
-        workflow.add_conditional_edges("write_block", post_write_router, {
-            "update_composition": "update_composition",
-            "verify_block": "verify_block",
-        })
-    else:
-        # STANDARD PATH: generate → write → verify (manual)
-        workflow.add_edge("generate_block", "write_block")
-        workflow.add_edge("write_block", "verify_block")
-
-    # --- Verification Router (for manual verify path) ---
-    def verify_router(state: IncrementalState):
-        if state["user_abort"]:
-            return "add_comments"
-
-        if state["is_correct"]:
-            if state.get("fix_mode"):
-                return "summarize_improvements"
-            else:
-                return "update_composition"
-
-        else:
-            mode = state.get("fix_mode")
-            if mode == "auto": return "correction_auto"
-            if mode == "manual": return "correction_manual"
-            if mode == "external": return "correction_external"
-            return "add_comments"
-
-    workflow.add_conditional_edges("verify_block", verify_router, {
-        "update_composition": "update_composition",
-        "correction_auto": "correction_auto",
-        "correction_manual": "correction_manual",
-        "correction_external": "correction_external",
-        "summarize_improvements": "summarize_improvements",
-        "add_comments": "add_comments",
-    })
-
-    # Correction paths all loop back through patch → verify
-    workflow.add_edge("correction_auto", "apply_patch")
-    workflow.add_edge("apply_patch", "verify_block")
-    workflow.add_edge("correction_manual", "verify_block")
-    workflow.add_edge("correction_external", "verify_block")
-
-    # After improvements, update composition state then done with this block
-    workflow.add_edge("summarize_improvements", "update_composition")
+    workflow.add_edge("generate_block", "extract_new_block")
+    workflow.add_edge("extract_new_block", "write_block")
+    workflow.add_edge("write_block", "update_composition")
 
     # Normal completion → done with this block
     workflow.add_edge("update_composition", END)
@@ -1015,19 +886,16 @@ def build_incremental_graph(auto_execute=False, validation_prefs=None):
 # ---------------------------------------------------------------------------
 
 def run_incremental_session(auto_execute=False, validation_prefs=None):
-    """Run the incremental block-by-block composition session."""
+    """Run the incremental block-by-block composition session.
+    
+    Validation and correction loops have been removed.
+    Code review is handled exclusively by the Fix tab in the IDE.
+    """
 
-    # Ensure vector DBs exist
-    if not os.path.exists(config.KNOWLEDGE_DB_PATH) or not os.path.exists(config.SCHELP_DB_PATH):
-        print("Vector Database(s) not found. Building initial indexes...")
+    # Ensure vector DB exists
+    if not os.path.exists(config.KNOWLEDGE_DB_PATH):
+        print("Vector Database not found. Building initial index...")
         rag_engine.build_all()
-
-    # Initialize validator if auto-execute is on and 2-tier is enabled
-    validator = None
-    if auto_execute and validation_prefs and validation_prefs.get("enabled") and validation_prefs.get("mode") == "2-tier":
-        from sclang_validator import SclangValidator
-        validator = SclangValidator()
-        validator.start()
 
     graph = build_incremental_graph(auto_execute=auto_execute, validation_prefs=validation_prefs)
     composition_history = ""
@@ -1036,15 +904,13 @@ def run_incremental_session(auto_execute=False, validation_prefs=None):
     all_interaction_logs = []
     all_token_logs = []
 
-    ae_label = "AUTO-EXECUTE ON" if auto_execute else "manual verification"
     print("\n" + "=" * 50)
-    print(f"  INCREMENTAL COMPOSITION MODE [{ae_label}]")
+    print(f"  INCREMENTAL COMPOSITION MODE")
     print("  Type your request for each block.")
     print("  Type 'end' to compose a final ending block.")
     print("  Type 'quit' to exit without ending.")
     print("=" * 50)
 
-    session_aborted = False
     ending_completed = False
 
     try:
@@ -1085,16 +951,14 @@ def run_incremental_session(auto_execute=False, validation_prefs=None):
                     "syntax_valid": None,
                     "syntax_errors": None,
                     "syntax_check_attempts": 0,
-                    "validation_prefs": validation_prefs
+                    "validation_prefs": validation_prefs or {}
                 }
 
                 # Force block_type to fade_out for ending blocks
                 if is_ending:
                     invoke_state["block_type"] = "fade_out"
 
-                # Pass validator via config if available
-                graph_config = {"configurable": {"sclang_validator": validator}} if validator else {}
-                result = graph.invoke(invoke_state, config=graph_config)
+                result = graph.invoke(invoke_state)
 
                 # Accumulate logs across blocks
                 if result.get("interaction_log"):
@@ -1102,36 +966,17 @@ def run_incremental_session(auto_execute=False, validation_prefs=None):
                 if result.get("token_usage_log"):
                     all_token_logs.extend(result["token_usage_log"])
 
-                # State mirroring: if block was accepted, mirror it to the validator
-                if auto_execute and validator and result.get("current_code_block"):
-                    # We consider it accepted if it's correct (manual fallback pass) or syntax_valid (auto pass)
-                    # Note: in auto-execute, if syntax_valid=True, we append it. If fallback, it's manually verified
-                    if result.get("syntax_valid") or result.get("is_correct"):
-                        validator.mirror_block(result["current_code_block"])
-
                 # Carry state forward to the next block
                 if result.get("composition_history"):
                     composition_history = result["composition_history"]
                 if result.get("previous_blocks"):
                     previous_blocks = result["previous_blocks"]
 
-                # If user aborted during verification, the graph already handled
-                # comments + drive logging via the abort path
-                if result.get("user_abort"):
-                    print("\n  Session aborted.")
-                    session_aborted = True
-                    break
+                print(f"\n  Block {block_number} complete.")
 
-                if auto_execute and result.get("syntax_valid"):
-                    print(f"\n  ✓ Block {block_number} validated and auto-executed.")
-                elif auto_execute and not result.get("syntax_valid"):
-                    print(f"\n  ⚠ Block {block_number} completed (fell back to manual verification).")
-                else:
-                    print(f"\n  Block {block_number} complete.")
-
-                # If this was the ending block and it was validated, exit to session logging
+                # If this was the ending block, exit to session logging
                 if is_ending:
-                    print("\n  Ending block validated. Proceeding to session wrap-up...")
+                    print("\n  Ending block written. Proceeding to session wrap-up...")
                     ending_completed = True
                     break
 
@@ -1143,8 +988,8 @@ def run_incremental_session(auto_execute=False, validation_prefs=None):
                 import traceback
                 traceback.print_exc()
 
-        # --- Session-End Logging (for normal exits or completed endings) ---
-        if not session_aborted and block_number > 0:
+        # --- Session-End Logging ---
+        if block_number > 0:
             print("\n" + "=" * 40)
             print("      SESSION COMPLETE — LOGGING")
             print("=" * 40)
@@ -1179,5 +1024,5 @@ def run_incremental_session(auto_execute=False, validation_prefs=None):
 
             print("\n  Session logged. Goodbye!")
     finally:
-        if validator:
-            validator.stop()
+        pass  # No validator to clean up
+

@@ -27,6 +27,8 @@
 
 namespace ScIDE {
 
+class AiAssistWidget;
+
 namespace Settings {
 class Manager;
 }
@@ -115,11 +117,14 @@ class PostDocklet : public Docklet {
 public:
     PostDocklet(QWidget* parent = 0);
 
+    AiAssistWidget* aiAssist() const { return mAiAssist; }
+
 private slots:
     void onFloatingChanged(bool floating);
 
 public:
     PostWindow* mPostWindow;
+    AiAssistWidget* mAiAssist;
 };
 
 } // namespace ScIDE

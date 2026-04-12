@@ -87,6 +87,7 @@ public slots:
 
 signals:
     void scPost(QString const&);
+    void codeEvaluated(QString const&, bool silent);
     void statusMessage(const QString&);
     void response(const QString& selector, const QString& data);
     void classLibraryRecompiled();

@@ -1,0 +1,26 @@
+{
+  "total_cost": 0.0,
+  "total_time": 30.29,
+  "total_energy": 0.017489,
+  "total_gwp": 0.0087445,
+  "total_wcf": 0.0,
+  "providers": {
+    "gemini/gemini-2.5-flash": {
+      "calls": 2,
+      "cost": 0.0,
+      "time": 30.29,
+      "in_tokens": 15138,
+      "out_tokens": 2351,
+      "energy_kwh": 0.017489,
+      "gwp_kg": 0.0087445,
+      "wcf_m3": 0.0,
+      "context_limit": 1048576,
+      "cost_fb": true,
+      "context_fb": true,
+      "eco_fb": true
+    }
+  },
+  "any_cost_fb": true,
+  "any_ctx_fb": true,
+  "any_eco_fb": true
+}

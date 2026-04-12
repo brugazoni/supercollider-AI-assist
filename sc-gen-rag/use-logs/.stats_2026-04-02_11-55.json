@@ -1,0 +1,17 @@
+{
+  "total_cost": 0.00083,
+  "total_time": 26.2,
+  "total_energy": 0.004941,
+  "providers": {
+    "gemini/gemini-2.5-flash": {
+      "calls": 1,
+      "cost": 0.00083,
+      "time": 26.2,
+      "in_tokens": 2917,
+      "out_tokens": 2024,
+      "energy_kwh": 0.004941,
+      "gwp_kg": 0.0024705,
+      "context_limit": 1048576
+    }
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "total_cost": 0.1099,
+  "total_time": 102.69,
+  "total_energy": 0.3275975875427159,
+  "total_gwp": 0.12671944024263423,
+  "total_adpe": 9.21833539646951e-08,
+  "total_pe": 3.187428995892777,
+  "total_wcf": 1.4456845502525422,
+  "providers": {
+    "gemini/gemini-3.1-pro-preview": {
+      "calls": 2,
+      "cost": 0.1099,
+      "time": 102.69,
+      "in_tokens": 18573,
+      "out_tokens": 2993,
+      "energy_kwh": 0.3275975875427159,
+      "gwp_kg": 0.12671944024263423,
+      "adpe_kg": 9.21833539646951e-08,
+      "pe_mj": 3.187428995892777,
+      "wcf_m3": 1.4456845502525422,
+      "context_limit": 2097152,
+      "cost_fb": true,
+      "context_fb": true,
+      "eco_fb": false
+    }
+  },
+  "any_cost_fb": true,
+  "any_ctx_fb": true,
+  "any_eco_fb": false
+}

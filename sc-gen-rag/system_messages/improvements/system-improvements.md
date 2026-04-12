@@ -58,27 +58,34 @@ LESSON: Improve accuracy and reduce "little mistakes" in SuperCollider code gene
 ### Entry [2026-03-25 11:58] (User Feedback)
 LESSON: Ensure volume relations are normalized and the generated code includes a defined ending.
 
-### Entry [2026-03-25 12:16] (User Feedback)
-// API error: 429 You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. 
-* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 20, model: gemini-2.5-flash
-Please retry in 56.493891218s. [links {
-  description: "Learn more about Gemini API quotas"
-  url: "https://ai.google.dev/gemini-api/docs/rate-limits"
-}
-, violations {
-  quota_metric: "generativelanguage.googleapis.com/generate_content_free_tier_requests"
-  quota_id: "GenerateRequestsPerDayPerProjectPerModel-FreeTier"
-  quota_dimensions {
-    key: "model"
-    value: "gemini-2.5-flash"
-  }
-  quota_dimensions {
-    key: "location"
-    value: "global"
-  }
-  quota_value: 20
-}
-, retry_delay {
-  seconds: 56
-}
-]
+### Entry [2026-03-26 20:25] (Fix Tab)
+**LESSON:** Always verify the existence of a specific Unit Generator (UGen) class (e.g., `Flanger.ar`) in SuperCollider's library before attempting to use it. A 'Class not defined' error indicates the UGen does not exist, and the desired effect may need to be implemented using combinations of available primitive UGens (e.g., `CombL.ar` with modulation for flanging).
+
+### Entry [2026-03-28 12:58] (Fix Tab)
+LESSON: When defining default values for arguments in SuperCollider function/closure headers (`|arg=default_value|`), always parenthesize negative numerical values. The parser can misinterpret a leading minus sign (`-`) as an unexpected binary operator, rather than part of the number literal, leading to a `syntax error, unexpected BINOP`.
+
+**Correct:** `|minPan=(-0.8)|`
+**Incorrect:** `|minPan=-0.8|`
+
+### Entry [2026-03-28 12:58] (Fix Tab)
+**Lesson:** When constructing arrays within a SuperCollider SynthDef (or Ndef function) whose elements are or depend on UGens, use a regular Array literal `[...]` instead of a Literal Array `#[...]`.
+
+Literal Arrays (`#[...]`) are strictly for compile-time constants and cannot contain or perform operations with UGens. Using them with UGens (e.g., `#[1,2,3] * fund`) results in a `BinaryOpUGen` representing the *entire multiplication operation* rather than an array of multiplied UGens, causing subsequent methods like `.at` to fail because they expect an array, not an operation. Regular Arrays (`[...]`) allow for runtime evaluation during SynthDef graph building, correctly creating dynamic UGen arrays (e.g., `[1,2,3] * fund` becomes `[1*fund, 2*fund, 3*fund]`) which are often required by UGen constructors like `DynKlank`.
+
+### Entry [2026-04-01 12:22] (Fix Tab - Offline)
+The `filter` method for `Ndef` is an *instance method* that operates on a specific `NodeProxy`'s signal chain. It must be called on an *instance* of `Ndef` (e.g., `Ndef(\master)`), not the `Ndef` *class* itself (`Ndef`). Calling an instance method on a class results in a `Message '...' not understood` error.
+
+**LESSON:** Always call instance-specific methods (like `filter` on an `Ndef`) on the *instance* of the object (`Ndef(\name)`), not on its *class* (`Ndef`).
+
+### Entry [2026-04-01 12:23] (Fix Tab - Offline)
+**LESSON:**
+
+The `Ndef.filter(index, func)` method in SuperCollider's JITLib is used to **define a signal processing stage (a filter or effect) for a NodeProxy, expecting a *function* as its second argument (`func`)**. This function describes how the effect transforms an input signal (`|in|`).
+
+The error `Message 'def' not understood` occurs when you attempt to *apply* an already existing UGen (like `sig`, which is an `OutputProxy` representing the `in` argument within the `Ndef`'s function) directly as the `func` argument to `Ndef.filter` *within* another `Ndef`'s definition.
+
+JITLib expects `Ndef.filter` to be provided with a *definition* (a function that describes the filter), not an already processed signal UGen. When given a UGen, it attempts to access a `def` method (which UGens do not have in this context) to resolve its definition, resulting in the error.
+
+**To avoid this:**
+*   The primary `Ndef` function (`Ndef(\name, { |in| ... })`) should generate or process its core signal.
+*   Separate effects should be **defined independently** using `Ndef(\name).filter(index, { |inputSig| ... filter code ... })`. JITLib automatically chains these defined filters to the main signal.

@@ -80,8 +80,7 @@ def build_knowledge_base_index():
     raw_docs = load_documents(config.CONTEXT_FOLDER, "scd", "knowledge-base")
 
     if not raw_docs:
-        print("No knowledge-base documents found.")
-        return
+        raise RuntimeError("No knowledge-base documents found in '{}'. Add .scd files to the knowledge_base folder.".format(config.CONTEXT_FOLDER))
 
     chunks = _chunk_documents(raw_docs)
     print(f"Created {len(chunks)} knowledge-base chunks.")
@@ -90,121 +89,42 @@ def build_knowledge_base_index():
     _embed_and_store(chunks, config.KNOWLEDGE_DB_PATH)
 
 
-def build_sc_help_index():
-    """Build the vector store for SC HelpSource (.schelp files)."""
-    print("\n--- [rag] building sc-help index ---")
-    if os.path.exists(config.SCHELP_DB_PATH):
-        shutil.rmtree(config.SCHELP_DB_PATH)
-
-    if not os.path.exists(config.SC_HELP_PATH):
-        print(f"  ⚠ SC_HELP_PATH not found: {config.SC_HELP_PATH}")
-        return
-
-    raw_docs = load_documents(config.SC_HELP_PATH, "schelp", "sc-help")
-
-    if not raw_docs:
-        print("No SC Help documents found.")
-        return
-
-    chunks = _chunk_documents(raw_docs)
-    print(f"Created {len(chunks)} sc-help chunks.")
-
-    print(" - embedding vectors...")
-    _embed_and_store(chunks, config.SCHELP_DB_PATH)
-
-
 def build_all():
-    """Build both vector stores sequentially."""
+    """Build the knowledge base vector store."""
     build_knowledge_base_index()
-    build_sc_help_index()
 
 
-def _weighted_rrf(doc_lists, weights, k=60):
-    """Weighted Reciprocal Rank Fusion – merges ranked lists into one."""
-    scores = {}   # page_content -> cumulative score
-    doc_map = {}  # page_content -> Document (keep first seen)
-
-    for docs, weight in zip(doc_lists, weights):
-        for rank, doc in enumerate(docs):
-            key = doc.page_content
-            scores[key] = scores.get(key, 0.0) + weight / (rank + k)
-            if key not in doc_map:
-                doc_map[key] = doc
-
-    # Apply source boost: multiply knowledge-base scores by the boost factor
-    boost = config.USER_LIB_BOOST
-    if boost != 1.0:
-        for key, doc in doc_map.items():
-            if doc.metadata.get("source") == "knowledge-base":
-                scores[key] *= boost
-
-    sorted_keys = sorted(scores, key=scores.get, reverse=True)
-    return [doc_map[k] for k in sorted_keys]
-
-
-def get_retriever(sources=None):
-    """Returns a callable(query) that performs vector retrieval.
-
-    Args:
-        sources: list of source stores to query.
-                 Valid values: "knowledge-base", "sc-help".
-                 Defaults to both.
-    """
-    if sources is None:
-        sources = ["knowledge-base", "sc-help"]
-
+def get_retriever():
+    """Returns a callable(query) that performs vector retrieval from the knowledge base."""
     embedding_func = get_embedding_function()
 
-    # Collect documents from requested stores
-    vector_retrievers = []
+    db_path = config.KNOWLEDGE_DB_PATH
+    if not db_path or not os.path.exists(db_path):
+        raise ValueError(f"Knowledge base not found at '{db_path}'. Run the build scripts first.")
 
-    db_map = {
-        "knowledge-base": config.KNOWLEDGE_DB_PATH,
-        "sc-help": config.SCHELP_DB_PATH,
-    }
-
-    for src in sources:
-        db_path = db_map.get(src)
-        if not db_path or not os.path.exists(db_path):
-            print(f"  ⚠ Store '{src}' not found at {db_path}, skipping.")
-            continue
-
-        db = Chroma(persist_directory=db_path, embedding_function=embedding_func)
-        vector_retrievers.append(db.as_retriever(search_kwargs={"k": config.RAG_K}))
-
-    if not vector_retrievers:
-        raise ValueError("No documents found in selected stores. Run the build scripts first.")
+    db = Chroma(persist_directory=db_path, embedding_function=embedding_func)
+    retriever = db.as_retriever(search_kwargs={"k": config.RAG_K})
 
     def retrieve(query):
-        vector_results_lists = []
-        for vr in vector_retrievers:
-            vector_results_lists.append(vr.invoke(query))
-        
-        # Use RRF to merge results from multiple vector databases
-        return _weighted_rrf(
-            vector_results_lists,
-            weights=[1.0] * len(vector_results_lists),
-        )[:config.RAG_K]
+        return retriever.invoke(query)[:config.RAG_K]
 
     return retrieve
 
 
 def query_index(query_text, sources=None):
-    """Query the RAG index, optionally filtering by source.
+    """Query the RAG index.
 
     Args:
         query_text: the search query.
-        sources: list of stores to search ("knowledge-base", "sc-help").
-                 Defaults to both.
+        sources: kept for backward compatibility, ignored.
     """
-    # Auto-build if neither store exists
-    db_paths = [config.KNOWLEDGE_DB_PATH, config.SCHELP_DB_PATH]
-    if not any(os.path.exists(p) for p in db_paths):
-        print('Indexes not found, building now.....')
+    # Auto-build if store doesn't exist
+    if not os.path.exists(config.KNOWLEDGE_DB_PATH):
+        print('Index not found, building now.....')
         build_all()
 
     try:
-        retriever = get_retriever(sources=sources)
+        retriever = get_retriever()
         results = retriever(query_text)
 
         context_str = ""

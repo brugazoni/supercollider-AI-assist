@@ -1,0 +1,40 @@
+{
+  "total_cost": 0.02098,
+  "total_time": 28.48,
+  "total_energy": 0.007142,
+  "total_gwp": 0.003571,
+  "total_wcf": 0.0,
+  "providers": {
+    "gemini/gemini-2.5-flash": {
+      "calls": 1,
+      "cost": 0.0,
+      "time": 10.57,
+      "in_tokens": 2711,
+      "out_tokens": 947,
+      "energy_kwh": 0.003658,
+      "gwp_kg": 0.001829,
+      "wcf_m3": 0.0,
+      "context_limit": 1048576,
+      "cost_fb": true,
+      "context_fb": true,
+      "eco_fb": true
+    },
+    "gemini/gemini-3.1-pro-preview": {
+      "calls": 1,
+      "cost": 0.02098,
+      "time": 17.91,
+      "in_tokens": 2720,
+      "out_tokens": 764,
+      "energy_kwh": 0.003484,
+      "gwp_kg": 0.001742,
+      "wcf_m3": 0.0,
+      "context_limit": 2097152,
+      "cost_fb": true,
+      "context_fb": true,
+      "eco_fb": true
+    }
+  },
+  "any_cost_fb": true,
+  "any_ctx_fb": true,
+  "any_eco_fb": true
+}

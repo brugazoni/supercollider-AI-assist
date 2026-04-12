@@ -1,0 +1,23 @@
+{
+    "append_prompt": "",
+    "composition_state": "",
+    "design_plan": "",
+    "design_prompt": "",
+    "design_use_kb": true,
+    "gen_include_ending": true,
+    "gen_plan": "",
+    "gen_prompt": "",
+    "gen_use_kb": true,
+    "kb_description": "",
+    "learn_chat_history": "",
+    "learn_history": "",
+    "model": "anthropic/claude-3-7-sonnet",
+    "raw_log": "# SuperCollider AI Session Log\n*Target File: C:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/sc-gen-rag/sc-files/palmhouse-synth-v2.scd*\n*Session started: 2026-04-12 15:25:20*\n---\n",
+    "remake_prompt": "",
+    "stats_cost_text": "Session: $0.00",
+    "stats_ctx_text": "Ctx: 0k",
+    "stats_ctx_value": 0,
+    "stats_eco_text": "0.0000kWh | 0.00000kgCO2 | 0.0000L",
+    "stats_wait_text": "Wait: 0.0s",
+    "temperature": 5
+}

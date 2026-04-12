@@ -2,7 +2,7 @@
 """
 test_queries.py
 Runs example queries through the Vector RAG pipeline to verify retrieval
-from both knowledge_base (.scd) and SC HelpSource (.schelp).
+from the knowledge_base (.scd).
 
 Usage:
     python test_queries.py
@@ -16,17 +16,12 @@ import rag_engine
 
 # Queries designed to hit different sources
 EXAMPLE_QUERIES = [
-    # Should pull from knowledge-base
+    # Knowledge-base queries
     ("Knowledge Base: FM Synthesis", "FM synthesis modulator carrier ratio frequency modulation"),
     ("Knowledge Base: Granular", "granular synthesis live audio input grains"),
     ("Knowledge Base: Distortion", "distortion waveshaping overdrive clipping"),
 
-    # Should pull from SC HelpSource
-    ("SC Help: SinOsc", "SinOsc arguments frequency phase audio rate"),
-    ("SC Help: Pbind", "Pbind pattern sequencing duration notes"),
-    ("SC Help: EnvGen", "EnvGen envelope ADSR gate doneAction"),
-
-    # Should pull from both
+    # General queries
     ("Vector: Ambient Drone", "dark ambient drone with reverb and filtering"),
     ("Vector: Ndef Live Coding", "Ndef live coding proxy space crossfade"),
 ]
@@ -39,7 +34,7 @@ def run_query(label, query_text, verbose=False):
     print(f"  Query: \"{query_text}\"")
     print(f"{'─' * 70}")
 
-    if not os.path.exists(config.KNOWLEDGE_DB_PATH) and not os.path.exists(config.SCHELP_DB_PATH):
+    if not os.path.exists(config.KNOWLEDGE_DB_PATH):
         print("  ✗ Vector DB not found. Run build_vectordb.py first.")
         return
 
@@ -76,7 +71,7 @@ def main():
 
     print("=" * 70)
     print("  RAG Retrieval Test Suite")
-    print(f"  KB DB: {config.KNOWLEDGE_DB_PATH}  |  SC DB: {config.SCHELP_DB_PATH}  |  K: {config.RAG_K}")
+    print(f"  KB DB: {config.KNOWLEDGE_DB_PATH}  |  K: {config.RAG_K}")
     print("=" * 70)
 
     if args.query:

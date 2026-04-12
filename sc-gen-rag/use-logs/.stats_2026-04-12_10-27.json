@@ -1,0 +1,46 @@
+{
+  "total_cost": 0.16161,
+  "total_time": 110.29,
+  "total_energy": 0.3005054317476501,
+  "total_gwp": 0.11626021629472784,
+  "total_adpe": 8.570304847732046e-08,
+  "total_pe": 2.924088499188955,
+  "total_wcf": 1.3261271647426305,
+  "providers": {
+    "gemini/gemini-2.5-flash": {
+      "calls": 1,
+      "cost": 0.0,
+      "time": 18.86,
+      "in_tokens": 4124,
+      "out_tokens": 1746,
+      "energy_kwh": 0.00970934213695522,
+      "gwp_kg": 0.0037730887703791753,
+      "adpe_kg": 3.705406428631949e-09,
+      "pe_mj": 0.09468895370280864,
+      "wcf_m3": 0.042847220047619886,
+      "context_limit": 1048576,
+      "cost_fb": true,
+      "context_fb": true,
+      "eco_fb": false
+    },
+    "gemini/gemini-3.1-pro-preview": {
+      "calls": 1,
+      "cost": 0.16161,
+      "time": 91.43,
+      "in_tokens": 17832,
+      "out_tokens": 6613,
+      "energy_kwh": 0.29079608961069486,
+      "gwp_kg": 0.11248712752434867,
+      "adpe_kg": 8.19976420486885e-08,
+      "pe_mj": 2.829399545486146,
+      "wcf_m3": 1.2832799446950105,
+      "context_limit": 2097152,
+      "cost_fb": true,
+      "context_fb": true,
+      "eco_fb": false
+    }
+  },
+  "any_cost_fb": true,
+  "any_ctx_fb": true,
+  "any_eco_fb": false
+}

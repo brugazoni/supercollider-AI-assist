@@ -30,6 +30,7 @@
 #include "multi_editor.hpp"
 #include "popup_text_input.hpp"
 #include "post_window.hpp"
+#include "ai_assist_widget.hpp"
 #include "session_switch_dialog.hpp"
 #include "sessions_dialog.hpp"
 #include "tool_box.hpp"
@@ -166,6 +167,13 @@ MainWindow::MainWindow(Main* main): mMain(main), mClockLabel(0), mDocDialog(0) {
     connect(this, SIGNAL(evaluateCode(QString, bool)), main->scProcess(), SLOT(evaluateCode(QString, bool)));
     // Interpreter: post output
     connect(main->scProcess(), SIGNAL(scPost(QString)), mPostDocklet->mPostWindow, SLOT(post(QString)));
+    // Forward post output to AiAssistWidget for stack trace capture
+    connect(main->scProcess(), &ScProcess::scPost, mPostDocklet->aiAssist(), &AiAssistWidget::onPostWindowText);
+    // Forward evaluateCode to AiAssistWidget for last-code-block capture
+    connect(main->scProcess(), &ScProcess::codeEvaluated, this, [this](const QString& code, bool silent) {
+        if (!silent)
+            mPostDocklet->aiAssist()->setLastEvaluatedCode(code);
+    });
     // Interpreter: monitor running state
     connect(main->scProcess(), SIGNAL(stateChanged(QProcess::ProcessState)), this,
             SLOT(onInterpreterStateChanged(QProcess::ProcessState)));
@@ -415,12 +423,6 @@ void MainWindow::createActions() {
     connect(action, SIGNAL(triggered(bool)), this, SLOT(lookupReferencesForCursor()));
     settings->addAction(action, "ide-lookup-references-for-cursor", ideCategory);
 
-    mActions[AutoEvaluateExternallyModified] = action = new QAction(tr("Auto-Evaluate Externally Modified Files"), this);
-    action->setCheckable(true);
-    action->setChecked(Main::instance()->documentManager()->isAutoEvaluateEnabled());
-    action->setStatusTip(tr("Toggle whether the IDE automatically evaluates externally updated documents"));
-    connect(action, SIGNAL(triggered(bool)), mMain->documentManager(), SLOT(setAutoEvaluateEnabled(bool)));
-    settings->addAction(action, "ide-auto-evaluate-external", ideCategory);
 
     // Settings
     mActions[ShowSettings] = action = new QAction(tr("Preferences"), this);
@@ -644,8 +646,6 @@ void MainWindow::createMenus() {
     menu->addAction(mActions[LookupImplementation]);
     menu->addAction(mActions[LookupReferencesForCursor]);
     menu->addAction(mActions[LookupReferences]);
-    menu->addSeparator();
-    menu->addAction(mActions[AutoEvaluateExternallyModified]);
 
     menuBar->addMenu(menu);
 
@@ -822,6 +822,10 @@ QAction* MainWindow::action(ActionRole role) {
 bool MainWindow::quit() {
     if (!promptSaveDocs())
         return false;
+
+    if (mPostDocklet && mPostDocklet->aiAssist()) {
+        mPostDocklet->aiAssist()->handleIdeShutdown();
+    }
 
     Main::instance()->documentManager()->deleteRestore();
 
