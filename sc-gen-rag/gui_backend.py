@@ -47,21 +47,29 @@ def _load_system_instruction_file(filepath):
     return ""
 
 
-def _get_base_system_instruction():
-    """Load the base system instruction + improvements (for code generation stages)."""
-    return utils.load_system_instruction()
-
-
-def _get_base_system_instruction_lean():
-    """Load the base system instruction WITHOUT improvements (for planning/Q&A stages).
+def _build_system_prompt(data):
+    """Build a system prompt from an explicit list of system message file paths.
     
-    Improvements and RAG context are expensive token-wise and only useful for
-    guiding code generation, not planning or conversational queries.
+    Reads the 'sys_msgs' key from data (a list of relative paths under system_messages/),
+    loads each file, and concatenates them with separator markers.
+    This replaces the old _get_base_system_instruction() and hidden improvements injection.
     """
-    if os.path.exists(config.SYSTEM_TEXT_FILE):
-        with open(config.SYSTEM_TEXT_FILE, 'r', encoding='utf-8') as f:
-            return f.read().strip()
-    return "You are an expert SuperCollider programmer."
+    sys_msgs = data.get("sys_msgs", [])
+    base_dir = os.path.join(SCRIPT_DIR, "system_messages")
+    
+    blocks = []
+    for relative_path in sys_msgs:
+        abs_path = os.path.join(base_dir, relative_path)
+        if os.path.exists(abs_path):
+            try:
+                with open(abs_path, 'r', encoding='utf-8') as f:
+                    content = f.read().strip()
+                    if content:
+                        blocks.append(content)
+            except Exception as e:
+                print(f"Error reading {abs_path}: {e}", flush=True)
+    
+    return "\n\n=== ADDITIONAL INSTRUCTION ===\n\n".join(blocks)
 
 
 def _read_scd(filepath):
@@ -106,21 +114,15 @@ def cmd_generate_plan(data):
     from llm_engine import LLMClient
     client = LLMClient(provider=provider, model_name=model_name)
 
-    # Load plan-specific + base system instruction (NO improvements, NO RAG)
+    # Build system prompt from explicit sys_msgs sent by the UI
+    full_sys = _build_system_prompt(data)
     mode = data.get("mode", "generate")
-    if mode == "design":
-        plan_sys = _load_system_instruction_file("system_messages/design/system-instruction-oneshot-plan-design.md")
-    else:
-        plan_sys = _load_system_instruction_file(config.SYSTEM_TEXT_FILE_ONESHOT_PLAN)
-    base_sys = _get_base_system_instruction_lean()
-    if plan_sys:
-        full_sys = plan_sys + "\n\n=== BASE INSTRUCTIONS ===\n" + base_sys
-    else:
-        full_sys = base_sys
 
     include_ending = data.get("include_ending", True)
     if mode == "design":
         ending_instruction = "The design plan should configure an external synthesize patch."
+    elif mode == "compose":
+        ending_instruction = "The composition MUST include an explicit ending where all Tdefs conclude, all Ndefs are cleared with a long fade, and the server is left silent. Use absolute timestamps throughout."
     else:
         if include_ending:
             ending_instruction = "The composition plan MUST include an explicit ending or 'Outro' where all active instruments and sequences are cleanly faded out and stopped."
@@ -131,7 +133,8 @@ def cmd_generate_plan(data):
 
     print("Generating composition plan...", flush=True)
     temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
-    plan, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature)
+    thinking_budget = data.get("thinking", 0)
+    plan, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
     
     active_file = data.get("active_file")
     utils.append_to_session_log("generate_plan", full_sys, user_prompt, plan, stats_dict, f"{provider}/{model_name}", active_file=active_file)
@@ -151,17 +154,9 @@ def cmd_generate_code(data):
     from llm_engine import LLMClient
     client = LLMClient(provider=provider, model_name=model_name)
 
-    # Load system instruction
+    # Build system prompt from explicit sys_msgs sent by the UI
+    full_sys = _build_system_prompt(data)
     mode = data.get("mode", "generate")
-    if mode == "design":
-        gen_sys = _load_system_instruction_file("system_messages/design/system-instruction-oneshot-gen-design.md")
-    else:
-        gen_sys = _load_system_instruction_file(config.SYSTEM_TEXT_FILE_ONESHOT_GEN)
-    base_sys = _get_base_system_instruction()
-    if gen_sys:
-        full_sys = gen_sys + "\n\n=== BASE INSTRUCTIONS & SYSTEM IMPROVEMENTS ===\n" + base_sys
-    else:
-        full_sys = base_sys
 
     # Optionally add RAG context
     if use_kb:
@@ -180,6 +175,8 @@ def cmd_generate_code(data):
     include_ending = data.get("include_ending", True)
     if mode == "design":
         ending_instruction = "\nEnsure the final block is a valid, runnable sequence defining the synthesizer logic properly."
+    elif mode == "compose":
+        ending_instruction = "\nThe Tdef script MUST conclude by stopping all Pbindefs, clearing all Ndefs with a long fade, and leaving the server silent. Include s.makeGui; at the end."
     else:
         if include_ending:
             ending_instruction = "\nEnsure the final block cleanly ends the piece according to the plan."
@@ -196,13 +193,65 @@ def cmd_generate_code(data):
 
     print("Generating SuperCollider code...", flush=True)
     temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
-    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature)
+    thinking_budget = data.get("thinking", 0)
+    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
     print(f"Writing to {target_display}...", flush=True)
     # Write to target file
     _write_scd("\n\n" + code, filepath=active_file, mode='a')
 
     utils.append_to_session_log("generate_code", full_sys, user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
+    return {"code": code, "last_stats": stats_dict}
+
+
+def cmd_custom_generate(data):
+    """Generate code dynamically driven by explicitly selected system messages."""
+    prompt = data.get("prompt", "")
+    use_kb = data.get("use_kb", False)
+    model_key = data.get("model", "")
+    sys_msgs = data.get("sys_msgs", [])
+
+    print("Loading AI models...", flush=True)
+    provider, model_name = _resolve_model(model_key)
+    from llm_engine import LLMClient
+    client = LLMClient(provider=provider, model_name=model_name)
+
+    # Build system prompt from explicit sys_msgs sent by the UI
+    full_sys = _build_system_prompt(data)
+
+    # Optionally add RAG context
+    if use_kb:
+        try:
+            print("Searching knowledge base...", flush=True)
+            import rag_engine
+            code_context = rag_engine.query_index(prompt, sources=["knowledge-base"])
+            if full_sys:
+                full_sys += f"\n\n=== Knowledge Base ===\n{code_context}"
+            else:
+                full_sys = f"=== Knowledge Base ===\n{code_context}"
+        except Exception:
+            pass
+
+    # Previous file content for context
+    active_file = data.get("active_file")
+    prev_content = _read_scd(active_file)[-800:] if active_file and os.path.exists(active_file) else ""
+
+    target_display = active_file if active_file else config.OUTPUT_FILE
+    user_prompt = (
+        f"Context: Working in '{target_display}'. Previous code:\n{prev_content}\n\n"
+        f"Request: {prompt}\n"
+        f"Output ONLY the valid SuperCollider code block executing the prompt."
+    )
+
+    print("Generating SuperCollider code...", flush=True)
+    temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
+    thinking_budget = data.get("thinking", 0)
+    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
+
+    print(f"Writing to {target_display}...", flush=True)
+    _write_scd("\n\n" + code, filepath=active_file, mode='a')
+
+    utils.append_to_session_log("custom_generate", full_sys if full_sys else "N/A", user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
     return {"code": code, "last_stats": stats_dict}
 
 
@@ -217,20 +266,17 @@ def cmd_append(data):
     from llm_engine import LLMClient
     client = LLMClient(provider=provider, model_name=model_name)
 
-    # Load system instruction (base + incremental addendum)
-    base_sys = _get_base_system_instruction()
-    incr_sys = _load_system_instruction_file(config.SYSTEM_TEXT_FILE_INCREMENTAL)
-    if incr_sys:
-        base_sys += "\n\n" + incr_sys
+    # Build system prompt from explicit sys_msgs sent by the UI
+    full_sys = _build_system_prompt(data)
 
     # RAG context
     try:
         print("Searching knowledge base...", flush=True)
         import rag_engine
         code_context = rag_engine.query_index(prompt, sources=["knowledge-base"])
-        full_sys = f"{base_sys}\n\n=== Knowledge Base ===\n{code_context}"
+        full_sys += f"\n\n=== Knowledge Base ===\n{code_context}"
     except Exception:
-        full_sys = base_sys
+        pass
 
     # Build user prompt with composition context
     comp_section = f"\n\n=== CURRENT COMPOSITION STATE ===\n{composition_state}" if composition_state else \
@@ -256,7 +302,8 @@ def cmd_append(data):
 
     print("Generating next block...", flush=True)
     temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
-    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature)
+    thinking_budget = data.get("thinking", 0)
+    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
     target_display = active_file if active_file else config.OUTPUT_FILE
     print(f"Writing to {target_display}...", flush=True)
@@ -302,10 +349,8 @@ def cmd_fix(data):
     from llm_engine import LLMClient
     client = LLMClient(provider=provider, model_name=model_name)
 
-    # Load fix system instruction
-    fix_sys = _load_system_instruction_file(config.SYSTEM_TEXT_FILE_FIX)
-    base_sys = _get_base_system_instruction()
-    full_sys = (fix_sys + "\n\n=== BASE INSTRUCTIONS & SYSTEM IMPROVEMENTS ===\n" + base_sys) if fix_sys else base_sys
+    # Build system prompt from explicit sys_msgs sent by the UI
+    full_sys = _build_system_prompt(data)
 
     user_prompt = (
         f"CODE BLOCK:\n{block}\n\n"
@@ -315,7 +360,8 @@ def cmd_fix(data):
 
     print("Analyzing trace and generating fix...", flush=True)
     temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
-    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature)
+    thinking_budget = data.get("thinking", 0)
+    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
     active_file = data.get("active_file")
     target_display = active_file if active_file else config.OUTPUT_FILE
@@ -362,10 +408,8 @@ def cmd_remake(data):
     from llm_engine import LLMClient
     client = LLMClient(provider=provider, model_name=model_name)
 
-    # Load remake system instruction
-    remake_sys = _load_system_instruction_file(config.SYSTEM_TEXT_FILE_REMAKE)
-    base_sys = _get_base_system_instruction()
-    full_sys = (remake_sys + "\n\n=== BASE INSTRUCTIONS ===\n" + base_sys) if remake_sys else base_sys
+    # Build system prompt from explicit sys_msgs sent by the UI
+    full_sys = _build_system_prompt(data)
 
     user_prompt = (
         f"CODE BLOCK:\n{block}\n\n"
@@ -375,7 +419,8 @@ def cmd_remake(data):
 
     print("Applying aesthetic changes...", flush=True)
     temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
-    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature)
+    thinking_budget = data.get("thinking", 0)
+    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
     active_file = data.get("active_file")
     target_display = active_file if active_file else config.OUTPUT_FILE
@@ -404,10 +449,8 @@ def cmd_learn(data):
     from llm_engine import LLMClient
     client = LLMClient(provider=provider, model_name=model_name)
 
-    # Load learn system instruction + base (NO improvements — this is Q&A)
-    learn_sys = _load_system_instruction_file(config.SYSTEM_TEXT_FILE_LEARN)
-    base_sys = _get_base_system_instruction_lean()
-    full_sys = (learn_sys + "\n\n=== BASE INSTRUCTIONS ===\n" + base_sys) if learn_sys else base_sys
+    # Build system prompt from explicit sys_msgs sent by the UI
+    full_sys = _build_system_prompt(data)
 
     # Add target file as context
     active_file = data.get("active_file")
@@ -423,7 +466,8 @@ def cmd_learn(data):
 
     print("Thinking...", flush=True)
     temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
-    response, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature)
+    thinking_budget = data.get("thinking", 0)
+    response, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
     utils.append_to_session_log("learn", full_sys, user_prompt, response, stats_dict, f"{provider}/{model_name}", active_file=active_file)
     return {"response": response, "last_stats": stats_dict}
@@ -573,6 +617,7 @@ COMMANDS = {
     "init_session": cmd_init_session,
     "generate_plan": cmd_generate_plan,
     "generate_code": cmd_generate_code,
+    "custom_generate": cmd_custom_generate,
     "append": cmd_append,
     "fix": cmd_fix,
     "remake": cmd_remake,

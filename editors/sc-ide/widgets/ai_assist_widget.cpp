@@ -11,9 +11,12 @@
 
 #include <QApplication>
 #include <QDir>
+#include <QDirIterator>
 #include <QFileInfo>
 #include <QScrollBar>
 #include <QProgressBar>
+#include <QFormLayout>
+#include <QInputDialog>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QJsonArray>
@@ -28,63 +31,10 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 
+
 namespace ScIDE {
 
-SystemMessageDialog::SystemMessageDialog(const QList<QPair<QString, QString>>& files, QWidget* parent)
-    : QDialog(parent) {
-    setWindowTitle(tr("System Messages Editor"));
-    resize(800, 600);
-    
-    QVBoxLayout* layout = new QVBoxLayout(this);
-    QTabWidget* tabs = new QTabWidget;
-    layout->addWidget(tabs);
-    
-    for (const auto& pair : files) {
-        QString label = pair.first;
-        QString path = pair.second;
-        
-        QPlainTextEdit* editor = new QPlainTextEdit;
-        QFile file(path);
-        if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            editor->setPlainText(QString::fromUtf8(file.readAll()));
-            file.close();
-        } else {
-            editor->setPlainText(tr("File not found: ") + path);
-        }
-        
-        mEditors.append(qMakePair(path, editor));
-        tabs->addTab(editor, label);
-    }
-    
-    QHBoxLayout* btnRow = new QHBoxLayout;
-    btnRow->addStretch();
-    QPushButton* saveBtn = new QPushButton(tr("Save All"));
-    QPushButton* cancelBtn = new QPushButton(tr("Cancel"));
-    btnRow->addWidget(cancelBtn);
-    btnRow->addWidget(saveBtn);
-    layout->addLayout(btnRow);
-    
-    connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
-    connect(saveBtn, &QPushButton::clicked, this, &SystemMessageDialog::onSaveClicked);
-}
-
-void SystemMessageDialog::onSaveClicked() {
-    for (int i = 0; i < mEditors.size(); ++i) {
-        QString path = mEditors[i].first;
-        QPlainTextEdit* editor = mEditors[i].second;
-        
-        QFile file(path);
-        QDir().mkpath(QFileInfo(file).absolutePath());
-        
-        if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            file.write(editor->toPlainText().toUtf8());
-            file.close();
-        } else {
-            QMessageBox::warning(this, tr("Save Error"), tr("Failed to save: ") + path);
-        }
-    }
-    accept();
-}
+// SystemMessageDialog removed — replaced by reusable openSysMessageEditor()
 
 AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     : QWidget(parent)
@@ -95,110 +45,133 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(2);
 
-    // === Row 1: Model selector, action buttons, status ===
+    // === Row 1: Model, Temperature, Thinking ===
     QHBoxLayout* row1 = new QHBoxLayout;
-    row1->setContentsMargins(4, 2, 4, 2);
+    row1->setContentsMargins(4, 2, 4, 0);
+    row1->setSpacing(4);
+
     row1->addWidget(new QLabel(tr("Model:")));
     mModelCombo = new QComboBox;
-    mModelCombo->setMinimumWidth(150);
+    mModelCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     row1->addWidget(mModelCombo);
-
     connect(mModelCombo, &QComboBox::currentTextChanged, this, &AiAssistWidget::onModelChanged);
 
+    row1->addSpacing(6);
+    row1->addWidget(new QLabel(tr("T:")));
+    mTempSlider = new QSlider(Qt::Horizontal);
+    mTempSlider->setRange(0, 20);
+    mTempSlider->setValue(7);
+    mTempSlider->setFixedWidth(60);
+    row1->addWidget(mTempSlider);
+    mTempLabel = new QLabel(tr("0.7"));
+    mTempLabel->setFixedWidth(22);
+    row1->addWidget(mTempLabel);
+    connect(mTempSlider, &QSlider::valueChanged, this, &AiAssistWidget::onTemperatureSliderChanged);
 
-
-    row1->addStretch();
-
-    mSessionStatsBtn = new QPushButton(tr("Session: $0.00"));
-    mSessionStatsBtn->setToolTip(tr("Click to view precision breakdown of current session cost and latency per model."));
-    connect(mSessionStatsBtn, &QPushButton::clicked, this, &AiAssistWidget::onSessionStatsClicked);
-    row1->addWidget(mSessionStatsBtn);
-
-    mPromptHistoryBtn = new QPushButton(tr("Prompt History"));
-    connect(mPromptHistoryBtn, &QPushButton::clicked, this, &AiAssistWidget::onPromptHistoryClicked);
-    row1->addWidget(mPromptHistoryBtn);
-
-    mImportSessionBtn = new QPushButton(tr("Import Session"));
-    mImportSessionBtn->setToolTip(tr("Manually load a previous AI session for this file (.ai-session.json)."));
-    connect(mImportSessionBtn, &QPushButton::clicked, this, &AiAssistWidget::onImportSessionClicked);
-    row1->addWidget(mImportSessionBtn);
-
-    mStatusBtn = new QPushButton;
-    mStatusBtn->setFixedWidth(200);
-    mStatusBtn->setFlat(true);
-    mStatusBtn->setStyleSheet("QPushButton { font-weight: bold; color: white; text-align: left; padding: 2px 6px; border: 1px solid #555; border-radius: 4px; } QPushButton:hover { background-color: #3a3a3a; }");
-    connect(mStatusBtn, &QPushButton::clicked, this, &AiAssistWidget::onStatusClicked);
-    row1->addWidget(mStatusBtn);
+    row1->addSpacing(6);
+    row1->addWidget(new QLabel(tr("Think:")));
+    mThinkingCombo = new QComboBox;
+    mThinkingCombo->addItem(tr("Off"), 0);
+    mThinkingCombo->addItem(tr("1k"), 1024);
+    mThinkingCombo->addItem(tr("4k"), 4096);
+    mThinkingCombo->addItem(tr("8k"), 8192);
+    mThinkingCombo->addItem(tr("16k"), 16384);
+    mThinkingCombo->setToolTip(tr("Extended reasoning budget (Claude 3.7 native)."));
+    mThinkingCombo->setFixedWidth(55);
+    row1->addWidget(mThinkingCombo);
 
     mainLayout->addLayout(row1);
 
-    // === Row 2: Eco stats, context progress, total wait time ===
+    // === Row 2: Utility actions ===
     QHBoxLayout* row2 = new QHBoxLayout;
-    row2->setContentsMargins(4, 0, 4, 2);
+    row2->setContentsMargins(4, 0, 4, 0);
+    row2->setSpacing(4);
 
-    // Sustainability Info Button (compact)
-    mSustainabilityBtn = new QPushButton(tr("i"));
-    mSustainabilityBtn->setFixedSize(20, 20);
-    mSustainabilityBtn->setToolTip(tr("View definitions for Eco-Impact metrics (Energy, GWP, ADPe, PE, WCF)"));
-    mSustainabilityBtn->setStyleSheet("QPushButton { color: white; background-color: #2980b9; border-radius: 10px; font-weight: bold; font-size: 11px; }");
-    connect(mSustainabilityBtn, &QPushButton::clicked, this, &AiAssistWidget::onSustainabilityClicked);
-    row2->addWidget(mSustainabilityBtn);
+    mPromptHistoryBtn = new QPushButton(tr("History"));
+    mPromptHistoryBtn->setToolTip(tr("View prompt history for this session."));
+    connect(mPromptHistoryBtn, &QPushButton::clicked, this, &AiAssistWidget::onPromptHistoryClicked);
+    row2->addWidget(mPromptHistoryBtn);
 
-    mEcoLabel = new QPushButton(tr("Eco: --"));
-    mEcoLabel->setToolTip(tr("Click to view all environmental impact metrics and definitions."));
-    mEcoLabel->setStyleSheet(
-        "QPushButton { background-color: #27ae60; color: white; padding: 2px 6px; border-radius: 4px; border: none; text-align: left; }"
-        "QPushButton:hover { background-color: #2ecc71; }");
-    connect(mEcoLabel, &QPushButton::clicked, this, &AiAssistWidget::onSustainabilityClicked);
-    row2->addWidget(mEcoLabel);
+    mImportSessionBtn = new QPushButton(tr("Import"));
+    mImportSessionBtn->setToolTip(tr("Load a previous AI session (.ai-session.json)."));
+    connect(mImportSessionBtn, &QPushButton::clicked, this, &AiAssistWidget::onImportSessionClicked);
+    row2->addWidget(mImportSessionBtn);
 
-    // Temperature slider placed next to Eco Stats
-    row2->addSpacing(10);
-    row2->addWidget(new QLabel(tr("Temp:")));
-    mTempSlider = new QSlider(Qt::Horizontal);
-    mTempSlider->setRange(0, 20); // Fallback
-    mTempSlider->setValue(7);
-    mTempSlider->setFixedWidth(100);
-    row2->addWidget(mTempSlider);
-    
-    mTempLabel = new QLabel(tr("0.7"));
-    row2->addWidget(mTempLabel);
+    mBootupBtn = new QPushButton(tr("Audio"));
+    mBootupBtn->setToolTip(tr("Open the SuperCollider audio bootstrap script to select output devices."));
+    connect(mBootupBtn, &QPushButton::clicked, this, &AiAssistWidget::onBootupClicked);
+    row2->addWidget(mBootupBtn);
 
-    connect(mTempSlider, &QSlider::valueChanged, this, &AiAssistWidget::onTemperatureSliderChanged);
+    mApiKeysBtn = new QPushButton(tr("API"));
+    mApiKeysBtn->setToolTip(tr("Manage LLM API Keys for the SC agent."));
+    connect(mApiKeysBtn, &QPushButton::clicked, this, &AiAssistWidget::onApiKeysClicked);
+    row2->addWidget(mApiKeysBtn);
 
     row2->addStretch();
 
-    // Context Progress
-    QHBoxLayout* ctxLayout = new QHBoxLayout;
-    ctxLayout->setSpacing(4);
+    mStatusBtn = new QPushButton;
+    mStatusBtn->setFlat(true);
+    mStatusBtn->setStyleSheet("QPushButton { color: #aaa; font-size: 10px; padding: 0px 4px; border: none; }"
+                              "QPushButton:hover { color: white; }");
+    mStatusBtn->setToolTip(tr("Click to view full status message."));
+    connect(mStatusBtn, &QPushButton::clicked, this, &AiAssistWidget::onStatusClicked);
+    row2->addWidget(mStatusBtn);
+
+    mainLayout->addLayout(row2);
+
+    // === Row 3: Session cost, eco, context, wait ===
+    QHBoxLayout* row3 = new QHBoxLayout;
+    row3->setContentsMargins(4, 0, 4, 0);
+    row3->setSpacing(4);
+
+    mSessionStatsBtn = new QPushButton(tr("$0.00"));
+    mSessionStatsBtn->setToolTip(tr("Session cost — click for breakdown per model."));
+    mSessionStatsBtn->setStyleSheet("QPushButton { padding: 1px 4px; }");
+    connect(mSessionStatsBtn, &QPushButton::clicked, this, &AiAssistWidget::onSessionStatsClicked);
+    row3->addWidget(mSessionStatsBtn);
+
+    mSustainabilityBtn = new QPushButton(tr("i"));
+    mSustainabilityBtn->setFixedSize(18, 18);
+    mSustainabilityBtn->setToolTip(tr("View Eco-Impact metric definitions (Energy, GWP, ADPe, PE, WCF)"));
+    mSustainabilityBtn->setStyleSheet("QPushButton { color: white; background-color: #2980b9; border-radius: 9px; font-weight: bold; font-size: 10px; }");
+    connect(mSustainabilityBtn, &QPushButton::clicked, this, &AiAssistWidget::onSustainabilityClicked);
+    row3->addWidget(mSustainabilityBtn);
+
+    mEcoLabel = new QPushButton(tr("Eco: --"));
+    mEcoLabel->setToolTip(tr("Environmental impact — click for details."));
+    mEcoLabel->setStyleSheet(
+        "QPushButton { background-color: #27ae60; color: white; padding: 1px 5px; border-radius: 3px; border: none; font-size: 10px; }"
+        "QPushButton:hover { background-color: #2ecc71; }");
+    connect(mEcoLabel, &QPushButton::clicked, this, &AiAssistWidget::onSustainabilityClicked);
+    row3->addWidget(mEcoLabel);
+
+    row3->addStretch();
+
     mContextLabel = new QLabel(tr("Ctx: 0k"));
-    mContextLabel->setStyleSheet("color: #7f8c8d;");
+    mContextLabel->setStyleSheet("color: #7f8c8d; font-size: 10px;");
+    row3->addWidget(mContextLabel);
+
     mContextBar = new QProgressBar;
     mContextBar->setRange(0, 100);
     mContextBar->setValue(0);
-    mContextBar->setFixedHeight(8);
-    mContextBar->setFixedWidth(100);
+    mContextBar->setFixedHeight(6);
+    mContextBar->setFixedWidth(60);
     mContextBar->setTextVisible(false);
-    mContextBar->setStyleSheet("QProgressBar { background-color: #2c3e50; border: none; border-radius: 4px; } "
-                               "QProgressBar::chunk { background-color: #3498db; border-radius: 4px; }");
+    mContextBar->setStyleSheet("QProgressBar { background-color: #2c3e50; border: none; border-radius: 3px; } "
+                               "QProgressBar::chunk { background-color: #3498db; border-radius: 3px; }");
     mContextBar->setToolTip(tr("Cumulative context token usage for this session.\n"
                                "This tracks total tokens consumed across all calls.\n"
                                "Individual calls are sent independently to the API,\n"
                                "so exceeding 100%% does not block further generation\n"
                                "but may indicate heavy session usage."));
-    ctxLayout->addWidget(mContextLabel);
-    ctxLayout->addWidget(mContextBar);
-    row2->addLayout(ctxLayout);
+    row3->addWidget(mContextBar);
 
-    row2->addStretch();
-
-    // Total wait time
     mTotalWaitLabel = new QLabel(tr("Wait: 0.0s"));
     mTotalWaitLabel->setToolTip(tr("Total time spent waiting for LLM responses this session."));
-    mTotalWaitLabel->setStyleSheet("QLabel { color: #f39c12; }");
-    row2->addWidget(mTotalWaitLabel);
+    mTotalWaitLabel->setStyleSheet("QLabel { color: #f39c12; font-size: 10px; }");
+    row3->addWidget(mTotalWaitLabel);
 
-    mainLayout->addLayout(row2);
+    mainLayout->addLayout(row3);
 
     // Tab widget
     mTabWidget = new QTabWidget;
@@ -277,26 +250,35 @@ void AiAssistWidget::connectDocumentSignals() {
     DocumentManager* dm = Main::instance()->documentManager();
     connect(dm, &DocumentManager::saved, this, &AiAssistWidget::onDocumentSaved);
     connect(dm, &DocumentManager::showRequest, this, &AiAssistWidget::onDocumentShown);
+    connect(dm, &DocumentManager::opened, this, &AiAssistWidget::onDocumentShown);
     connect(dm, &DocumentManager::closed, this, &AiAssistWidget::onDocumentClosed);
 }
 
-QString AiAssistWidget::sessionFilePath(const QString& scdPath) const {
-    return scdPath + ".ai-session.json";
+QString AiAssistWidget::sessionFilePath(Document* doc) const {
+    if (!doc) return QString();
+    QString path = doc->filePath();
+    if (path.isEmpty()) {
+        QString uuidStr = QString::fromLatin1(doc->id());
+        QString scriptDir = QFileInfo(backendScriptPath()).absolutePath();
+        return scriptDir + "/use-logs/.untitled_" + uuidStr + ".ai-session.json";
+    }
+    return path + ".ai-session.json";
 }
 
 bool AiAssistWidget::hasSessionContent() const {
     return !mGenPrompt->toPlainText().trimmed().isEmpty()
         || !mGenPlanOutput->toPlainText().trimmed().isEmpty()
-        || !mDesignPrompt->toPlainText().trimmed().isEmpty()
-        || !mDesignPlanOutput->toPlainText().trimmed().isEmpty()
+        || !mComposePrompt->toPlainText().trimmed().isEmpty()
+        || !mComposePlanOutput->toPlainText().trimmed().isEmpty()
+        || !mCustomPrompt->toPlainText().trimmed().isEmpty()
         || !mCompositionState.isEmpty()
         || !mLearnChatHistory.isEmpty()
         || !mAppendPrompt->toPlainText().trimmed().isEmpty()
         || !mLearnHistory->toPlainText().trimmed().isEmpty();
 }
 
-void AiAssistWidget::saveSessionFor(const QString& filePath) {
-    if (filePath.isEmpty()) return;
+void AiAssistWidget::saveSessionFor(Document* doc) {
+    if (!doc) return;
     
     QJsonObject session;
     session["gen_prompt"] = mGenPrompt->toPlainText();
@@ -314,6 +296,23 @@ void AiAssistWidget::saveSessionFor(const QString& filePath) {
     session["temperature"] = mTempSlider->value();
     session["remake_prompt"] = mRemakePrompt->toPlainText();
     session["kb_description"] = mKbDescription->toPlainText();
+    session["compose_prompt"] = mComposePrompt->toPlainText();
+    session["compose_plan"] = mComposePlanOutput->toPlainText();
+    session["compose_use_kb"] = mComposeUseKb->isChecked();
+
+    session["custom_prompt"] = mCustomPrompt->toPlainText();
+    session["custom_use_kb"] = mCustomUseKb->isChecked();
+    session["custom_sys_msgs"] = QJsonArray::fromStringList(mCustomSelectedSysMsgs);
+    session["gen_plan_sys_msgs"] = QJsonArray::fromStringList(mGenPlanSysMsgs);
+    session["gen_code_sys_msgs"] = QJsonArray::fromStringList(mGenCodeSysMsgs);
+    session["design_plan_sys_msgs"] = QJsonArray::fromStringList(mDesignPlanSysMsgs);
+    session["design_code_sys_msgs"] = QJsonArray::fromStringList(mDesignCodeSysMsgs);
+    session["compose_plan_sys_msgs"] = QJsonArray::fromStringList(mComposePlanSysMsgs);
+    session["compose_code_sys_msgs"] = QJsonArray::fromStringList(mComposeCodeSysMsgs);
+    session["append_sys_msgs"] = QJsonArray::fromStringList(mAppendSysMsgs);
+    session["fix_sys_msgs"] = QJsonArray::fromStringList(mFixSysMsgs);
+    session["remake_sys_msgs"] = QJsonArray::fromStringList(mRemakeSysMsgs);
+    session["learn_sys_msgs"] = QJsonArray::fromStringList(mLearnSysMsgs);
     
     // Enrich with Stats Labels state
     session["stats_cost_text"] = mSessionStatsBtn->text();
@@ -327,6 +326,7 @@ void AiAssistWidget::saveSessionFor(const QString& filePath) {
     proc.setWorkingDirectory(QFileInfo(backendScriptPath()).absolutePath());
     QStringList args;
     QJsonObject data = basePayload();
+    data["active_file"] = doc->filePath();
     args << backendScriptPath() << "get_raw_session_log" << QJsonDocument(data).toJson(QJsonDocument::Compact);
     proc.start(pythonPath(), args);
     if (proc.waitForFinished(3000)) {
@@ -336,7 +336,7 @@ void AiAssistWidget::saveSessionFor(const QString& filePath) {
         }
     }
     
-    QFile f(sessionFilePath(filePath));
+    QFile f(sessionFilePath(doc));
     if (f.open(QIODevice::WriteOnly)) {
         f.write(QJsonDocument(session).toJson());
     }
@@ -366,6 +366,38 @@ void AiAssistWidget::restoreSessionFor(const QString& filePath) {
     mLearnChatHistory = session["learn_chat_history"].toString();
     mRemakePrompt->setPlainText(session["remake_prompt"].toString());
     mKbDescription->setPlainText(session["kb_description"].toString());
+    mComposePrompt->setPlainText(session["compose_prompt"].toString());
+    mComposePlanOutput->setPlainText(session["compose_plan"].toString());
+    if (session.contains("compose_use_kb")) mComposeUseKb->setChecked(session["compose_use_kb"].toBool(true));
+
+    mCustomPrompt->setPlainText(session["custom_prompt"].toString());
+    if (session.contains("custom_use_kb")) mCustomUseKb->setChecked(session["custom_use_kb"].toBool(true));
+    if (session.contains("custom_sys_msgs")) {
+        QJsonArray msgs = session["custom_sys_msgs"].toArray();
+        mCustomSelectedSysMsgs.clear();
+        for (int i = 0; i < msgs.size(); ++i) {
+            mCustomSelectedSysMsgs.append(msgs[i].toString());
+        }
+    }
+
+    // Helper to restore a QStringList from a JSON array key
+    auto restoreSysMsgs = [&](const QString& key, QStringList& target) {
+        if (session.contains(key)) {
+            QJsonArray arr = session[key].toArray();
+            target.clear();
+            for (int i = 0; i < arr.size(); ++i) target.append(arr[i].toString());
+        }
+    };
+    restoreSysMsgs("gen_plan_sys_msgs", mGenPlanSysMsgs);
+    restoreSysMsgs("gen_code_sys_msgs", mGenCodeSysMsgs);
+    restoreSysMsgs("design_plan_sys_msgs", mDesignPlanSysMsgs);
+    restoreSysMsgs("design_code_sys_msgs", mDesignCodeSysMsgs);
+    restoreSysMsgs("compose_plan_sys_msgs", mComposePlanSysMsgs);
+    restoreSysMsgs("compose_code_sys_msgs", mComposeCodeSysMsgs);
+    restoreSysMsgs("append_sys_msgs", mAppendSysMsgs);
+    restoreSysMsgs("fix_sys_msgs", mFixSysMsgs);
+    restoreSysMsgs("remake_sys_msgs", mRemakeSysMsgs);
+    restoreSysMsgs("learn_sys_msgs", mLearnSysMsgs);
     
     // Restore labels
     if (session.contains("stats_cost_text")) mSessionStatsBtn->setText(session["stats_cost_text"].toString());
@@ -401,39 +433,65 @@ void AiAssistWidget::restoreSessionFor(const QString& filePath) {
 
 void AiAssistWidget::onDocumentSaved(Document* doc) {
     if (!doc) return;
-    QString fp = doc->filePath();
-    if (!fp.isEmpty()) {
-        saveSessionFor(fp);
-    }
+    saveSessionFor(doc);
 }
 
 void AiAssistWidget::onDocumentShown(Document* doc, int pos, int selLen) {
     Q_UNUSED(pos);
     Q_UNUSED(selLen);
-    if (!doc) return;
     
-    QString fp = doc->filePath();
-    if (fp.isEmpty()) return;
+    if (!doc) return;
 
-    if (!doc->property("ai_prompt_shown").toBool()) {
-        doc->setProperty("ai_prompt_shown", true);
-        
-        QString jsonPath = sessionFilePath(fp);
+    // If switching to a different file, save the outgoing session first
+    if (mLastActiveDocument && mLastActiveDocument != doc) {
+        saveSessionFor(mLastActiveDocument);
+    }
+
+    // Switch context: clear fields then restore from sidecar if it exists
+    if (doc != mLastActiveDocument) {
+        clearSessionFields();
+        QString jsonPath = sessionFilePath(doc);
         if (QFileInfo::exists(jsonPath)) {
-            QMessageBox::StandardButton res = QMessageBox::question(this, tr("AI Session Found"),
-                tr("An AI session sidecar file was found for this document.\nWould you like to import it?"),
-                QMessageBox::Yes | QMessageBox::No);
-                
-            if (res == QMessageBox::Yes) {
-                QString fileName = QFileDialog::getOpenFileName(this,
-                    tr("Import AI Session"), QFileInfo(jsonPath).absolutePath(), tr("AI Session Files (*.ai-session.json)"));
-                
-                if (!fileName.isEmpty()) {
-                    restoreSessionFor(fileName);
-                }
-            }
+            restoreSessionFor(jsonPath);
         }
     }
+
+    mLastActiveDocument = doc;
+}
+
+void AiAssistWidget::clearSessionFields() {
+    // Prompts and plans
+    mGenPrompt->clear();
+    mGenPlanOutput->clear();
+    mGenUseKb->setChecked(false);
+    mGenIncludeEnding->setChecked(true);
+    mDesignPrompt->clear();
+    mDesignPlanOutput->clear();
+    mDesignUseKb->setChecked(true);
+    mComposePrompt->clear();
+    mComposePlanOutput->clear();
+    mComposeUseKb->setChecked(true);
+    mCustomPrompt->clear();
+    mCustomUseKb->setChecked(true);
+    mAppendPrompt->clear();
+    mFixBlock->clear();
+    mFixStackTrace->clear();
+    mRemakeBlock->clear();
+    mRemakePrompt->clear();
+    mLearnHistory->clear();
+    mLearnChatHistory.clear();
+    mKbBlock->clear();
+    mKbDescription->clear();
+    mCompositionState.clear();
+
+    // Stats
+    mSessionStatsBtn->setText(tr("$0.00"));
+    mEcoLabel->setText(tr("Eco: --"));
+    mTotalWaitLabel->setText(tr("Wait: 0.0s"));
+    mContextLabel->setText(tr("Ctx: 0k"));
+    mContextBar->setValue(0);
+    mFullStatusText.clear();
+    mStatusBtn->setText(QString());
 }
 
 void AiAssistWidget::onImportSessionClicked() {
@@ -457,7 +515,104 @@ void AiAssistWidget::onImportSessionClicked() {
     }
 }
 
+void AiAssistWidget::onBootupClicked() {
+    Main::instance()->documentManager()->create();
+    Document* doc = Main::instance()->documentManager()->activeDocument();
+    if (doc) {
+        QTextCursor cursor(doc->textDocument());
+        cursor.insertText(
+            "//Run this to reference the default options of SuperCollider:\n"
+            "o = Server.default.options;\n\n"
+            "//Run this command to see all available output devices:\n"
+            "ServerOptions.outDevices.inspect;\n\n"
+            "//Then, set the exact name of the output device you'd like to use here:\n"
+            "o.outDevice_(\"your-output-here\");\n\n"
+            "//Do the same for input devices:\n"
+            "ServerOptions.inDevices.inspect;\n"
+            "o.inDevice_(\"your-input-here\");\n\n"
+            "//Then, reboot the server\n"
+            "Server.default.reboot;\n\n"
+            "// If you run into too much trouble with sample rate mismatch and won't use inputs like a microphone, just the output, you can ignore the input bus for a quick work around:\n"
+            "o.numInputBusChannels_(0);\n"
+            "Server.default.reboot;\n"
+        );
+    }
+}
+
+void AiAssistWidget::onApiKeysClicked() {
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Manage LLM API Keys"));
+    dlg.resize(400, 200);
+
+    QVBoxLayout* layout = new QVBoxLayout(&dlg);
+    
+    QFormLayout* form = new QFormLayout;
+    QLineEdit* geminiInput = new QLineEdit;
+    QLineEdit* anthropicInput = new QLineEdit;
+    QLineEdit* openaiInput = new QLineEdit;
+    QLineEdit* langchainInput = new QLineEdit;
+    
+    geminiInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
+    anthropicInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
+    openaiInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
+    langchainInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
+
+    form->addRow(tr("GEMINI_API_KEY:"), geminiInput);
+    form->addRow(tr("ANTHROPIC_API_KEY:"), anthropicInput);
+    form->addRow(tr("OPENAI_API_KEY:"), openaiInput);
+    form->addRow(tr("LANGCHAIN_API_KEY:"), langchainInput);
+    
+    layout->addLayout(form);
+    
+    QString envPath = QFileInfo(backendScriptPath()).absolutePath() + QDir::separator() + ".env";
+    QFile file(envPath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&file);
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith("GEMINI_API_KEY=")) geminiInput->setText(line.mid(15).trimmed());
+            else if (line.startsWith("ANTHROPIC_API_KEY=")) anthropicInput->setText(line.mid(18).trimmed());
+            else if (line.startsWith("OPENAI_API_KEY=")) openaiInput->setText(line.mid(15).trimmed());
+            else if (line.startsWith("LANGCHAIN_API_KEY=")) langchainInput->setText(line.mid(18).trimmed());
+        }
+        file.close();
+    }
+    
+    QHBoxLayout* btns = new QHBoxLayout;
+    btns->addStretch();
+    QPushButton* cancelBtn = new QPushButton(tr("Cancel"));
+    QPushButton* saveBtn = new QPushButton(tr("Save"));
+    btns->addWidget(cancelBtn);
+    btns->addWidget(saveBtn);
+    layout->addLayout(btns);
+    
+    connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+    connect(saveBtn, &QPushButton::clicked, [&]() {
+        QFile outFile(envPath);
+        if (outFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&outFile);
+            if (!geminiInput->text().trimmed().isEmpty()) out << "GEMINI_API_KEY=" << geminiInput->text().trimmed() << "\n";
+            if (!anthropicInput->text().trimmed().isEmpty()) out << "ANTHROPIC_API_KEY=" << anthropicInput->text().trimmed() << "\n";
+            if (!openaiInput->text().trimmed().isEmpty()) out << "OPENAI_API_KEY=" << openaiInput->text().trimmed() << "\n";
+            if (!langchainInput->text().trimmed().isEmpty()) out << "LANGCHAIN_API_KEY=" << langchainInput->text().trimmed() << "\n";
+            outFile.close();
+            QMessageBox::information(&dlg, tr("Saved"), tr("API keys updated globally."));
+            dlg.accept();
+        } else {
+            QMessageBox::critical(&dlg, tr("Error"), tr("Could not write to .env file at ") + envPath);
+        }
+    });
+
+    dlg.exec();
+}
+
 void AiAssistWidget::onDocumentClosed(Document* doc) {
+    // If the closed document was the active one, clear our fields and reset the tracker.
+    if (doc && doc == mLastActiveDocument) {
+        clearSessionFields();
+        mLastActiveDocument = nullptr;
+    }
+
     if (!doc) return;
     QString fp = doc->filePath();
     
@@ -476,10 +631,16 @@ void AiAssistWidget::createTabs() {
     // Tab 1: Generate
     mTabWidget->addTab(createGenerateTab(), tr("Generate"));
 
-    // Tab 2: Design (MIDI)
+    // Tab 2: Compose (Fixed Timeline)
+    mTabWidget->addTab(createComposeTab(), tr("Compose"));
+
+    // Tab 3: Design (MIDI)
     mTabWidget->addTab(createDesignTab(), tr("Design"));
 
-    // Tab 3: Append
+    // Tab 4: Custom
+    mTabWidget->addTab(createCustomTab(), tr("Custom"));
+
+    // Tab 5: Append
     mTabWidget->addTab(createAppendTab(), tr("Append"));
 
     // Tab 3: Fix
@@ -493,6 +654,22 @@ void AiAssistWidget::createTabs() {
 
     // Tab 6: Add to KB
     mTabWidget->addTab(createAddKbTab(), tr("Add to KB"));
+
+    // Initialize per-tab system message defaults
+    mGenPlanSysMsgs = QStringList{"base/system-instruction.md", "generate/system-instruction-oneshot-plan.md"};
+    mGenCodeSysMsgs = QStringList{"base/system-instruction.md", "improvements/system-improvements.md", "generate/system-instruction-oneshot-gen.md"};
+    mDesignPlanSysMsgs = QStringList{"base/system-instruction.md", "design/system-instruction-oneshot-plan-design.md"};
+    mDesignCodeSysMsgs = QStringList{"base/system-instruction.md", "improvements/system-improvements.md", "design/system-instruction-oneshot-gen-design.md"};
+    mComposePlanSysMsgs = QStringList{"base/system-instruction.md", "compose/system-instruction-compose-plan.md"};
+    mComposeCodeSysMsgs = QStringList{"base/system-instruction.md", "improvements/system-improvements.md", "compose/system-instruction-compose-implement.md"};
+    mAppendSysMsgs = QStringList{"base/system-instruction.md", "improvements/system-improvements.md", "append/system-instruction-incremental.md"};
+    mFixSysMsgs = QStringList{"base/system-instruction.md", "improvements/system-improvements.md", "fix/system-instruction-fix.md"};
+    mRemakeSysMsgs = QStringList{"base/system-instruction.md", "improvements/system-improvements.md", "remake/system-instruction-remake.md"};
+    mLearnSysMsgs = QStringList{"base/system-instruction.md", "learn/system-instruction-learn.md"};
+    // mCustomSelectedSysMsgs stays empty by default
+
+    // Override defaults from persistent JSON file
+    loadSysMsgDefaults();
 }
 
 QWidget* AiAssistWidget::createGenerateTab() {
@@ -516,9 +693,12 @@ QWidget* AiAssistWidget::createGenerateTab() {
     planRow->addWidget(mGenIncludeEnding);
 
     planRow->addStretch();
-    mSystemMsgBtnGen = new QPushButton(tr("System Messages"));
-    connect(mSystemMsgBtnGen, &QPushButton::clicked, this, &AiAssistWidget::onGenSysClicked);
-    planRow->addWidget(mSystemMsgBtnGen);
+    mGenPlanSysBtn = new QPushButton(tr("Plan Msgs"));
+    connect(mGenPlanSysBtn, &QPushButton::clicked, this, &AiAssistWidget::onGenPlanSysClicked);
+    planRow->addWidget(mGenPlanSysBtn);
+    mGenCodeSysBtn = new QPushButton(tr("Code Msgs"));
+    connect(mGenCodeSysBtn, &QPushButton::clicked, this, &AiAssistWidget::onGenCodeSysClicked);
+    planRow->addWidget(mGenCodeSysBtn);
     
     mGenPlanBtn = new QPushButton(tr("Plan"));
     connect(mGenPlanBtn, &QPushButton::clicked, this, &AiAssistWidget::onPlanClicked);
@@ -554,9 +734,12 @@ QWidget* AiAssistWidget::createDesignTab() {
     planRow->addWidget(mDesignUseKb);
     
     planRow->addStretch();
-    mSystemMsgBtnDesign = new QPushButton(tr("System Messages"));
-    connect(mSystemMsgBtnDesign, &QPushButton::clicked, this, &AiAssistWidget::onDesignSysClicked);
-    planRow->addWidget(mSystemMsgBtnDesign);
+    mDesignPlanSysBtn = new QPushButton(tr("Plan Msgs"));
+    connect(mDesignPlanSysBtn, &QPushButton::clicked, this, &AiAssistWidget::onDesignPlanSysClicked);
+    planRow->addWidget(mDesignPlanSysBtn);
+    mDesignCodeSysBtn = new QPushButton(tr("Code Msgs"));
+    connect(mDesignCodeSysBtn, &QPushButton::clicked, this, &AiAssistWidget::onDesignCodeSysClicked);
+    planRow->addWidget(mDesignCodeSysBtn);
     
     mDesignPlanBtn = new QPushButton(tr("Plan"));
     connect(mDesignPlanBtn, &QPushButton::clicked, this, &AiAssistWidget::onDesignPlanClicked);
@@ -571,6 +754,75 @@ QWidget* AiAssistWidget::createDesignTab() {
     mDesignGenerateBtn = new QPushButton(tr("Design"));
     connect(mDesignGenerateBtn, &QPushButton::clicked, this, &AiAssistWidget::onDesignGenerateClicked);
     layout->addWidget(mDesignGenerateBtn);
+
+    return tab;
+}
+
+QWidget* AiAssistWidget::createComposeTab() {
+    QWidget* tab = new QWidget;
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    layout->setContentsMargins(4, 4, 4, 4);
+
+    layout->addWidget(new QLabel(tr("Composition prompt (absolute time):")));
+    mComposePrompt = new QPlainTextEdit;
+    mComposePrompt->setPlaceholderText(tr("Describe a fixed-length composition with explicit timing..."));
+    mComposePrompt->setMaximumHeight(80);
+    layout->addWidget(mComposePrompt);
+
+    QHBoxLayout* planRow = new QHBoxLayout;
+    mComposeUseKb = new QCheckBox(tr("Use knowledge base"));
+    mComposeUseKb->setChecked(true);
+    planRow->addWidget(mComposeUseKb);
+
+    planRow->addStretch();
+    mComposePlanSysBtn = new QPushButton(tr("Plan Msgs"));
+    connect(mComposePlanSysBtn, &QPushButton::clicked, this, &AiAssistWidget::onComposePlanSysClicked);
+    planRow->addWidget(mComposePlanSysBtn);
+    mComposeCodeSysBtn = new QPushButton(tr("Code Msgs"));
+    connect(mComposeCodeSysBtn, &QPushButton::clicked, this, &AiAssistWidget::onComposeCodeSysClicked);
+    planRow->addWidget(mComposeCodeSysBtn);
+
+    mComposePlanBtn = new QPushButton(tr("Plan"));
+    connect(mComposePlanBtn, &QPushButton::clicked, this, &AiAssistWidget::onComposePlanClicked);
+    planRow->addWidget(mComposePlanBtn);
+    layout->addLayout(planRow);
+
+    layout->addWidget(new QLabel(tr("Composition plan — timeline & cue sheet (editable):")));
+    mComposePlanOutput = new QPlainTextEdit;
+    mComposePlanOutput->setPlaceholderText(tr("Cue sheet will appear here after clicking Plan..."));
+    layout->addWidget(mComposePlanOutput, 1);
+
+    mComposeGenerateBtn = new QPushButton(tr("Compose"));
+    connect(mComposeGenerateBtn, &QPushButton::clicked, this, &AiAssistWidget::onComposeGenerateClicked);
+    layout->addWidget(mComposeGenerateBtn);
+
+    return tab;
+}
+
+QWidget* AiAssistWidget::createCustomTab() {
+    QWidget* tab = new QWidget;
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    layout->setContentsMargins(4, 4, 4, 4);
+
+    layout->addWidget(new QLabel(tr("Custom Prompt:")));
+    mCustomPrompt = new QPlainTextEdit;
+    mCustomPrompt->setPlaceholderText(tr("Type your prompt here..."));
+    layout->addWidget(mCustomPrompt, 1);
+
+    QHBoxLayout* row = new QHBoxLayout;
+    mCustomUseKb = new QCheckBox(tr("Use knowledge base"));
+    mCustomUseKb->setChecked(false);
+    row->addWidget(mCustomUseKb);
+    
+    row->addStretch();
+    mCustomSysBtn = new QPushButton(tr("Edit System Messages"));
+    connect(mCustomSysBtn, &QPushButton::clicked, this, &AiAssistWidget::onCustomSysEditClicked);
+    row->addWidget(mCustomSysBtn);
+    layout->addLayout(row);
+
+    mCustomGenerateBtn = new QPushButton(tr("Generate"));
+    connect(mCustomGenerateBtn, &QPushButton::clicked, this, &AiAssistWidget::onCustomGenerateClicked);
+    layout->addWidget(mCustomGenerateBtn);
 
     return tab;
 }
@@ -804,6 +1056,9 @@ void AiAssistWidget::setProcessingState(bool processing) {
     // Disable all buttons during processing
     mGenPlanBtn->setEnabled(!processing);
     mGenGenerateBtn->setEnabled(!processing);
+    mComposePlanBtn->setEnabled(!processing);
+    mComposeGenerateBtn->setEnabled(!processing);
+    mCustomGenerateBtn->setEnabled(!processing);
     mAppendBtn->setEnabled(!processing);
     mFixBtn->setEnabled(!processing);
     mRemakeBtn->setEnabled(!processing);
@@ -820,6 +1075,7 @@ QJsonObject AiAssistWidget::basePayload() const {
     }
     data["model"] = mModelCombo->currentText();
     data["temperature"] = mTempSlider->value() / 10.0;
+    data["thinking"] = mThinkingCombo->currentData().toInt();
     return data;
 }
 
@@ -830,11 +1086,13 @@ void AiAssistWidget::runBackendCommand(const QString& command, const QJsonObject
         return;
     }
 
-    // Merge active file if not present
-    Document* doc = Main::instance()->documentManager()->activeDocument();
+    // Merge base payload data (active file, model, temperature) into finalData
     QJsonObject finalData = data;
-    if (doc && !finalData.contains("active_file")) {
-        finalData["active_file"] = doc->filePath();
+    QJsonObject base = basePayload();
+    for (auto it = base.begin(); it != base.end(); ++it) {
+        if (!finalData.contains(it.key())) {
+            finalData[it.key()] = it.value();
+        }
     }
 
     // Write input data to a temp file
@@ -1275,6 +1533,7 @@ void AiAssistWidget::onPlanClicked() {
     data["use_kb"] = mGenUseKb->isChecked();
     data["include_ending"] = mGenIncludeEnding->isChecked();
     data["model"] = mModelCombo->currentText();
+    data["sys_msgs"] = QJsonArray::fromStringList(mGenPlanSysMsgs);
 
     runBackendCommand("generate_plan", data, [this](const QJsonObject& result) {
         mGenPlanOutput->setPlainText(result["plan"].toString());
@@ -1291,6 +1550,7 @@ void AiAssistWidget::onGenerateClicked() {
     data["use_kb"] = mGenUseKb->isChecked();
     data["include_ending"] = mGenIncludeEnding->isChecked();
     data["model"] = mModelCombo->currentText();
+    data["sys_msgs"] = QJsonArray::fromStringList(mGenCodeSysMsgs);
 
     runBackendCommand("generate_code", data, [this](const QJsonObject& result) {
         // Insert generated code into the active document
@@ -1308,6 +1568,248 @@ void AiAssistWidget::onGenerateClicked() {
     });
 }
 
+// --- Compose tab handlers ---
+
+void AiAssistWidget::onComposePlanClicked() {
+    QString prompt = mComposePrompt->toPlainText().trimmed();
+    if (prompt.isEmpty()) return;
+
+    QJsonObject data;
+    data["prompt"] = prompt;
+    data["use_kb"] = mComposeUseKb->isChecked();
+    data["model"] = mModelCombo->currentText();
+    data["mode"] = "compose";
+    data["sys_msgs"] = QJsonArray::fromStringList(mComposePlanSysMsgs);
+
+    runBackendCommand("generate_plan", data, [this](const QJsonObject& result) {
+        mComposePlanOutput->setPlainText(result["plan"].toString());
+    });
+}
+
+void AiAssistWidget::onComposeGenerateClicked() {
+    QString plan = mComposePlanOutput->toPlainText().trimmed();
+    if (plan.isEmpty()) return;
+
+    QJsonObject data;
+    data["plan"] = plan;
+    data["prompt"] = mComposePrompt->toPlainText().trimmed();
+    data["use_kb"] = mComposeUseKb->isChecked();
+    data["model"] = mModelCombo->currentText();
+    data["mode"] = "compose";
+    data["sys_msgs"] = QJsonArray::fromStringList(mComposeCodeSysMsgs);
+
+    runBackendCommand("generate_code", data, [this](const QJsonObject& result) {
+        QString code = result["code"].toString();
+        if (!code.isEmpty()) {
+            Document* doc = Main::instance()->documentManager()->activeDocument();
+            if (doc) {
+                QTextCursor cursor(doc->textDocument());
+                cursor.movePosition(QTextCursor::End);
+                cursor.insertText("\n\n" + code);
+            }
+        }
+        mFullStatusText = tr("Composition generated and written");
+        mStatusBtn->setText(mFullStatusText);
+    });
+}
+
+// --- Custom tab handlers ---
+
+void AiAssistWidget::onCustomGenerateClicked() {
+    QString prompt = mCustomPrompt->toPlainText().trimmed();
+    if (prompt.isEmpty()) return;
+
+    QJsonObject data;
+    data["prompt"] = prompt;
+    data["use_kb"] = mCustomUseKb->isChecked();
+    data["model"] = mModelCombo->currentText();
+    data["sys_msgs"] = QJsonArray::fromStringList(mCustomSelectedSysMsgs);
+    data["mode"] = "custom";
+
+    runBackendCommand("custom_generate", data, [this](const QJsonObject& result) {
+        QString code = result["code"].toString();
+        if (!code.isEmpty()) {
+            Document* doc = Main::instance()->documentManager()->activeDocument();
+            if (doc) {
+                QTextCursor cursor(doc->textDocument());
+                cursor.movePosition(QTextCursor::End);
+                cursor.insertText("\n\n" + code);
+            }
+        }
+        mFullStatusText = tr("Custom snippet generated and written");
+        mStatusBtn->setText(mFullStatusText);
+    });
+}
+
+void AiAssistWidget::onCustomSysEditClicked() {
+    openSysMessageEditor(mCustomSelectedSysMsgs);
+}
+
+void AiAssistWidget::openSysMessageEditor(QStringList& selectedList) {
+    QString backendScript = backendScriptPath();
+    QDir scriptDir(QFileInfo(backendScript).absolutePath());
+    QDir sysDir(scriptDir.filePath("system_messages"));
+    
+    if (!sysDir.exists()) sysDir.mkpath(".");
+    
+    // Gather files retaining relative paths
+    QStringList relativeFiles;
+    QDirIterator it(sysDir.absolutePath(), QStringList() << "*.md" << "*.txt",
+                    QDir::Files, QDirIterator::Subdirectories);
+    while (it.hasNext()) {
+        it.next();
+        relativeFiles.append(sysDir.relativeFilePath(it.filePath()));
+    }
+    
+    // Ordered list where checked items are at the top in their saved order
+    QStringList orderedFiles;
+    for (const QString& sel : selectedList) {
+        if (relativeFiles.contains(sel)) {
+            orderedFiles.append(sel);
+            relativeFiles.removeAll(sel);
+        }
+    }
+    orderedFiles.append(relativeFiles);
+    
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Custom System Messages (Drag to re-order)"));
+    dlg.resize(1000, 700);
+    
+    QVBoxLayout* entireLay = new QVBoxLayout(&dlg);
+    
+    // Top half: Editor
+    QHBoxLayout* mainLay = new QHBoxLayout;
+    entireLay->addLayout(mainLay, 2);
+    
+    // List on left
+    QVBoxLayout* leftLay = new QVBoxLayout;
+    QListWidget* fileList = new QListWidget;
+    fileList->setFixedWidth(300);
+    fileList->setDragDropMode(QAbstractItemView::InternalMove);
+    for (const QString& file : orderedFiles) {
+        QListWidgetItem* item = new QListWidgetItem(file, fileList);
+        item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsDragEnabled);
+        item->setCheckState(selectedList.contains(file) ? Qt::Checked : Qt::Unchecked);
+    }
+    leftLay->addWidget(fileList);
+    
+    QPushButton* newBtn = new QPushButton(tr("New Message..."));
+    leftLay->addWidget(newBtn);
+    mainLay->addLayout(leftLay);
+    
+    // Editor and Save button on right
+    QVBoxLayout* rightLay = new QVBoxLayout;
+    QPlainTextEdit* editor = new QPlainTextEdit;
+    editor->setPlaceholderText(tr("Select a file from the list to edit its content here.\nLines will not be wrapped automatically."));
+    editor->setLineWrapMode(QPlainTextEdit::NoWrap);
+    rightLay->addWidget(editor);
+    
+    QPushButton* saveBtn = new QPushButton(tr("Save File"));
+    rightLay->addWidget(saveBtn);
+    mainLay->addLayout(rightLay);
+    
+    // Bottom half: Preview
+    entireLay->addWidget(new QLabel(tr("Prompt Preview (concatenation order matches list order):")));
+    QPlainTextEdit* previewEditor = new QPlainTextEdit;
+    previewEditor->setReadOnly(true);
+    previewEditor->setStyleSheet("background-color: #222; color: #ccc;");
+    entireLay->addWidget(previewEditor, 1);
+    
+    QString currentFilePath;
+    
+    auto updatePreview = [&]() {
+        QString fullPreview = "";
+        for(int i = 0; i < fileList->count(); ++i) {
+            QListWidgetItem* item = fileList->item(i);
+            if(item->checkState() == Qt::Checked) {
+                QString path = sysDir.filePath(item->text());
+                QFile f(path);
+                if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+                    if (!fullPreview.isEmpty()) fullPreview += "\n\n=== ADDITIONAL INSTRUCTION ===\n\n";
+                    fullPreview += QString::fromUtf8(f.readAll()).trimmed();
+                }
+            }
+        }
+        previewEditor->setPlainText(fullPreview);
+    };
+
+    QObject::connect(fileList, &QListWidget::itemChanged, updatePreview);
+    QObject::connect(fileList->model(), &QAbstractItemModel::rowsMoved, updatePreview);
+    
+    QObject::connect(fileList, &QListWidget::currentTextChanged, [&](const QString& fileName) {
+        currentFilePath = sysDir.filePath(fileName);
+        QFile f(currentFilePath);
+        if (f.open(QIODevice::ReadOnly | QIODevice::Text)) {
+            editor->setPlainText(QString::fromUtf8(f.readAll()));
+        } else {
+            editor->clear();
+        }
+    });
+
+    QObject::connect(newBtn, &QPushButton::clicked, [&]() {
+        bool ok;
+        QString text = QInputDialog::getText(&dlg, tr("New Custom Message"),
+                                             tr("Enter filename (e.g. custom/my_new_rule.md):"), QLineEdit::Normal,
+                                             "custom/new_rule.md", &ok);
+        if (ok && !text.isEmpty()) {
+            QFile newFile(sysDir.filePath(text));
+            QFileInfo fi(newFile);
+            sysDir.mkpath(fi.absolutePath()); 
+            if (newFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+                newFile.write("Write your custom rules here...");
+                newFile.close();
+                QListWidgetItem* item = new QListWidgetItem(text, fileList);
+                item->setFlags(item->flags() | Qt::ItemIsUserCheckable | Qt::ItemIsDragEnabled);
+                item->setCheckState(Qt::Checked);
+                fileList->setCurrentItem(item);
+                updatePreview();
+            }
+        }
+    });
+    
+    QObject::connect(saveBtn, &QPushButton::clicked, [&]() {
+        if (currentFilePath.isEmpty()) return;
+        QFile f(currentFilePath);
+        if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            f.write(editor->toPlainText().toUtf8());
+            QMessageBox::information(&dlg, tr("Saved"), tr("File saved successfully."));
+            updatePreview();
+        } else {
+            QMessageBox::warning(&dlg, tr("Error"), tr("Could not save to file."));
+        }
+    });
+
+    if (fileList->count() > 0) {
+        fileList->setCurrentRow(0);
+    }
+    updatePreview();
+    
+    // Accept / Cancel row
+    QHBoxLayout* bottomBtnRow = new QHBoxLayout;
+    bottomBtnRow->addStretch();
+    QPushButton* cancelBtn = new QPushButton(tr("Cancel"));
+    QPushButton* acceptBtn = new QPushButton(tr("Accept Checked"));
+    bottomBtnRow->addWidget(cancelBtn);
+    bottomBtnRow->addWidget(acceptBtn);
+    entireLay->addLayout(bottomBtnRow);
+    
+    QObject::connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+    QObject::connect(acceptBtn, &QPushButton::clicked, [&]() {
+        selectedList.clear();
+        for(int i = 0; i < fileList->count(); ++i) {
+            QListWidgetItem* item = fileList->item(i);
+            if(item->checkState() == Qt::Checked) {
+                selectedList.append(item->text());
+            }
+        }
+        // Persist as new default
+        saveSysMsgDefaults();
+        dlg.accept();
+    });
+
+    dlg.exec();
+}
+
 // --- Design tab handlers ---
 
 void AiAssistWidget::onDesignPlanClicked() {
@@ -1319,6 +1821,7 @@ void AiAssistWidget::onDesignPlanClicked() {
     data["use_kb"] = mDesignUseKb->isChecked();
     data["model"] = mModelCombo->currentText();
     data["mode"] = "design";
+    data["sys_msgs"] = QJsonArray::fromStringList(mDesignPlanSysMsgs);
 
     runBackendCommand("generate_plan", data, [this](const QJsonObject& result) {
         mDesignPlanOutput->setPlainText(result["plan"].toString());
@@ -1335,6 +1838,7 @@ void AiAssistWidget::onDesignGenerateClicked() {
     data["use_kb"] = mDesignUseKb->isChecked();
     data["model"] = mModelCombo->currentText();
     data["mode"] = "design";
+    data["sys_msgs"] = QJsonArray::fromStringList(mDesignCodeSysMsgs);
 
     runBackendCommand("generate_code", data, [this](const QJsonObject& result) {
         QString code = result["code"].toString();
@@ -1362,6 +1866,7 @@ void AiAssistWidget::onAppendClicked() {
     data["composition_state"] = mCompositionState;
     data["use_code_context"] = mAppendUseCodeContext->isChecked();
     data["model"] = mModelCombo->currentText();
+    data["sys_msgs"] = QJsonArray::fromStringList(mAppendSysMsgs);
 
     runBackendCommand("append", data, [this](const QJsonObject& result) {
         // Insert appended code into the active document
@@ -1394,6 +1899,7 @@ void AiAssistWidget::onFixClicked() {
     data["block"] = block;
     data["error"] = error;
     data["model"] = mModelCombo->currentText();
+    data["sys_msgs"] = QJsonArray::fromStringList(mFixSysMsgs);
 
     runBackendCommand("fix", data, [this, block](const QJsonObject& result) {
         // Replace the old block with the fixed code in the active document
@@ -1426,6 +1932,7 @@ void AiAssistWidget::onRemakeClicked() {
     data["block"] = block;
     data["prompt"] = prompt;
     data["model"] = mModelCombo->currentText();
+    data["sys_msgs"] = QJsonArray::fromStringList(mRemakeSysMsgs);
 
     runBackendCommand("remake", data, [this, block](const QJsonObject& result) {
         // Replace the old block with the remade code in the active document
@@ -1462,6 +1969,7 @@ void AiAssistWidget::onLearnSendClicked() {
     data["prompt"] = prompt;
     data["history"] = mLearnChatHistory;
     data["model"] = mModelCombo->currentText();
+    data["sys_msgs"] = QJsonArray::fromStringList(mLearnSysMsgs);
 
     mLearnPrompt->clear();
 
@@ -1602,8 +2110,8 @@ void AiAssistWidget::onPromptHistoryClicked() {
 void AiAssistWidget::handleIdeShutdown() {
     // Auto-save session state for the current file before shutdown
     Document* activeDoc = Main::instance()->documentManager()->activeDocument();
-    if (activeDoc && !activeDoc->filePath().isEmpty()) {
-        saveSessionFor(activeDoc->filePath());
+    if (activeDoc) {
+        saveSessionFor(activeDoc);
     }
 
     QString backendScript = backendScriptPath();
@@ -1639,24 +2147,29 @@ void AiAssistWidget::handleIdeShutdown() {
     QProcess proc;
     proc.setWorkingDirectory(scriptDir);
     
-    if (processFixes) {
-        // Show a blocking progress dialog while learnings are processed
-        QProgressDialog progress(tr("Processing session learnings..."), QString(), 0, 0, nullptr);
-        progress.setWindowTitle(tr("Closing — Learning"));
-        progress.setWindowModality(Qt::ApplicationModal);
-        progress.setCancelButton(nullptr);
-        progress.setMinimumDuration(0);
-        progress.show();
+    QString progressText = processFixes ? tr("Processing session learnings...") : tr("Syncing session logs...");
+    QString titleText = processFixes ? tr("Closing — Learning") : tr("Closing — Syncing");
+    
+    QProgressDialog progress(progressText, QString(), 0, 0, nullptr);
+    progress.setWindowTitle(titleText);
+    progress.setWindowModality(Qt::ApplicationModal);
+    progress.setCancelButton(nullptr);
+    progress.setMinimumDuration(0);
+    progress.show();
+    QApplication::processEvents();
+    
+    proc.start(pythonPath(), args);
+    int elapsed = 0;
+    while (!proc.waitForFinished(500)) {
         QApplication::processEvents();
-        
-        proc.start(pythonPath(), args);
-        while (!proc.waitForFinished(500)) {
-            QApplication::processEvents();
+        elapsed += 500;
+        // If not processing fixes, limit sync to 8 seconds to avoid hanging the IDE
+        if (!processFixes && elapsed >= 8000) {
+            proc.kill();
+            break;
         }
-        progress.close();
-    } else {
-        QProcess::startDetached(pythonPath(), args, scriptDir);
     }
+    progress.close();
 }
 
 void AiAssistWidget::onKbSourceEditClicked() {
@@ -1733,61 +2246,73 @@ QString AiAssistWidget::systemMessagesDir() const {
     return scriptDir.filePath("system_messages");
 }
 
-void AiAssistWidget::onGenSysClicked() {
-    QString base = systemMessagesDir();
-    QList<QPair<QString, QString>> files;
-    files << qMakePair(QString("Base Instructions"), base + "/base/system-instruction.md");
-    files << qMakePair(QString("Improvements"), base + "/improvements/system-improvements.md");
-    files << qMakePair(QString("Plan"), base + "/generate/system-instruction-oneshot-plan.md");
-    files << qMakePair(QString("Generate"), base + "/generate/system-instruction-oneshot-gen.md");
-    SystemMessageDialog dlg(files, this);
-    dlg.exec();
+void AiAssistWidget::onGenPlanSysClicked() { openSysMessageEditor(mGenPlanSysMsgs); }
+void AiAssistWidget::onGenCodeSysClicked() { openSysMessageEditor(mGenCodeSysMsgs); }
+void AiAssistWidget::onDesignPlanSysClicked() { openSysMessageEditor(mDesignPlanSysMsgs); }
+void AiAssistWidget::onDesignCodeSysClicked() { openSysMessageEditor(mDesignCodeSysMsgs); }
+void AiAssistWidget::onComposePlanSysClicked() { openSysMessageEditor(mComposePlanSysMsgs); }
+void AiAssistWidget::onComposeCodeSysClicked() { openSysMessageEditor(mComposeCodeSysMsgs); }
+void AiAssistWidget::onAppSysClicked() { openSysMessageEditor(mAppendSysMsgs); }
+void AiAssistWidget::onFixSysClicked() { openSysMessageEditor(mFixSysMsgs); }
+void AiAssistWidget::onRemSysClicked() { openSysMessageEditor(mRemakeSysMsgs); }
+void AiAssistWidget::onLearnSysClicked() { openSysMessageEditor(mLearnSysMsgs); }
+
+void AiAssistWidget::saveSysMsgDefaults() {
+    QString backendScript = backendScriptPath();
+    QDir scriptDir(QFileInfo(backendScript).absolutePath());
+    QString filePath = scriptDir.filePath("sys_msgs_defaults.json");
+
+    QJsonObject obj;
+    obj["gen_plan"] = QJsonArray::fromStringList(mGenPlanSysMsgs);
+    obj["gen_code"] = QJsonArray::fromStringList(mGenCodeSysMsgs);
+    obj["design_plan"] = QJsonArray::fromStringList(mDesignPlanSysMsgs);
+    obj["design_code"] = QJsonArray::fromStringList(mDesignCodeSysMsgs);
+    obj["compose_plan"] = QJsonArray::fromStringList(mComposePlanSysMsgs);
+    obj["compose_code"] = QJsonArray::fromStringList(mComposeCodeSysMsgs);
+    obj["append"] = QJsonArray::fromStringList(mAppendSysMsgs);
+    obj["fix"] = QJsonArray::fromStringList(mFixSysMsgs);
+    obj["remake"] = QJsonArray::fromStringList(mRemakeSysMsgs);
+    obj["learn"] = QJsonArray::fromStringList(mLearnSysMsgs);
+    obj["custom"] = QJsonArray::fromStringList(mCustomSelectedSysMsgs);
+
+    QFile f(filePath);
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        f.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+    }
 }
 
-void AiAssistWidget::onDesignSysClicked() {
-    QString base = systemMessagesDir();
-    QList<QPair<QString, QString>> files;
-    files << qMakePair(QString("Plan (Design)"), base + "/design/system-instruction-oneshot-plan-design.md");
-    files << qMakePair(QString("Generate (Design)"), base + "/design/system-instruction-oneshot-gen-design.md");
-    SystemMessageDialog dlg(files, this);
-    dlg.exec();
-}
+void AiAssistWidget::loadSysMsgDefaults() {
+    QString backendScript = backendScriptPath();
+    QDir scriptDir(QFileInfo(backendScript).absolutePath());
+    QString filePath = scriptDir.filePath("sys_msgs_defaults.json");
 
-void AiAssistWidget::onAppSysClicked() {
-    QString base = systemMessagesDir();
-    QList<QPair<QString, QString>> files;
-    files << qMakePair(QString("Base Instructions"), base + "/base/system-instruction.md");
-    files << qMakePair(QString("Incremental"), base + "/append/system-instruction-incremental.md");
-    SystemMessageDialog dlg(files, this);
-    dlg.exec();
-}
+    QFile f(filePath);
+    if (!f.exists() || !f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
 
-void AiAssistWidget::onFixSysClicked() {
-    QString base = systemMessagesDir();
-    QList<QPair<QString, QString>> files;
-    files << qMakePair(QString("Base Instructions"), base + "/base/system-instruction.md");
-    files << qMakePair(QString("Improvements"), base + "/improvements/system-improvements.md");
-    files << qMakePair(QString("Fix"), base + "/fix/system-instruction-fix.md");
-    SystemMessageDialog dlg(files, this);
-    dlg.exec();
-}
+    QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject()) return;
+    QJsonObject obj = doc.object();
 
-void AiAssistWidget::onRemSysClicked() {
-    QString base = systemMessagesDir();
-    QList<QPair<QString, QString>> files;
-    files << qMakePair(QString("Base Instructions"), base + "/base/system-instruction.md");
-    files << qMakePair(QString("Remake"), base + "/remake/system-instruction-remake.md");
-    SystemMessageDialog dlg(files, this);
-    dlg.exec();
-}
-
-void AiAssistWidget::onLearnSysClicked() {
-    QString base = systemMessagesDir();
-    QList<QPair<QString, QString>> files;
-    files << qMakePair(QString("Base Instructions"), base + "/base/system-instruction.md");
-    files << qMakePair(QString("Ask"), base + "/learn/system-instruction-learn.md");
-    SystemMessageDialog dlg(files, this);
-    dlg.exec();
+    auto load = [&](const QString& key, QStringList& target) {
+        if (obj.contains(key)) {
+            QJsonArray arr = obj[key].toArray();
+            target.clear();
+            for (int i = 0; i < arr.size(); ++i)
+                target.append(arr[i].toString());
+        }
+    };
+    load("gen_plan", mGenPlanSysMsgs);
+    load("gen_code", mGenCodeSysMsgs);
+    load("design_plan", mDesignPlanSysMsgs);
+    load("design_code", mDesignCodeSysMsgs);
+    load("compose_plan", mComposePlanSysMsgs);
+    load("compose_code", mComposeCodeSysMsgs);
+    load("append", mAppendSysMsgs);
+    load("fix", mFixSysMsgs);
+    load("remake", mRemakeSysMsgs);
+    load("learn", mLearnSysMsgs);
+    load("custom", mCustomSelectedSysMsgs);
 }
 
 } // namespace ScIDE

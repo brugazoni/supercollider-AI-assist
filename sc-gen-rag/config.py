@@ -27,6 +27,8 @@ IMPROVEMENTS_FILE = "system_messages/improvements/system-improvements.md"
 SYSTEM_TEXT_FILE_FIX = "system_messages/fix/system-instruction-fix.md"
 SYSTEM_TEXT_FILE_REMAKE = "system_messages/remake/system-instruction-remake.md"
 SYSTEM_TEXT_FILE_LEARN = "system_messages/learn/system-instruction-learn.md"
+SYSTEM_TEXT_FILE_COMPOSE_PLAN = "system_messages/compose/system-instruction-compose-plan.md"
+SYSTEM_TEXT_FILE_COMPOSE_IMPLEMENT = "system_messages/compose/system-instruction-compose-implement.md"
 
 KNOWLEDGE_DB_PATH = "vectordb_knowledge_base"
 EMBEDDING_MODEL = "BAAI/bge-small-en-v1.5"

@@ -167,7 +167,17 @@ def _get_active_session_log_path(active_file=None):
                         return os.path.join(LOGS_DIR, session_map[active_file])
             except Exception: pass
         
-        # If not mapped yet, initialize it
+        # Not mapped. Check if we have a dangling active session to claim for this newly saved file
+        pointer_path = os.path.join(LOGS_DIR, ACTIVE_SESSION_POINTER)
+        if os.path.exists(pointer_path):
+            with open(pointer_path, 'r', encoding='utf-8') as f:
+                name = f.read().strip()
+                if name:
+                    # Claim this session for the new file
+                    _update_session_map(active_file, name)
+                    return os.path.join(LOGS_DIR, name)
+        
+        # If not mapped and no active pointer, initialize it
         return os.path.join(LOGS_DIR, init_session_log(active_file))
 
     # Legacy: use the global pointer

@@ -114,7 +114,7 @@ class LLMClient:
             self.anthropic_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
     @traceable(name="LLM_Generate", run_type="llm")
-    def generate(self, prompt, system_instruction=None, temperature=0.7):
+    def generate(self, prompt, system_instruction=None, temperature=0.7, thinking_budget=0):
         import time
         start_time = time.time()
         
@@ -128,9 +128,9 @@ class LLMClient:
         try:
             if span_context:
                 with span_context:
-                    text, in_tok, out_tok, response_obj = self._generate_with_provider(prompt, system_instruction, temperature)
+                    text, in_tok, out_tok, response_obj = self._generate_with_provider(prompt, system_instruction, temperature, thinking_budget)
             else:
-                text, in_tok, out_tok, response_obj = self._generate_with_provider(prompt, system_instruction, temperature)
+                text, in_tok, out_tok, response_obj = self._generate_with_provider(prompt, system_instruction, temperature, thinking_budget)
             
             # Extract EcoLogits impact if available
             impacts = getattr(response_obj, 'impacts', None)
@@ -212,14 +212,14 @@ class LLMClient:
             
         return text, stats_dict
 
-    def _generate_with_provider(self, prompt, system_instruction, temperature=0.7):
+    def _generate_with_provider(self, prompt, system_instruction, temperature=0.7, thinking_budget=0):
         """Internal router that also returns the raw response object for impact metadata extraction."""
         if self.provider == "gemini":
             return self._generate_gemini(prompt, system_instruction, temperature)
         elif self.provider == "openai":
             return self._generate_openai(prompt, system_instruction, temperature)
         elif self.provider == "anthropic":
-            return self._generate_anthropic(prompt, system_instruction, temperature)
+            return self._generate_anthropic(prompt, system_instruction, temperature, thinking_budget)
         else:
             raise ValueError(f"unknown provider: {self.provider}")
 
@@ -253,16 +253,31 @@ class LLMClient:
         text = response.choices[0].message.content.replace("```supercollider", "").replace("```", "").strip()
         return text, response.usage.prompt_tokens, response.usage.completion_tokens, response
 
-    def _generate_anthropic(self, prompt, system_instruction, temperature=0.7):
+    def _generate_anthropic(self, prompt, system_instruction, temperature=0.7, thinking_budget=0):
         kwargs = {
             "model": self.model_name,
             "max_tokens": 4096,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": temperature
+            "messages": [{"role": "user", "content": prompt}]
         }
+        
+        if thinking_budget > 0:
+            kwargs["thinking"] = { "type": "enabled", "budget_tokens": thinking_budget }
+            kwargs["temperature"] = 1.0 # Anthropic requires temperature=1.0 when thinking is enabled
+            # max_tokens must safely exceed thinking budget block
+            kwargs["max_tokens"] = max(kwargs["max_tokens"], thinking_budget + 1024)
+        else:
+            kwargs["temperature"] = temperature
+            
         if system_instruction:
             kwargs["system"] = system_instruction
             
         response = self.anthropic_client.messages.create(**kwargs)
-        text = response.content[0].text.replace("```supercollider", "").replace("```", "").strip()
+        
+        # In Anthropic with thinking enabled, content block is a list: first text is 'thinking', second text is final text
+        final_text = ""
+        for block in response.content:
+            if block.type == "text":
+                final_text = block.text
+                
+        text = final_text.replace("```supercollider", "").replace("```", "").strip()
         return text, response.usage.input_tokens, response.usage.output_tokens, response

@@ -89,3 +89,73 @@ JITLib expects `Ndef.filter` to be provided with a *definition* (a function that
 **To avoid this:**
 *   The primary `Ndef` function (`Ndef(\name, { |in| ... })`) should generate or process its core signal.
 *   Separate effects should be **defined independently** using `Ndef(\name).filter(index, { |inputSig| ... filter code ... })`. JITLib automatically chains these defined filters to the main signal.
+
+### Entry [2026-04-14 12:21] (Fix Tab - Offline)
+**LESSON:** SuperCollider does not have a `Pexprange` class. To generate exponentially distributed random values within Patterns, use `Pexprand` (the exponential counterpart to `Pwhite`). Be careful not to confuse UGen range-mapping methods (like `.exprange`) with Pattern class names.
+
+### Entry [2026-05-01 12:40] (Fix Tab - Offline)
+**LESSON:**
+
+When applying an array of parameters (e.g., `[0.5, 1.0, 2.0]`) to a multichannel signal (e.g., a stereo `In.ar`), passing both directly into a single UGen causes multichannel expansion to match the longest array, intertwining the channels and parameters. Calling `.sum` on this result flattens the entire structure into a single mono UGen. Attempting to index this mono UGen later (e.g., `sig[0]` and `sig[1]` for a panner) throws a `Message 'at' not understood` error because a single UGen is not an Array.
+
+To apply multiple parallel parameters while preserving the original multichannel structure, iterate over the parameter array using `.collect`:
+
+// WRONG: Flattens to mono, causing sig[0] to crash later
+var formants = BPF.ar(sig, lpf * [0.5, 1.0, 2.0], fRq).sum; 
+
+// RIGHT: Preserves the stereo array [ [L1, R1], [L2, R2], [L3, R3] ]
+// .sum then adds Ls and Rs together correctly -> [ L_sum, R_sum ]
+var formants = [0.5, 1.0, 2.0].collect({ |m| BPF.ar(sig, lpf * m, fRq) }).sum;
+
+This ensures `.sum` performs element-wise addition across the multichannel arrays, keeping the stereo image intact and allowing array indexing later in the signal chain.
+
+### Entry [2026-05-02 08:22] (Fix Tab - Offline)
+**LESSON:**
+
+When updating GUI widgets (like `EZSlider`, `EZKnob`, or `EZRanger`) from an external data structure via a polling loop, always verify that the retrieved value is not `nil` before assigning it to the widget. 
+
+Passing `nil` to a widget's `.value_` setter causes its internal `ControlSpec` to attempt to constrain the value, which invokes `.asFloat` on `nil` and throws a `Message 'asFloat' not understood` runtime error. Wrapping the assignment in a `.notNil` check (e.g., `if(~data[key].notNil) { widget.value = ~data[key] }`) safely prevents this crash.
+
+### Entry [2026-05-18 13:21] (Session Fix)
+
+**LESSON:**
+**Comb Filter Buffer Overruns:** When using `CombL` or `CombC` for physical modeling (Karplus-Strong), the delay time determines the pitch (`freq.reciprocal`). If you play a very low note, the resulting delay time can exceed the maximum allocated buffer size (the second argument of the UGen). When SuperCollider tries to read past the maximum buffer, it reads garbage memory (NaNs), instantly causing catastrophic distortion and locking the CPU at >100%.
+*Fix:* Always ensure the max buffer size is large enough for sub-bass frequencies (e.g., `0.2` seconds), and explicitly `.clip` the dynamic delay time argument to stay slightly below that max buffer (e.g., `freq.reciprocal.clip(0.0001, 0.19)`).
+
+### Entry [2026-05-18 13:21] (Session Fix)
+
+**LESSON:**
+**DC Offsets in Feedback Networks:** Adding microscopic DC offsets (e.g., `+ 1e-10`) to audio signals to prevent reverb denormalization is a common trick, but it is highly dangerous if fed into delay networks with high feedback (`CombC`, `DelayC`). The delay acts as an integrator, infinitely accumulating that invisible offset until the waveform is pushed entirely off-center. When this offset hits a non-linear stage (like a `tanh` wavefolder), it pins the audio to the digital ceiling, creating massive distortion.
+*Fix:* Do not manually inject DC offsets into feedback loops. Instead, use `LeakDC.ar` immediately before distortion/clipping stages to ensure the waveform remains centered.
+
+### Entry [2026-05-18 13:21] (Session Fix)
+
+**LESSON:**
+**Non-Existent Vanilla UGens (`Denormal.ar`):** SuperCollider does not have a native `Denormal.ar` UGen in its vanilla installation (it is part of the third-party `sc3-plugins` library). Attempting to call it will result in a `Class not defined` error.
+*Fix:* Modern vanilla SuperCollider handles denormals automatically at the CPU level via "Flush-to-Zero" (FTZ) flags, rendering manual denormalization UGens largely obsolete for standard DSP graphs.
+
+### Entry [2026-05-18 13:21] (Session Fix)
+
+**LESSON:**
+**Missing `.asMap` on Control Buses:** When mapping a `Bus.control` to a Synth argument upon instantiation, you must append `.asMap` (e.g., `\drive, ~buses.tapeDrive.asMap`). If you pass the bus object directly without `.asMap`, SuperCollider passes the **Bus ID number** (an integer, like 97 or 99) as a literal value. This causes catastrophic parameter blowouts (e.g., applying 99x distortion drive, or slamming a Low Pass Filter down to 97 Hz).
+
+### Entry [2026-05-18 13:21] (Session Fix)
+
+**LESSON:**
+**Hardcoded GUI Window Bounds:** Hardcoding absolute coordinates and dimensions for UI Windows (e.g., `Rect(100, 100, 680, 860)`) is dangerous cross-platform. If the user's monitor vertical resolution is smaller than the hardcoded height, the window's title bar will render completely off-screen, making the window impossible to drag or close manually.
+*Fix:* Always query the native monitor dimensions using `Window.availableBounds`. Dynamically cap the window height (`min(desiredHeight, screen.height - 50)`), center it geometrically (`bounds.center_(screen.center)`), and enable the `scroll: true` parameter on the `Window` so clipped UI elements can still be accessed.
+
+### Entry [2026-05-29 13:20] (Fix Tab - Offline)
+**LESSON:** 
+In SuperCollider, all variable declarations (`var`) must be placed at the very top of a function or scope, strictly before any executable statements or assignments. Interleaving `var` declarations with executed code will result in a syntax error. Always group and declare your variables at the beginning of the block.
+
+### Entry [2026-05-29 13:20] (Fix Tab - Offline)
+**LESSON:**
+
+When writing code inside an executing block or function (such as `s.waitForBoot({ ... })`), every statement must be separated by a semicolon `;`. 
+
+Wrapping an individual definition (like an `Ndef` or `SynthDef`) in standalone parentheses `( ... )` is a common practice for evaluating code blocks in the IDE, but doing so *inside* an existing function requires the closing parenthesis to have a trailing semicolon `);`. 
+
+If the semicolon is omitted, the SuperCollider parser fails to separate the expressions and throws an `unexpected CLASSNAME` syntax error when it reads the next line. 
+
+**Best Practice:** Remove unnecessary standalone wrapping parentheses around individual definitions when they are already nested inside an outer execution block.

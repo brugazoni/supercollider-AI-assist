@@ -16,6 +16,14 @@ build/
 credentials.json
 token.json
 
+# Temporary / runtime files
+temp.json
+*.lnk
+
+# Usage logs and generated SC files (personal session data)
+use-logs/
+sc-files/
+
 # Generated data
 vectordb_knowledge_base/
 vectordb_sc_help/

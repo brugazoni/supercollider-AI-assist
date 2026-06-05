@@ -10,6 +10,7 @@ platform/mac/build
 *Thumbs.db
 CMakeLists.txt.user
 external_libraries/portaudio/asio*
+.vs/
 
 # working files made by packager script
 common/Packager/LinuxExclusions.txt
@@ -30,6 +31,8 @@ __pycache__
 
 #build directories
 /build*
+out/
+CMakeFiles/
 
 *~
 *.orig
@@ -45,3 +48,4 @@ __pycache__
 !.vscode/extensions.json
 !.vscode/launch.json
 !.vscode/c_cpp_properties.json
+external_libraries/portaudio/portaudio_submodule

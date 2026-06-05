@@ -1,0 +1,44 @@
+{
+    "append": [
+        "base/system-instruction.md",
+        "improvements/system-improvements.md",
+        "append/system-instruction-incremental.md"
+    ],
+    "compose_code": [
+        "compose/implement-v2.md",
+        "improvements/system-improvements.md"
+    ],
+    "compose_plan": [
+        "compose/plan-v2.md"
+    ],
+    "custom": [
+    ],
+    "design_code": [
+        "design/system-instruction-oneshot-gen-design-v2.md",
+        "fix/system-instruction-fix.md"
+    ],
+    "design_plan": [
+        "design/system-instruction-oneshot-plan-design-v2.md"
+    ],
+    "fix": [
+        "fix/system-instruction-fix.md"
+    ],
+    "gen_code": [
+        "base/system-instruction.md",
+        "improvements/system-improvements.md",
+        "generate/system-instruction-oneshot-gen.md"
+    ],
+    "gen_plan": [
+        "base/system-instruction.md",
+        "generate/system-instruction-oneshot-plan.md"
+    ],
+    "learn": [
+        "base/system-instruction.md",
+        "learn/system-instruction-learn.md"
+    ],
+    "remake": [
+        "base/system-instruction.md",
+        "improvements/system-improvements.md",
+        "remake/system-instruction-remake.md"
+    ]
+}

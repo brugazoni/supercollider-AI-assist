@@ -36,17 +36,7 @@ namespace ScIDE {
 class PostWindow;
 class Document;
 
-class SystemMessageDialog : public QDialog {
-    Q_OBJECT
-public:
-    explicit SystemMessageDialog(const QList<QPair<QString, QString>>& files, QWidget* parent = nullptr);
-
-private slots:
-    void onSaveClicked();
-
-private:
-    QList<QPair<QString, QPlainTextEdit*>> mEditors;
-};
+// SystemMessageDialog removed — replaced by reusable openSysMessageEditor()
 
 class AiAssistWidget : public QWidget {
     Q_OBJECT
@@ -72,6 +62,14 @@ private slots:
     void onDesignPlanClicked();
     void onDesignGenerateClicked();
 
+    // Compose tab
+    void onComposePlanClicked();
+    void onComposeGenerateClicked();
+
+    // Custom tab
+    void onCustomGenerateClicked();
+    void onCustomSysEditClicked();
+
     // Append tab
     void onAppendClicked();
     void onAutoExecuteToggled(bool checked);
@@ -90,9 +88,13 @@ private slots:
     void onConsumeKbClicked();
     void onKbSourceEditClicked();
 
-    // System message handlers
-    void onGenSysClicked();
-    void onDesignSysClicked();
+    // System message handlers (per-tab, per-stage)
+    void onGenPlanSysClicked();
+    void onGenCodeSysClicked();
+    void onDesignPlanSysClicked();
+    void onDesignCodeSysClicked();
+    void onComposePlanSysClicked();
+    void onComposeCodeSysClicked();
     void onAppSysClicked();
     void onFixSysClicked();
     void onRemSysClicked();
@@ -104,10 +106,12 @@ private slots:
     // Process handling
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
 
-    // Session Stats
+    // Session Stats & Setup
     void onSessionStatsClicked();
     void onImportSessionClicked();
     void onSustainabilityClicked();
+    void onBootupClicked();
+    void onApiKeysClicked();
     void onStatusClicked();
     void onModelChanged(const QString& modelName);
     void onTemperatureSliderChanged(int value);
@@ -116,6 +120,8 @@ private:
     void createTabs();
     QWidget* createGenerateTab();
     QWidget* createDesignTab();
+    QWidget* createComposeTab();
+    QWidget* createCustomTab();
     QWidget* createAppendTab();
     QWidget* createFixTab();
     QWidget* createRemakeTab();
@@ -128,15 +134,19 @@ private:
     QString pythonPath() const;
     QString backendScriptPath() const;
     QString systemMessagesDir() const;
+    void openSysMessageEditor(QStringList& selectedList);
+    void saveSysMsgDefaults();
+    void loadSysMsgDefaults();
     void setProcessingState(bool processing);
     void updateLatestBlockFields();
     void tryUpdateSessionStats();
 
     // Session persistence
-    void saveSessionFor(const QString& filePath);
+    void saveSessionFor(Document* doc);
     void restoreSessionFor(const QString& filePath);
     bool hasSessionContent() const;
-    QString sessionFilePath(const QString& scdPath) const;
+    QString sessionFilePath(Document* doc) const;
+    void clearSessionFields();
 
     // Document lifecycle handlers
     void onDocumentSaved(Document* doc);
@@ -150,6 +160,8 @@ private:
     QPushButton* mPromptHistoryBtn;
     QPushButton* mSessionStatsBtn;
     QPushButton* mImportSessionBtn;
+    QPushButton* mBootupBtn;
+    QPushButton* mApiKeysBtn;
     QPushButton* mStatusBtn;
     QPushButton* mEcoLabel;
     QLabel* mTotalWaitLabel;
@@ -159,6 +171,7 @@ private:
     
     QSlider* mTempSlider;
     QLabel* mTempLabel;
+    QComboBox* mThinkingCombo;
     QMap<QString, QJsonObject> mModelConfig;
 
     // Cached eco totals for the detail dialog
@@ -174,7 +187,8 @@ private:
     QCheckBox* mGenUseKb;
     QCheckBox* mGenIncludeEnding;
     QPushButton* mGenPlanBtn;
-    QPushButton* mSystemMsgBtnGen;
+    QPushButton* mGenPlanSysBtn;
+    QPushButton* mGenCodeSysBtn;
     QPlainTextEdit* mGenPlanOutput;
     QPushButton* mGenGenerateBtn;
 
@@ -182,9 +196,25 @@ private:
     QPlainTextEdit* mDesignPrompt;
     QCheckBox* mDesignUseKb;
     QPushButton* mDesignPlanBtn;
-    QPushButton* mSystemMsgBtnDesign;
+    QPushButton* mDesignPlanSysBtn;
+    QPushButton* mDesignCodeSysBtn;
     QPlainTextEdit* mDesignPlanOutput;
     QPushButton* mDesignGenerateBtn;
+
+    // Compose tab widgets
+    QPlainTextEdit* mComposePrompt;
+    QCheckBox* mComposeUseKb;
+    QPushButton* mComposePlanBtn;
+    QPushButton* mComposePlanSysBtn;
+    QPushButton* mComposeCodeSysBtn;
+    QPlainTextEdit* mComposePlanOutput;
+    QPushButton* mComposeGenerateBtn;
+
+    // Custom tab widgets
+    QPlainTextEdit* mCustomPrompt;
+    QCheckBox* mCustomUseKb;
+    QPushButton* mCustomSysBtn;
+    QPushButton* mCustomGenerateBtn;
 
     // Append tab widgets
     QPlainTextEdit* mAppendPrompt;
@@ -223,6 +253,20 @@ private:
     QString mCompositionState;
     QString mLearnChatHistory;
     QString mFullStatusText;
+    Document* mLastActiveDocument;
+
+    // Per-tab system message selections
+    QStringList mGenPlanSysMsgs;
+    QStringList mGenCodeSysMsgs;
+    QStringList mDesignPlanSysMsgs;
+    QStringList mDesignCodeSysMsgs;
+    QStringList mComposePlanSysMsgs;
+    QStringList mComposeCodeSysMsgs;
+    QStringList mAppendSysMsgs;
+    QStringList mFixSysMsgs;
+    QStringList mRemakeSysMsgs;
+    QStringList mLearnSysMsgs;
+    QStringList mCustomSelectedSysMsgs;
 
     // Active process
     QProcess* mCurrentProcess;
