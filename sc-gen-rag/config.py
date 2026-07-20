@@ -43,6 +43,7 @@ TOKEN_FILE = 'token.json'
 CURRENT_LLM_PROVIDER = "gemini" # Options: "gemini", "anthropic", "openai"
 
 GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_FLASH_35_MODEL = "gemini-3.5-flash"
 GEMINI_PRO_MODEL = "gemini-3.1-pro-preview"
 ANTHROPIC_MODEL = "claude-3-7-sonnet-20250219"
 OPENAI_MODEL = "gpt-4o"
@@ -63,6 +64,7 @@ MAX_SYNTAX_RETRIES = 3
 # Available models for the UI dropdown
 AVAILABLE_MODELS = {
     "gemini/gemini-2.5-flash": {"provider": "gemini", "model": GEMINI_MODEL, "min_temp": 0.0, "max_temp": 2.0, "default_temp": 0.7},
+    "gemini/gemini-3.5-flash": {"provider": "gemini", "model": GEMINI_FLASH_35_MODEL, "min_temp": 0.0, "max_temp": 2.0, "default_temp": 0.7},
     "gemini/gemini-3.1-pro-preview": {"provider": "gemini", "model": GEMINI_PRO_MODEL, "min_temp": 0.0, "max_temp": 2.0, "default_temp": 0.7},
     "anthropic/claude-3-7-sonnet": {"provider": "anthropic", "model": ANTHROPIC_MODEL, "min_temp": 0.0, "max_temp": 1.0, "default_temp": 0.5},
     "openai/gpt-4o": {"provider": "openai", "model": OPENAI_MODEL, "min_temp": 0.0, "max_temp": 2.0, "default_temp": 0.7},
@@ -71,6 +73,7 @@ AVAILABLE_MODELS = {
 # Pricing schema (USD per 1M tokens) - Fallback if Logfire native tracking misses
 PRICING_PER_1M_TOKENS = {
     "gemini-2.5-flash": {"in": 0.0, "out": 0.0},
+    "gemini-3.5-flash": {"in": 1.50, "out": 9.00},
     "gemini-3.1-pro-preview": {"in": 3.50, "out": 15.00},
     "claude-3-7-sonnet-20250219": {"in": 3.00, "out": 15.00},
     "gpt-4o": {"in": 2.50, "out": 10.00},
@@ -79,6 +82,7 @@ PRICING_PER_1M_TOKENS = {
 # Context Window Bounds
 CONTEXT_WINDOW_SIZES = {
     "gemini-2.5-flash": 1048576,
+    "gemini-3.5-flash": 1000000,
     "gemini-3.1-pro-preview": 2097152,
     "claude-3-7-sonnet-20250219": 200000,
     "gpt-4o": 128000,

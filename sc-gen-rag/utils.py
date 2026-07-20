@@ -1,11 +1,23 @@
 import os
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
 import config
 
-def get_docs_service():
+# NOTE: Google API imports (google.auth, google_auth_oauthlib, googleapiclient)
+# are lazy-loaded inside get_docs_service() to avoid ~5.8s import penalty on
+# every backend invocation. They are only needed for Google Docs sync.
+
+def get_docs_service(allow_interactive=True):
+    """Build and return an authenticated Google Docs API service.
+    
+    Args:
+        allow_interactive: If False, never launch a browser OAuth flow.
+            Returns None instead when credentials can't be silently refreshed.
+            Use False during IDE shutdown to avoid orphaned browser tabs.
+    """
+    from google.auth.transport.requests import Request
+    from google.oauth2.credentials import Credentials
+    from google_auth_oauthlib.flow import InstalledAppFlow
+    from googleapiclient.discovery import build
+
     creds = None
     if os.path.exists(config.TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(config.TOKEN_FILE, config.DOCS_SCOPES)
@@ -15,12 +27,15 @@ def get_docs_service():
             try:
                 creds.refresh(Request())
             except Exception as e:
-                print(f"Token refresh failed ({e}). Triggering re-authentication...")
+                print(f"Token refresh failed ({e}).", flush=True)
                 if os.path.exists(config.TOKEN_FILE):
                     os.remove(config.TOKEN_FILE)
                 creds = None
 
         if not creds or not creds.valid:
+            if not allow_interactive:
+                print("Skipping Google Docs sync (credentials expired, interactive auth disabled).", flush=True)
+                return None
             if not os.path.exists(config.CREDENTIALS_FILE):
                 print(f"Error: {config.CREDENTIALS_FILE} not found.")
                 return None
@@ -167,17 +182,28 @@ def _get_active_session_log_path(active_file=None):
                         return os.path.join(LOGS_DIR, session_map[active_file])
             except Exception: pass
         
-        # Not mapped. Check if we have a dangling active session to claim for this newly saved file
+        # Not mapped yet. If the session map is completely empty, claim
+        # the bootstrap session that init_session created; otherwise this
+        # is a second/third file that should get its own fresh log.
+        map_path = os.path.join(LOGS_DIR, SESSION_MAP_FILE)
+        session_map = {}
+        if os.path.exists(map_path):
+            try:
+                with open(map_path, 'r', encoding='utf-8') as f:
+                    session_map = json.load(f)
+            except Exception:
+                pass
+
         pointer_path = os.path.join(LOGS_DIR, ACTIVE_SESSION_POINTER)
-        if os.path.exists(pointer_path):
+        if not session_map and os.path.exists(pointer_path):
             with open(pointer_path, 'r', encoding='utf-8') as f:
                 name = f.read().strip()
                 if name:
-                    # Claim this session for the new file
+                    # Claim the bootstrap session for this first file
                     _update_session_map(active_file, name)
                     return os.path.join(LOGS_DIR, name)
         
-        # If not mapped and no active pointer, initialize it
+        # Create a brand-new session log for this file
         return os.path.join(LOGS_DIR, init_session_log(active_file))
 
     # Legacy: use the global pointer
@@ -192,9 +218,18 @@ def _get_active_session_log_path(active_file=None):
     return os.path.join(LOGS_DIR, init_session_log())
 
 
-def _sync_completed_logs_to_google_docs():
-    """Sync any finalized session log files to Google Docs."""
+def sync_pending_logs_to_google_docs(allow_interactive=True):
+    """Sync any finalized (non-active) session log files to Google Docs.
+    
+    Args:
+        allow_interactive: If True, may open a browser for OAuth if needed.
+            Set False during shutdown to avoid orphaned browser tabs.
+    """
     import os
+    service = get_docs_service(allow_interactive=allow_interactive)
+    if not service:
+        return False
+
     synced_tracker = os.path.join(LOGS_DIR, ".synced_logs")
     synced_set = set()
     if os.path.exists(synced_tracker):
@@ -210,6 +245,7 @@ def _sync_completed_logs_to_google_docs():
 
     all_logs = sorted([f for f in os.listdir(LOGS_DIR)
                        if f.endswith(".md") and not f.startswith(".")])
+    synced_count = 0
     for log_file in all_logs:
         # Don't sync the currently open live session log
         if log_file == active_filename:
@@ -238,8 +274,13 @@ def _sync_completed_logs_to_google_docs():
                     synced_set.add(log_file)
                     with open(synced_tracker, 'a', encoding='utf-8') as f:
                         f.write(log_file + "\n")
+                    synced_count += 1
             except Exception as e:
                 print(f"Failed to sync {log_file}: {e}", flush=True)
+    
+    if synced_count:
+        print(f"Synced {synced_count} session log(s) to Google Docs.", flush=True)
+    return True
 
 
 def append_to_session_log(command, system_prompt, user_prompt, response, stats_dict, model="", active_file=None):
@@ -405,10 +446,14 @@ def finalize_session_log(process_fixes):
         
     print(f"Closed session log {active_filename}", flush=True)
 
-    # Sync any completed (non-current) logs to Google Docs
-    _sync_completed_logs_to_google_doc_service = get_docs_service()
-    if _sync_completed_logs_to_google_doc_service:
-        _sync_completed_logs_to_google_docs()
+    # Best-effort sync of any completed logs to Google Docs.
+    # Non-interactive: if credentials need browser re-auth, skip gracefully.
+    # The primary sync happens at session START (init_session_log) where
+    # interactive auth is allowed.
+    try:
+        sync_pending_logs_to_google_docs(allow_interactive=False)
+    except Exception as e:
+        print(f"Google Docs shutdown sync failed: {e}", flush=True)
     
     return active_filename
 

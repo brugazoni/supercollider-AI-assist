@@ -39,6 +39,7 @@ namespace ScIDE {
 AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     : QWidget(parent)
     , mPostWindow(postWindow)
+    , mLastActiveDocument(nullptr)
     , mCurrentProcess(nullptr)
 {
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
@@ -186,7 +187,7 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     QStringList modelArgs;
     modelArgs << backendScriptPath() << "list_models" << "{}";
     modelProc.start(pythonPath(), modelArgs);
-    if (modelProc.waitForFinished(3000)) {
+    if (modelProc.waitForFinished(15000)) {
         QJsonDocument doc = QJsonDocument::fromJson(modelProc.readAllStandardOutput());
         if (!doc.isNull() && doc.isObject()) {
             QJsonObject res = doc.object();
@@ -201,6 +202,7 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     // Safety net: if process fails or JSON is invalid, ensure combo box is usable
     if (mModelCombo->count() == 0) {
         mModelCombo->addItem("gemini/gemini-2.5-flash");
+        mModelCombo->addItem("gemini/gemini-3.5-flash");
         mModelCombo->addItem("gemini/gemini-3.1-pro-preview");
         mModelCombo->addItem("ollama/qwen3:4b");
         mModelCombo->addItem("anthropic/claude-3-7-sonnet");
@@ -208,20 +210,19 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
         mModelCombo->addItem("deepseek/deepseek-chat");
     }
     
-    // Init precise timestamped session log (silent)
-    QProcess initProc;
-    initProc.setWorkingDirectory(QFileInfo(backendScriptPath()).absolutePath());
-    QStringList initArgs;
-    QJsonObject initData = basePayload();
-    initArgs << backendScriptPath() << "init_session" << QJsonDocument(initData).toJson(QJsonDocument::Compact);
-    initProc.start(pythonPath(), initArgs);
-    initProc.waitForFinished(3000);
+    // NOTE: init_session and initial stats fetch are deferred to connectDocumentSignals()
+    // where the real active document is known (avoids orphaned/wrong session logs).
     
-    // Initial fetch of session stats on startup
-    tryUpdateSessionStats();
+    // Start the persistent daemon
+    startDaemon();
 }
 
 AiAssistWidget::~AiAssistWidget() {
+    if (mDaemonProcess) {
+        mDaemonProcess->kill();
+        mDaemonProcess->waitForFinished(1000);
+        delete mDaemonProcess;
+    }
 }
 
 void AiAssistWidget::onModelChanged(const QString& modelName) {
@@ -252,6 +253,36 @@ void AiAssistWidget::connectDocumentSignals() {
     connect(dm, &DocumentManager::showRequest, this, &AiAssistWidget::onDocumentShown);
     connect(dm, &DocumentManager::opened, this, &AiAssistWidget::onDocumentShown);
     connect(dm, &DocumentManager::closed, this, &AiAssistWidget::onDocumentClosed);
+
+    // Catch-up: the initial document may have been shown before we connected,
+    // so restore its session now if one exists on disk.
+    Document* current = dm->activeDocument();
+    if (current) {
+        onDocumentShown(current, -1, 0);
+    }
+
+    // Init the session log with the real active file (deferred from constructor)
+    QProcess initProc;
+    initProc.setWorkingDirectory(QFileInfo(backendScriptPath()).absolutePath());
+    QStringList initArgs;
+    QJsonObject initData = basePayload();
+    initArgs << backendScriptPath() << "init_session" << QJsonDocument(initData).toJson(QJsonDocument::Compact);
+    initProc.start(pythonPath(), initArgs);
+    initProc.waitForFinished(3000);
+
+    // Initial fetch of session stats
+    tryUpdateSessionStats();
+
+    // Fire-and-forget: sync pending session logs to Google Docs.
+    // Heap-allocated so the process survives past this function's scope.
+    // If Google OAuth re-auth is needed, the browser flow has unlimited time.
+    QProcess* syncProc = new QProcess(this);
+    syncProc->setWorkingDirectory(QFileInfo(backendScriptPath()).absolutePath());
+    QStringList syncArgs;
+    syncArgs << backendScriptPath() << "sync_to_drive" << QJsonDocument(QJsonObject()).toJson(QJsonDocument::Compact);
+    connect(syncProc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            syncProc, &QProcess::deleteLater);
+    syncProc->start(pythonPath(), syncArgs);
 }
 
 QString AiAssistWidget::sessionFilePath(Document* doc) const {
@@ -289,6 +320,7 @@ void AiAssistWidget::saveSessionFor(Document* doc) {
     session["design_plan"] = mDesignPlanOutput->toPlainText();
     session["design_use_kb"] = mDesignUseKb->isChecked();
     session["append_prompt"] = mAppendPrompt->toPlainText();
+    session["append_use_kb"] = mAppendUseKb->isChecked();
     session["composition_state"] = mCompositionState;
     session["learn_history"] = mLearnHistory->toPlainText();
     session["learn_chat_history"] = mLearnChatHistory;
@@ -321,25 +353,32 @@ void AiAssistWidget::saveSessionFor(Document* doc) {
     session["stats_ctx_text"] = mContextLabel->text();
     session["stats_ctx_value"] = mContextBar->value();
 
-    // Fetch and embed the raw markdown log for perfect re-import
-    QProcess proc;
-    proc.setWorkingDirectory(QFileInfo(backendScriptPath()).absolutePath());
+    // Fetch and embed the raw markdown log asynchronously for perfect re-import
+    QProcess* proc = new QProcess(this);
+    proc->setWorkingDirectory(QFileInfo(backendScriptPath()).absolutePath());
     QStringList args;
     QJsonObject data = basePayload();
     data["active_file"] = doc->filePath();
     args << backendScriptPath() << "get_raw_session_log" << QJsonDocument(data).toJson(QJsonDocument::Compact);
-    proc.start(pythonPath(), args);
-    if (proc.waitForFinished(3000)) {
-        QJsonDocument doc = QJsonDocument::fromJson(proc.readAllStandardOutput());
-        if (!doc.isNull() && doc.isObject()) {
-            session["raw_log"] = doc.object()["raw_log"].toString();
-        }
-    }
     
-    QFile f(sessionFilePath(doc));
-    if (f.open(QIODevice::WriteOnly)) {
-        f.write(QJsonDocument(session).toJson());
-    }
+    QString savePath = sessionFilePath(doc);
+    
+    // Pass session data to lambda to write when process finishes
+    connect(proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, [proc, session, savePath]() mutable {
+        QJsonDocument jsonDoc = QJsonDocument::fromJson(proc->readAllStandardOutput());
+        if (!jsonDoc.isNull() && jsonDoc.isObject()) {
+            session["raw_log"] = jsonDoc.object()["raw_log"].toString();
+        }
+        
+        QFile f(savePath);
+        if (f.open(QIODevice::WriteOnly)) {
+            f.write(QJsonDocument(session).toJson());
+        }
+        proc->deleteLater();
+    });
+    
+    proc->start(pythonPath(), args);
 }
 
 void AiAssistWidget::restoreSessionFor(const QString& filePath) {
@@ -361,6 +400,7 @@ void AiAssistWidget::restoreSessionFor(const QString& filePath) {
     mDesignPlanOutput->setPlainText(session["design_plan"].toString());
     mDesignUseKb->setChecked(session["design_use_kb"].toBool(true));
     mAppendPrompt->setPlainText(session["append_prompt"].toString());
+    if (session.contains("append_use_kb")) mAppendUseKb->setChecked(session["append_use_kb"].toBool(true));
     mCompositionState = session["composition_state"].toString();
     mLearnHistory->setPlainText(session["learn_history"].toString());
     mLearnChatHistory = session["learn_chat_history"].toString();
@@ -429,6 +469,9 @@ void AiAssistWidget::restoreSessionFor(const QString& filePath) {
 
     mFullStatusText = tr("Session restored from JSON.");
     mStatusBtn->setText(mFullStatusText);
+
+    // Refresh live stats from the Python backend so labels show current values
+    tryUpdateSessionStats();
 }
 
 void AiAssistWidget::onDocumentSaved(Document* doc) {
@@ -474,6 +517,7 @@ void AiAssistWidget::clearSessionFields() {
     mCustomPrompt->clear();
     mCustomUseKb->setChecked(true);
     mAppendPrompt->clear();
+    mAppendUseKb->setChecked(true);
     mFixBlock->clear();
     mFixStackTrace->clear();
     mRemakeBlock->clear();
@@ -607,17 +651,20 @@ void AiAssistWidget::onApiKeysClicked() {
 }
 
 void AiAssistWidget::onDocumentClosed(Document* doc) {
-    // If the closed document was the active one, clear our fields and reset the tracker.
-    if (doc && doc == mLastActiveDocument) {
+    if (!doc) return;
+
+    bool isActive = (doc == mLastActiveDocument);
+    bool hadContent = isActive && hasSessionContent();
+    QString fp = doc->filePath();
+
+    // Clear fields and reset tracker if the closed document was the active one
+    if (isActive) {
         clearSessionFields();
         mLastActiveDocument = nullptr;
     }
 
-    if (!doc) return;
-    QString fp = doc->filePath();
-    
-    // If the document is unsaved (no file path) and we have session content, warn the user
-    if (fp.isEmpty() && hasSessionContent()) {
+    // Warn if the document was unsaved and had session content
+    if (fp.isEmpty() && hadContent) {
         QMessageBox::warning(this, tr("AI Session Lost"),
             tr("The AI session data (prompts, plan, composition state) for this unsaved file has been lost.\n\n"
                "To preserve AI session data, save the file before closing it."));
@@ -847,6 +894,15 @@ QWidget* AiAssistWidget::createAppendTab() {
     
     mAppendUseCodeContext = new QCheckBox(tr("Use code as context"));
     btnRow->addWidget(mAppendUseCodeContext);
+
+    mAppendUseKb = new QCheckBox(tr("Use KB"));
+    mAppendUseKb->setChecked(true);
+    mAppendUseKb->setToolTip(tr("Include knowledge base RAG context in the prompt"));
+    btnRow->addWidget(mAppendUseKb);
+
+    mAutoAppendCheck = new QCheckBox(tr("Auto-Append"));
+    mAutoAppendCheck->setToolTip(tr("Automatically send each dictation block through the Append pipeline"));
+    btnRow->addWidget(mAutoAppendCheck);
     
     btnRow->addStretch();
     mSystemMsgBtnApp = new QPushButton(tr("System Messages"));
@@ -856,6 +912,17 @@ QWidget* AiAssistWidget::createAppendTab() {
     mAppendBtn = new QPushButton(tr("Append"));
     connect(mAppendBtn, &QPushButton::clicked, this, &AiAssistWidget::onAppendClicked);
     btnRow->addWidget(mAppendBtn);
+
+    mDictateBtn = new QPushButton(tr("\xF0\x9F\x8E\xA4"));  // 🎤 emoji
+    mDictateBtn->setFixedWidth(32);
+    mDictateBtn->setToolTip(tr("Voice dictation — click to start/stop microphone transcription"));
+    mDictateBtn->setStyleSheet(
+        "QPushButton { font-size: 14px; padding: 2px; }"
+        "QPushButton:checked { background-color: #c0392b; border: 2px solid #e74c3c; }");
+    mDictateBtn->setCheckable(true);
+    connect(mDictateBtn, &QPushButton::clicked, this, &AiAssistWidget::onDictateToggled);
+    btnRow->addWidget(mDictateBtn);
+
     layout->addLayout(btnRow);
 
     return tab;
@@ -1079,52 +1146,27 @@ QJsonObject AiAssistWidget::basePayload() const {
     return data;
 }
 
-void AiAssistWidget::runBackendCommand(const QString& command, const QJsonObject& data,
-                                       std::function<void(const QJsonObject&)> callback) {
-    if (mCurrentProcess) {
-        QMessageBox::warning(this, tr("Busy"), tr("A command is already running. Please wait."));
-        return;
-    }
+void AiAssistWidget::startDaemon() {
+    if (mDaemonProcess) return;
 
-    // Merge base payload data (active file, model, temperature) into finalData
-    QJsonObject finalData = data;
-    QJsonObject base = basePayload();
-    for (auto it = base.begin(); it != base.end(); ++it) {
-        if (!finalData.contains(it.key())) {
-            finalData[it.key()] = it.value();
-        }
-    }
+    mDaemonProcess = new QProcess(this);
+    mDaemonOutputBuffer.clear();
+    mDaemonReady = false;
+    mDaemonBusy = false;
 
-    // Write input data to a temp file
-    QTemporaryFile* tempFile = new QTemporaryFile(QDir::tempPath() + "/sc-ai-XXXXXX.json");
-    tempFile->setAutoRemove(true);
-    if (!tempFile->open()) {
-        QMessageBox::critical(this, tr("Error"), tr("Failed to create temporary file."));
-        delete tempFile;
-        return;
-    }
-
-    QJsonDocument jsonDoc(finalData);
-    tempFile->write(jsonDoc.toJson(QJsonDocument::Compact));
-    QString tempPath = tempFile->fileName();
-    tempFile->close();
-
-    mCurrentCallback = callback;
-    mCurrentProcess = new QProcess(this);
-    mCurrentOutput.clear();
-    mCurrentErrorOutput.clear();
-
-    // Set working directory to the sc-gen-rag folder
     QString scriptPath = backendScriptPath();
-    mCurrentProcess->setWorkingDirectory(QFileInfo(scriptPath).absolutePath());
+    mDaemonProcess->setWorkingDirectory(QFileInfo(scriptPath).absolutePath());
 
-    connect(mCurrentProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, &AiAssistWidget::onProcessFinished);
+    connect(mDaemonProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+            this, &AiAssistWidget::onDaemonFinished);
 
-    connect(mCurrentProcess, &QProcess::readyReadStandardError, this, [this]() {
-        if (!mCurrentProcess) return;
-        QByteArray err = mCurrentProcess->readAllStandardError();
-        mCurrentErrorOutput.append(err);
+    connect(mDaemonProcess, &QProcess::readyReadStandardError, this, [this]() {
+        if (!mDaemonProcess) return;
+        // Skip stderr status updates while an API call is in progress
+        // (prevents RealtimeSTT prints like "speak now" from overwriting
+        //  the "Processing..." or result status text)
+        if (mDaemonBusy) return;
+        QByteArray err = mDaemonProcess->readAllStandardError();
         QString text = QString::fromUtf8(err).trimmed();
         if (!text.isEmpty()) {
             QStringList lines = text.split('\n', Qt::SkipEmptyParts);
@@ -1141,20 +1183,215 @@ void AiAssistWidget::runBackendCommand(const QString& command, const QJsonObject
         }
     });
 
-    connect(mCurrentProcess, &QProcess::readyReadStandardOutput, this, [this]() {
-        if (!mCurrentProcess) return;
-        mCurrentOutput.append(mCurrentProcess->readAllStandardOutput());
+    connect(mDaemonProcess, &QProcess::readyReadStandardOutput, this, [this]() {
+        if (!mDaemonProcess) return;
+        mDaemonOutputBuffer.append(mDaemonProcess->readAllStandardOutput());
+        
+        // Process newline-delimited JSON
+        int newlineIdx;
+        while ((newlineIdx = mDaemonOutputBuffer.indexOf('\n')) != -1) {
+            QByteArray line = mDaemonOutputBuffer.left(newlineIdx);
+            mDaemonOutputBuffer.remove(0, newlineIdx + 1);
+            if (!line.trimmed().isEmpty()) {
+                handleDaemonResponse(line);
+            }
+        }
     });
 
-    // Clean up temp file when process finishes
-    connect(mCurrentProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            tempFile, &QTemporaryFile::deleteLater);
-
-    setProcessingState(true);
-
+    mFullStatusText = tr("Starting AI daemon...");
+    mStatusBtn->setText(mFullStatusText);
+    
     QStringList args;
-    args << scriptPath << command << tempPath;
-    mCurrentProcess->start(pythonPath(), args);
+    args << scriptPath << "serve";
+    mDaemonProcess->start(pythonPath(), args);
+}
+
+void AiAssistWidget::onDaemonFinished(int exitCode, QProcess::ExitStatus exitStatus) {
+    Q_UNUSED(exitCode);
+    Q_UNUSED(exitStatus);
+    setProcessingState(false);
+    mDaemonReady = false;
+    mDaemonBusy = false;
+    mDaemonProcess->deleteLater();
+    mDaemonProcess = nullptr;
+    mFullStatusText = tr("AI daemon stopped unexpectedly.");
+    mStatusBtn->setText(mFullStatusText);
+}
+
+void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
+    QJsonDocument doc = QJsonDocument::fromJson(jsonLine);
+    if (doc.isNull() || !doc.isObject()) return;
+    QJsonObject result = doc.object();
+
+    // --- Daemon ready handshake ---
+    if (!mDaemonReady && result.contains("status") && result["status"].toString() == "ready") {
+        mDaemonReady = true;
+        mFullStatusText = tr("AI daemon ready.");
+        mStatusBtn->setText(mFullStatusText);
+        return;
+    }
+
+    // --- Voice dictation streaming messages ---
+    if (result.contains("type")) {
+        QString type = result["type"].toString();
+
+        if (type == "dictation_final") {
+            // Block-based dictation: each finalized utterance is a separate block
+            QString block = result["text"].toString();
+            if (block.trimmed().isEmpty()) return;
+            mLastDictationBlock = block;
+
+            // Append separator + block to prompt field
+            QString current = mAppendPrompt->toPlainText();
+            if (!current.isEmpty())
+                current += QString::fromUtf8("\n\u2014 \u2014 \u2014 \u2014 \u2014\n");  // — — — — —
+            current += block;
+            mAppendPrompt->setPlainText(current);
+            QTextCursor cursor = mAppendPrompt->textCursor();
+            cursor.movePosition(QTextCursor::End);
+            mAppendPrompt->setTextCursor(cursor);
+
+            // Auto-append: enqueue and try to process
+            if (mAutoAppendCheck->isChecked()) {
+                mAppendQueue.enqueue(block);
+                processAppendQueue();
+            }
+            return;
+        }
+
+        if (type == "dictation_started") {
+            mFullStatusText = tr("Listening...");
+            mStatusBtn->setText(mFullStatusText);
+            return;
+        }
+
+        if (type == "dictation_stopped") {
+            mDictating = false;
+            mDictateBtn->setChecked(false);
+            mFullStatusText = tr("Dictation stopped.");
+            mStatusBtn->setText(mFullStatusText);
+            return;
+        }
+
+        if (type == "dictation_error") {
+            mDictating = false;
+            mDictateBtn->setChecked(false);
+            mFullStatusText = tr("Dictation error.");
+            mStatusBtn->setText(mFullStatusText);
+            QMessageBox::warning(this, tr("Dictation Error"),
+                                 result["error"].toString());
+            return;
+        }
+    }
+
+    // --- Regular command responses ---
+    if (mDaemonBusy) {
+        setProcessingState(false);
+        mDaemonBusy = false;
+        
+        if (result.contains("error")) {
+            QMessageBox::critical(this, tr("Backend Error"),
+                                  result["error"].toString() + "\n\n" + result["traceback"].toString());
+        } else if (mCurrentCallback) {
+            mCurrentCallback(result);
+            mCurrentCallback = nullptr;
+        }
+
+        if (result.contains("last_stats")) {
+            mFullStatusText = tr("Ready");
+            mStatusBtn->setText(mFullStatusText);
+            tryUpdateSessionStats();
+        }
+
+        // Drain any queued auto-append blocks now that the daemon is free
+        processAppendQueue();
+    }
+}
+
+void AiAssistWidget::runBackendCommand(const QString& command, const QJsonObject& data,
+                                       std::function<void(const QJsonObject&)> callback) {
+    if (mDaemonBusy || mCurrentProcess) {
+        QMessageBox::warning(this, tr("Busy"), tr("A command is already running. Please wait."));
+        return;
+    }
+
+    // Merge base payload data (active file, model, temperature) into finalData
+    QJsonObject finalData = data;
+    QJsonObject base = basePayload();
+    for (auto it = base.begin(); it != base.end(); ++it) {
+        if (!finalData.contains(it.key())) {
+            finalData[it.key()] = it.value();
+        }
+    }
+    
+    // Add command routing key for the daemon
+    finalData["command"] = command;
+
+    if (!mDaemonProcess || !mDaemonReady) {
+        // Fallback for sync commands or if daemon failed to start
+        QTemporaryFile* tempFile = new QTemporaryFile(QDir::tempPath() + "/sc-ai-XXXXXX.json");
+        tempFile->setAutoRemove(true);
+        if (!tempFile->open()) {
+            QMessageBox::critical(this, tr("Error"), tr("Failed to create temporary file."));
+            delete tempFile;
+            return;
+        }
+
+        QJsonDocument jsonDoc(finalData);
+        tempFile->write(jsonDoc.toJson(QJsonDocument::Compact));
+        QString tempPath = tempFile->fileName();
+        tempFile->close();
+
+        mCurrentCallback = callback;
+        mCurrentProcess = new QProcess(this);
+        mCurrentOutput.clear();
+        mCurrentErrorOutput.clear();
+
+        QString scriptPath = backendScriptPath();
+        mCurrentProcess->setWorkingDirectory(QFileInfo(scriptPath).absolutePath());
+
+        connect(mCurrentProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, &AiAssistWidget::onProcessFinished);
+
+        connect(mCurrentProcess, &QProcess::readyReadStandardError, this, [this]() {
+            if (!mCurrentProcess) return;
+            QByteArray err = mCurrentProcess->readAllStandardError();
+            mCurrentErrorOutput.append(err);
+            QString text = QString::fromUtf8(err).trimmed();
+            if (!text.isEmpty()) {
+                QStringList lines = text.split('\n', Qt::SkipEmptyParts);
+                if (!lines.isEmpty()) {
+                    QString statusText = lines.last().trimmed();
+                    if (statusText.length() > 60) statusText = statusText.left(60) + "...";
+                    mFullStatusText = statusText;
+                    mStatusBtn->setText(statusText.left(30) + (statusText.length() > 30 ? "..." : ""));
+                }
+            }
+        });
+
+        connect(mCurrentProcess, &QProcess::readyReadStandardOutput, this, [this]() {
+            if (!mCurrentProcess) return;
+            mCurrentOutput.append(mCurrentProcess->readAllStandardOutput());
+        });
+
+        connect(mCurrentProcess, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                tempFile, &QTemporaryFile::deleteLater);
+
+        setProcessingState(true);
+        QStringList args;
+        args << scriptPath << command << tempPath;
+        mCurrentProcess->start(pythonPath(), args);
+        return;
+    }
+
+    // Fast path: Use persistent daemon
+    mCurrentCallback = callback;
+    mDaemonBusy = true;
+    setProcessingState(true);
+    
+    QJsonDocument jsonDoc(finalData);
+    QByteArray payload = jsonDoc.toJson(QJsonDocument::Compact) + "\n";
+    mDaemonProcess->write(payload);
 }
 
 void AiAssistWidget::onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus) {
@@ -1860,11 +2097,17 @@ void AiAssistWidget::onDesignGenerateClicked() {
 void AiAssistWidget::onAppendClicked() {
     QString prompt = mAppendPrompt->toPlainText().trimmed();
     if (prompt.isEmpty()) return;
+    submitAppendForBlock(prompt);
+}
+
+void AiAssistWidget::submitAppendForBlock(const QString& prompt) {
+    if (prompt.isEmpty()) return;
 
     QJsonObject data;
     data["prompt"] = prompt;
     data["composition_state"] = mCompositionState;
     data["use_code_context"] = mAppendUseCodeContext->isChecked();
+    data["use_kb"] = mAppendUseKb->isChecked();
     data["model"] = mModelCombo->currentText();
     data["sys_msgs"] = QJsonArray::fromStringList(mAppendSysMsgs);
 
@@ -1877,15 +2120,64 @@ void AiAssistWidget::onAppendClicked() {
                 QTextCursor cursor(doc->textDocument());
                 cursor.movePosition(QTextCursor::End);
                 cursor.insertText("\n\n" + code);
+                if (mAutoExecuteCheck->isChecked()) {
+                    QString evalCode = code;
+                    evalCode.replace(QChar(0x2029), QChar('\n'));
+                    Main::evaluateCode(evalCode);
+                    mFullStatusText = tr("Block appended and auto-evaluated");
+                } else {
+                    mFullStatusText = tr("Block appended");
+                }
             }
         }
         // Update composition state
         if (result.contains("new_composition_state"))
             mCompositionState = result["new_composition_state"].toString();
-        mAppendPrompt->clear();
-        mFullStatusText = tr("Block appended");
         mStatusBtn->setText(mFullStatusText);
+
+        // Drain next queued block if any
+        processAppendQueue();
     });
+}
+
+void AiAssistWidget::processAppendQueue() {
+    if (mAppendQueue.isEmpty() || mDaemonBusy || !mDaemonReady)
+        return;
+    QString prompt = mAppendQueue.dequeue();
+    submitAppendForBlock(prompt);
+}
+
+void AiAssistWidget::onDictateToggled() {
+    if (!mDaemonProcess || !mDaemonReady) {
+        QMessageBox::warning(this, tr("Not Ready"),
+                             tr("The AI daemon is not ready yet. Please wait."));
+        mDictateBtn->setChecked(false);
+        return;
+    }
+
+    if (!mDictating) {
+        // Start dictation
+        mDictating = true;
+        mFullStatusText = tr("Starting dictation...");
+        mStatusBtn->setText(mFullStatusText);
+
+        QJsonObject cmd;
+        cmd["command"] = QStringLiteral("start_dictation");
+        cmd["model"] = QStringLiteral("medium");  // good accuracy, ~1.5GB RAM
+        cmd["language"] = QStringLiteral("en");
+        QJsonDocument jsonDoc(cmd);
+        mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+    } else {
+        // Stop dictation
+        mDictating = false;
+        mFullStatusText = tr("Stopping dictation...");
+        mStatusBtn->setText(mFullStatusText);
+
+        QJsonObject cmd;
+        cmd["command"] = QStringLiteral("stop_dictation");
+        QJsonDocument jsonDoc(cmd);
+        mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+    }
 }
 
 // --- Fix tab handler ---

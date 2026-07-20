@@ -12,6 +12,7 @@ import sys
 import os
 import json
 import datetime
+import threading
 
 # Ensure we're running from the sc-gen-rag directory
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,6 +24,19 @@ import utils
 # Lazy imports for heavy dependencies (rag_engine, llm_engine)
 # These are imported inside the functions that need them
 # to avoid blocking simple commands like list_models
+
+# Daemon-mode composition state cache (thread-safe via GIL for simple dict ops)
+_composition_states = {}  # active_file -> latest composition state
+
+# Daemon-mode stdout reference — set by serve(), used by dictation thread
+# to stream unsolicited JSON lines (partials/finals) back to the C++ side.
+_daemon_stdout = None
+_daemon_stdout_lock = threading.Lock()
+
+# Dictation state
+_dictation_recorder = None
+_dictation_thread = None
+_dictation_active = False  # guards against race between start/stop during model load
 
 
 def _resolve_model(model_key):
@@ -196,9 +210,10 @@ def cmd_generate_code(data):
     thinking_budget = data.get("thinking", 0)
     code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
-    print(f"Writing to {target_display}...", flush=True)
-    # Write to target file
-    _write_scd("\n\n" + code, filepath=active_file, mode='a')
+    # NOTE: We do NOT write to the file here. The C++ side (AiAssistWidget)
+    # inserts the code into the document via QTextCursor and handles saving.
+    # Writing here would cause duplicate code and a race condition with
+    # QFileSystemWatcher.
 
     utils.append_to_session_log("generate_code", full_sys, user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
     return {"code": code, "last_stats": stats_dict}
@@ -248,8 +263,10 @@ def cmd_custom_generate(data):
     thinking_budget = data.get("thinking", 0)
     code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
-    print(f"Writing to {target_display}...", flush=True)
-    _write_scd("\n\n" + code, filepath=active_file, mode='a')
+    # NOTE: We do NOT write to the file here. The C++ side (AiAssistWidget)
+    # inserts the code into the document via QTextCursor and handles saving.
+    # Writing here would cause duplicate code and a race condition with
+    # QFileSystemWatcher.
 
     utils.append_to_session_log("custom_generate", full_sys if full_sys else "N/A", user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
     return {"code": code, "last_stats": stats_dict}
@@ -258,8 +275,14 @@ def cmd_custom_generate(data):
 def cmd_append(data):
     """Append a new block to the composition (incremental mode)."""
     prompt = data.get("prompt", "")
-    composition_state = data.get("composition_state", "")
     model_key = data.get("model", "")
+    active_file = data.get("active_file", "")
+
+    # Use daemon's cached composition state if available, otherwise fall back to C++ state
+    if active_file and active_file in _composition_states:
+        composition_state = _composition_states[active_file]
+    else:
+        composition_state = data.get("composition_state", "")
 
     print("Loading AI models...", flush=True)
     provider, model_name = _resolve_model(model_key)
@@ -269,21 +292,22 @@ def cmd_append(data):
     # Build system prompt from explicit sys_msgs sent by the UI
     full_sys = _build_system_prompt(data)
 
-    # RAG context
-    try:
-        print("Searching knowledge base...", flush=True)
-        import rag_engine
-        code_context = rag_engine.query_index(prompt, sources=["knowledge-base"])
-        full_sys += f"\n\n=== Knowledge Base ===\n{code_context}"
-    except Exception:
-        pass
+    # RAG context (only if KB toggle is enabled)
+    use_kb = data.get("use_kb", True)
+    if use_kb:
+        try:
+            print("Searching knowledge base...", flush=True)
+            import rag_engine
+            code_context = rag_engine.query_index(prompt, sources=["knowledge-base"])
+            full_sys += f"\n\n=== Knowledge Base ===\n{code_context}"
+        except Exception:
+            pass
 
     # Build user prompt with composition context
     comp_section = f"\n\n=== CURRENT COMPOSITION STATE ===\n{composition_state}" if composition_state else \
         "\n\n=== CURRENT COMPOSITION STATE ===\n(Empty — this is the first block)"
 
     # Include file content based on toggle
-    active_file = data.get("active_file")
     use_code_context = data.get("use_code_context", False)
     if use_code_context:
         prev_content = _read_scd(active_file)
@@ -305,37 +329,38 @@ def cmd_append(data):
     thinking_budget = data.get("thinking", 0)
     code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
-    target_display = active_file if active_file else config.OUTPUT_FILE
-    print(f"Writing to {target_display}...", flush=True)
-    # Append to target file
-    _write_scd("\n\n" + code, filepath=active_file, mode='a')
+    # NOTE: We do NOT write to the file here. The C++ side (AiAssistWidget)
+    # inserts the code into the document via QTextCursor and handles saving.
+    # Writing here would cause duplicate code and a race condition with
+    # QFileSystemWatcher that breaks the auto-execute flow.
 
-    print("Updating composition state...", flush=True)
-    # Update composition state via LLM (lean prompt — no RAG, no improvements)
-    state_prompt = (
-        f"You are tracking the state of a SuperCollider live coding composition.\n\n"
-        f"PREVIOUS STATE:\n{composition_state if composition_state else '(empty)'}\n\n"
-        f"NEW CODE BLOCK:\n{code}\n\n"
-        f"TASK: Output the UPDATED composition state. List ALL currently active elements:\n"
-        f"- Active Ndefs (name + key arguments)\n"
-        f"- Active Pbindefs (name + key parameters)\n"
-        f"- Effect slots assigned (which Ndef, which slot index, what effect)\n"
-        f"- Current wetness levels if set\n\n"
-        f"If a fade_out block cleared an instrument, REMOVE it from the state.\n"
-        f"Be concise. Use a structured list format."
-    )
-    state_sys = "You are a concise SuperCollider composition state tracker. Output only structured state lists."
-    # State tracking doesn't need high temperature, override to 0.0 for predictability
-    new_state, state_stats = client.generate(state_prompt, state_sys, temperature=0.0)
+    # Fire composition state update in a background thread so the code
+    # is returned to the IDE immediately without waiting for the 2nd LLM call.
+    def _bg_update_state():
+        try:
+            state_prompt = (
+                f"You are tracking the state of a SuperCollider live coding composition.\n\n"
+                f"PREVIOUS STATE:\n{composition_state if composition_state else '(empty)'}\n\n"
+                f"NEW CODE BLOCK:\n{code}\n\n"
+                f"TASK: Output the UPDATED composition state. List ALL currently active elements:\n"
+                f"- Active Ndefs (name + key arguments)\n"
+                f"- Active Pbindefs (name + key parameters)\n"
+                f"- Effect slots assigned (which Ndef, which slot index, what effect)\n"
+                f"- Current wetness levels if set\n\n"
+                f"If a fade_out block cleared an instrument, REMOVE it from the state.\n"
+                f"Be concise. Use a structured list format."
+            )
+            state_sys = "You are a concise SuperCollider composition state tracker. Output only structured state lists."
+            new_state, state_stats = client.generate(state_prompt, state_sys, temperature=0.0)
+            _composition_states[active_file] = new_state.strip()
+            print(f"Background state update complete for {active_file}", flush=True)
+        except Exception as e:
+            print(f"Background state update failed: {e}", flush=True)
 
-    # Merge state-tracking token usage into the main stats so session analytics are accurate
-    stats_dict["in_tokens"] = stats_dict.get("in_tokens", 0) + state_stats.get("in_tokens", 0)
-    stats_dict["out_tokens"] = stats_dict.get("out_tokens", 0) + state_stats.get("out_tokens", 0)
-    stats_dict["time_s"] = round(stats_dict.get("time_s", 0) + state_stats.get("time_s", 0), 2)
-    stats_dict["cost"] = round(stats_dict.get("cost", 0) + state_stats.get("cost", 0), 5)
+    threading.Thread(target=_bg_update_state, daemon=True).start()
 
     utils.append_to_session_log("append", full_sys, user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
-    return {"code": code, "new_composition_state": new_state.strip(), "last_stats": stats_dict}
+    return {"code": code, "new_composition_state": composition_state, "last_stats": stats_dict}
 
 
 def cmd_fix(data):
@@ -364,13 +389,10 @@ def cmd_fix(data):
     code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
     active_file = data.get("active_file")
-    target_display = active_file if active_file else config.OUTPUT_FILE
-    print(f"Applying fix to {target_display}...", flush=True)
-    # Substitute block in target file
-    file_content = _read_scd(active_file)
-    if block.strip() in file_content:
-        new_content = file_content.replace(block.strip(), code.strip(), 1)
-        _write_scd(new_content, filepath=active_file, mode='w')
+    # NOTE: We do NOT write to the file here. The C++ side (AiAssistWidget)
+    # handles substituting the block in the document and saving it.
+    # Writing here would cause duplicate code and a race condition with
+    # QFileSystemWatcher.
 
     print("Queueing learnings for system improvements...", flush=True)
     # Queue the mistake/error/fix for background processing on IDE shutdown
@@ -423,13 +445,10 @@ def cmd_remake(data):
     code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
 
     active_file = data.get("active_file")
-    target_display = active_file if active_file else config.OUTPUT_FILE
-    print(f"Writing to {target_display}...", flush=True)
-    # Substitute block in target file
-    file_content = _read_scd(active_file)
-    if block.strip() in file_content:
-        new_content = file_content.replace(block.strip(), code.strip(), 1)
-        _write_scd(new_content, filepath=active_file, mode='w')
+    # NOTE: We do NOT write to the file here. The C++ side (AiAssistWidget)
+    # handles substituting the block in the document and saving it.
+    # Writing here would cause duplicate code and a race condition with
+    # QFileSystemWatcher.
 
     utils.append_to_session_log("remake", full_sys, user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
     return {"code": code, "last_stats": stats_dict}
@@ -611,6 +630,135 @@ def cmd_import_raw_session_log(data):
     return {"status": "ok"}
 
 
+def cmd_sync_to_drive(data):
+    """Manually sync pending session logs to Google Docs.
+    Allows interactive OAuth re-authentication if needed.
+    """
+    print("Syncing pending logs to Google Docs...", flush=True)
+    result = utils.sync_pending_logs_to_google_docs(allow_interactive=True)
+    if result:
+        return {"status": "ok", "message": "Sync complete."}
+    return {"status": "skipped", "message": "Could not authenticate with Google Docs."}
+
+
+# --- Voice Dictation Commands ---
+
+def _daemon_write_json(obj):
+    """Thread-safe write of a JSON line to the daemon stdout."""
+    global _daemon_stdout
+    if _daemon_stdout is None:
+        return
+    with _daemon_stdout_lock:
+        _daemon_stdout.write(json.dumps(obj, ensure_ascii=False) + "\n")
+        _daemon_stdout.flush()
+
+
+def cmd_start_dictation(data):
+    """Start microphone capture and speech-to-text transcription.
+
+    Runs RealtimeSTT in a background thread.  Streams unsolicited JSON
+    messages on stdout:
+      {"type": "dictation_partial", "text": "..."}
+      {"type": "dictation_final",   "text": "..."}
+    """
+    global _dictation_recorder, _dictation_thread, _dictation_active
+
+    if _dictation_active:
+        return {"status": "already_running"}
+
+    _dictation_active = True
+    model_size = data.get("model", "base")
+    language = data.get("language", "en")
+
+    print(f"Starting dictation (model={model_size}, lang={language})...", flush=True)
+
+    def _run_dictation():
+        global _dictation_recorder, _dictation_active
+        # Suppress RealtimeSTT's internal print output ("speak now", model loading
+        # messages, etc.) by redirecting this thread's sys.stdout to devnull.
+        # Our own status messages use _daemon_write_json (writes to original stdout).
+        import os
+        devnull = open(os.devnull, 'w')
+        sys.stdout = devnull
+        try:
+            from RealtimeSTT import AudioToTextRecorder  # lazy import (~first use loads model)
+
+            def on_final(text):
+                if text.strip():
+                    _daemon_write_json({"type": "dictation_final", "text": text})
+
+            # Check if stop was called during model loading
+            if not _dictation_active:
+                _daemon_write_json({"type": "dictation_stopped"})
+                return
+
+            recorder = AudioToTextRecorder(
+                model=model_size,
+                language=language,
+                compute_type="int8",
+                beam_size=1,                       # fastest decoding
+                silero_sensitivity=0.4,            # VAD sensitivity
+                post_speech_silence_duration=1.0,   # 1s silence = block boundary
+            )
+
+            # Check again after model loading (may take several seconds)
+            if not _dictation_active:
+                try:
+                    recorder.stop()
+                    recorder.shutdown()
+                except Exception:
+                    pass
+                _daemon_write_json({"type": "dictation_stopped"})
+                return
+
+            _dictation_recorder = recorder
+            _daemon_write_json({"type": "dictation_started"})
+
+            # Blocking loop: listens, VAD detects speech, transcribes, calls on_final
+            while _dictation_active:
+                text = recorder.text(on_final)  # blocks until speech→silence→transcription
+                if not _dictation_active:
+                    break  # stop_dictation was called
+
+        except Exception as e:
+            import traceback
+            _daemon_write_json({"type": "dictation_error", "error": str(e), "traceback": traceback.format_exc()})
+        finally:
+            _dictation_recorder = None
+            _dictation_active = False
+            devnull.close()
+
+    _dictation_thread = threading.Thread(target=_run_dictation, daemon=True)
+    _dictation_thread.start()
+    return {"status": "dictation_starting"}
+
+
+def cmd_stop_dictation(data):
+    """Stop the active dictation session."""
+    global _dictation_recorder, _dictation_thread, _dictation_active
+
+    if not _dictation_active:
+        return {"status": "not_running"}
+
+    print("Stopping dictation...", flush=True)
+    _dictation_active = False  # signal the thread to exit (works even during model load)
+
+    recorder = _dictation_recorder
+    _dictation_recorder = None
+
+    if recorder is not None:
+        try:
+            recorder.stop()
+            recorder.shutdown()
+        except Exception as e:
+            print(f"Dictation cleanup error: {e}", flush=True)
+
+    _dictation_thread = None
+    _daemon_write_json({"type": "dictation_stopped"})
+    print("Dictation stopped.", flush=True)
+    return {"status": "dictation_stopped"}
+
+
 # Command dispatcher
 COMMANDS = {
     "list_models": cmd_list_models,
@@ -629,6 +777,9 @@ COMMANDS = {
     "get_session_stats": cmd_get_session_stats,
     "get_raw_session_log": cmd_get_raw_session_log,
     "import_raw_session_log": cmd_import_raw_session_log,
+    "sync_to_drive": cmd_sync_to_drive,
+    "start_dictation": cmd_start_dictation,
+    "stop_dictation": cmd_stop_dictation,
 }
 
 
@@ -684,5 +835,80 @@ def main():
         sys.exit(1)
 
 
+def serve():
+    """Run as a persistent daemon, reading JSON commands from stdin.
+
+    The IDE starts this once via QProcess; it stays alive for the entire session.
+    Protocol: newline-delimited JSON on stdin/stdout, progress on stderr.
+    """
+    global _daemon_stdout
+
+    # Redirect prints to stderr, preserve stdout for JSON responses
+    original_stdout = sys.stdout
+    sys.stdout = sys.stderr
+    _daemon_stdout = original_stdout  # expose for dictation thread
+
+    if original_stdout.encoding and original_stdout.encoding.lower() != 'utf-8':
+        try:
+            original_stdout.reconfigure(encoding='utf-8')
+        except AttributeError:
+            pass
+
+    print("Daemon starting: pre-loading dependencies...", flush=True)
+
+    # Pre-import heavy dependencies (pay the cost once)
+    print("Loading LLM engine...", flush=True)
+    try:
+        import llm_engine  # noqa: F401 — pre-import
+        print("LLM engine loaded.", flush=True)
+    except Exception as e:
+        print(f"LLM engine pre-load failed: {e}", flush=True)
+
+    print("Loading RAG engine...", flush=True)
+    try:
+        import rag_engine
+        # Pre-warm the embedding model into RAM (this is the big cost: ~35s)
+        rag_engine.get_embedding_function()
+        print("RAG embeddings loaded.", flush=True)
+    except Exception as e:
+        print(f"RAG pre-warm skipped: {e}", flush=True)
+
+    # Signal readiness to the C++ side
+    print("Daemon ready.", flush=True)
+    original_stdout.write(json.dumps({"status": "ready"}) + "\n")
+    original_stdout.flush()
+
+    # Command loop — read one JSON line per command, write one JSON line per response
+    for line in sys.stdin:
+        line = line.strip()
+        if not line:
+            continue
+
+        try:
+            request = json.loads(line)
+        except json.JSONDecodeError as e:
+            original_stdout.write(json.dumps({"error": f"Invalid JSON: {e}"}) + "\n")
+            original_stdout.flush()
+            continue
+
+        command = request.pop("command", "")
+
+        if command not in COMMANDS:
+            result = {"error": f"Unknown command: {command}. Available: {list(COMMANDS.keys())}"}
+        else:
+            try:
+                result = COMMANDS[command](request)
+            except Exception as e:
+                import traceback
+                result = {"error": str(e), "traceback": traceback.format_exc()}
+
+        original_stdout.write(json.dumps(result, ensure_ascii=False) + "\n")
+        original_stdout.flush()
+
+
 if __name__ == "__main__":
-    main()
+    # Support "serve" as a special first argument to enter daemon mode
+    if len(sys.argv) >= 2 and sys.argv[1].lower() == "serve":
+        serve()
+    else:
+        main()

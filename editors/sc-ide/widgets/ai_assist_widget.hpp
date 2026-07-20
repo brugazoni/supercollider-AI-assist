@@ -16,7 +16,9 @@
 #include <QProgressBar>
 #include <QProcess>
 #include <QSlider>
+#include <QPointer>
 #include <QMap>
+#include <QQueue>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QJsonDocument>
@@ -73,6 +75,9 @@ private slots:
     // Append tab
     void onAppendClicked();
     void onAutoExecuteToggled(bool checked);
+    void onDictateToggled();
+    void submitAppendForBlock(const QString& prompt);
+    void processAppendQueue();
 
     // Fix tab
     void onFixClicked();
@@ -148,6 +153,11 @@ private:
     QString sessionFilePath(Document* doc) const;
     void clearSessionFields();
 
+    // Persistent daemon backend
+    void startDaemon();
+    void onDaemonFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void handleDaemonResponse(const QByteArray& jsonLine);
+
     // Document lifecycle handlers
     void onDocumentSaved(Document* doc);
     void onDocumentShown(Document* doc, int pos, int selLen);
@@ -222,6 +232,12 @@ private:
     QPushButton* mSystemMsgBtnApp;
     QCheckBox* mAutoExecuteCheck;
     QCheckBox* mAppendUseCodeContext;
+    QCheckBox* mAppendUseKb;
+    QPushButton* mDictateBtn;
+    QCheckBox* mAutoAppendCheck;
+    bool mDictating = false;
+    QString mLastDictationBlock;
+    QQueue<QString> mAppendQueue;
 
     // Fix tab widgets
     QPlainTextEdit* mFixBlock;
@@ -253,7 +269,7 @@ private:
     QString mCompositionState;
     QString mLearnChatHistory;
     QString mFullStatusText;
-    Document* mLastActiveDocument;
+    QPointer<Document> mLastActiveDocument;
 
     // Per-tab system message selections
     QStringList mGenPlanSysMsgs;
@@ -268,11 +284,17 @@ private:
     QStringList mLearnSysMsgs;
     QStringList mCustomSelectedSysMsgs;
 
-    // Active process
+    // Legacy per-command process (for sync startup commands)
     QProcess* mCurrentProcess;
     QByteArray mCurrentOutput;
     QByteArray mCurrentErrorOutput;
     std::function<void(const QJsonObject&)> mCurrentCallback;
+
+    // Persistent daemon process
+    QProcess* mDaemonProcess = nullptr;
+    QByteArray mDaemonOutputBuffer;
+    bool mDaemonReady = false;
+    bool mDaemonBusy = false;
 };
 
 } // namespace ScIDE
