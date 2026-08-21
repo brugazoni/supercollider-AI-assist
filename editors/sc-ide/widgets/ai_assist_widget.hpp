@@ -30,6 +30,7 @@
 #include <QList>
 #include <QPair>
 #include <QTextBrowser>
+#include <QTextEdit>
 #include <QListWidget>
 #include <QProgressDialog>
 
@@ -76,7 +77,8 @@ private slots:
     void onAppendClicked();
     void onAutoExecuteToggled(bool checked);
     void onDictateToggled();
-    void submitAppendForBlock(const QString& prompt);
+    void onDictateMuteToggled();
+    void submitAppendForBlock(const QString& prompt, bool isAuto = false);
     void processAppendQueue();
 
     // Fix tab
@@ -231,11 +233,18 @@ private:
     QPushButton* mAppendBtn;
     QPushButton* mSystemMsgBtnApp;
     QCheckBox* mAutoExecuteCheck;
-    QCheckBox* mAppendUseCodeContext;
     QCheckBox* mAppendUseKb;
     QPushButton* mDictateBtn;
+    QPushButton* mDictateMuteBtn;
     QCheckBox* mAutoAppendCheck;
+    QComboBox* mDictLangCombo;       // STT language selector (en, pt, es, auto-detect)
+    QComboBox* mDictModelCombo;      // Whisper model size selector
+    QTextEdit* mAutoAppendLog;       // dedicated log area for auto-append activity
+    int mDictationBlockIndex = 0;     // monotonic counter for indexed dictation separators
     bool mDictating = false;
+    bool mDictationMuted = false;
+    bool mDictationModelLoaded = false;
+    QProgressDialog* mDictationLoadingDialog = nullptr;
     QString mLastDictationBlock;
     QQueue<QString> mAppendQueue;
 

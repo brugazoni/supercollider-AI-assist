@@ -10,13 +10,75 @@ Returns JSON on stdout. Logs all interactions to session_log.md.
 
 import sys
 import os
-import json
-import datetime
-import threading
+import traceback
 
-# Ensure we're running from the sc-gen-rag directory
+# Suppress HuggingFace Hub symlink warnings on Windows without Developer Mode.
+# This ensures the cache system falls back to copies instead of crashing with
+# OSError [WinError 1314] when symlink privileges are not available.
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+
+def log_crash(type, value, tb):
+    with open("c:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/child_crash.log", "a") as f:
+        f.write(f"CRASH IN PID {os.getpid()}:\n")
+        traceback.print_exception(type, value, tb, file=f)
+sys.excepthook = log_crash
+
+# CRITICAL FIX for torch.multiprocessing on Windows:
+# When torch.multiprocessing spawns a child process using the system python.exe,
+# it must be able to import the venv's site-packages BEFORE unpickling the target function.
+# Inserting the venv site-packages at the absolute top of the main module ensures that
+# when spawn_main calls runpy.run_path, sys.path is immediately patched in the child process.
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+SCRIPT_DIR = _SCRIPT_DIR
+import multiprocessing
+# Removed overriding sys.executable to avoid breaking multiprocessing venv detection
+
+_venv_site_packages = os.path.join(_SCRIPT_DIR, ".venv", "Lib", "site-packages")
+with open("c:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/gui_backend_env.log", "w") as f:
+    for k, v in os.environ.items(): f.write(f"{k}={v}\n")
+if _venv_site_packages not in sys.path:
+    sys.path.insert(0, _venv_site_packages)
+
+with open("mp_child_debug_startup.log", "a", encoding="utf-8") as f: f.write(f"PID {os.getpid()} BEFORE IMPORTS\n")
+
+import io
+import json
+import traceback
+import threading
+import queue
+import datetime
+
+with open("mp_child_debug_startup.log", "a", encoding="utf-8") as f: f.write(f"PID {os.getpid()} AFTER STANDARD IMPORTS\n")
+
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 os.chdir(SCRIPT_DIR)
+
+import multiprocessing.spawn
+
+# CRITICAL FIX for multiprocessing on Windows with scripts running as __main__:
+# When Python runs a script directly, sys.modules['__main__'].__spec__ is set.
+# This causes multiprocessing to use init_main_from_name='__main__' instead of init_main_from_path.
+# This breaks child processes because they will import '-c' as __main__ and skip this script entirely!
+if hasattr(sys.modules.get('__main__'), '__spec__'):
+    sys.modules['__main__'].__spec__ = None
+
+with open("mp_child_debug_startup.log", "a", encoding="utf-8") as f: f.write(f"PID {os.getpid()} BEFORE MODULE LOG\n")
+
+# DEBUG: Write unconditionally on every import of this module
+try:
+    with open("module_import_debug.log", "a", encoding="utf-8") as _f:
+        _mp_name = multiprocessing.current_process().name
+        _inheriting = getattr(multiprocessing.process.current_process(), '_inheriting', False)
+        _f.write(f"PID: {os.getpid()}, Name: {_mp_name}, __name__: {__name__}, _inheriting: {_inheriting}, argv: {sys.argv}\n")
+except Exception:
+    pass
+
+if getattr(multiprocessing.process.current_process(), '_inheriting', False) or __name__ == "__mp_main__":
+    with open("mp_child_debug_startup.log", "a", encoding="utf-8") as f:
+        f.write("Child process successfully started run_path!\n")
+    log_file = open("mp_child_debug.log", "a", encoding="utf-8", buffering=1)
+    sys.stdout = log_file
+    sys.stderr = log_file
 
 import config
 import utils
@@ -37,6 +99,8 @@ _daemon_stdout_lock = threading.Lock()
 _dictation_recorder = None
 _dictation_thread = None
 _dictation_active = False  # guards against race between start/stop during model load
+_dictation_muted = False   # skips transcription final output when muted
+_dictation_session_id = 0  # incremented on each start; prevents stale callbacks
 
 
 def _resolve_model(model_key):
@@ -68,6 +132,11 @@ def _build_system_prompt(data):
     loads each file, and concatenates them with separator markers.
     This replaces the old _get_base_system_instruction() and hidden improvements injection.
     """
+    venv_python = os.path.join(SCRIPT_DIR, ".venv", "Scripts", "python.exe")
+    if os.path.exists(venv_python):
+        sys.executable = venv_python
+        sys._base_executable = venv_python
+        multiprocessing.set_executable(venv_python)
     sys_msgs = data.get("sys_msgs", [])
     base_dir = os.path.join(SCRIPT_DIR, "system_messages")
     
@@ -307,13 +376,8 @@ def cmd_append(data):
     comp_section = f"\n\n=== CURRENT COMPOSITION STATE ===\n{composition_state}" if composition_state else \
         "\n\n=== CURRENT COMPOSITION STATE ===\n(Empty — this is the first block)"
 
-    # Include file content based on toggle
-    use_code_context = data.get("use_code_context", False)
-    if use_code_context:
-        prev_content = _read_scd(active_file)
-    else:
-        prev_content = _read_scd(active_file)[-2000:]
-        
+    # Always include up to 2000 characters of the active file as fallback context
+    prev_content = _read_scd(active_file)[-2000:] if active_file else ""
     prev_section = f"\n\n=== PREVIOUS CODE ===\n{prev_content}" if prev_content else ""
 
     user_prompt = (
@@ -324,10 +388,15 @@ def cmd_append(data):
         f"Do NOT repeat any existing instruments or sequences."
     )
 
-    print("Generating next block...", flush=True)
+    print(f"Generating next block... (including {len(prev_content)} chars of previous code context)", flush=True)
     temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
     thinking_budget = data.get("thinking", 0)
     code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
+
+    if not code or not code.strip():
+        print(f"WARNING: LLM returned empty code for prompt: '{prompt[:100]}'", flush=True)
+        print(f"  model={model_key}", flush=True)
+        print(f"  user_prompt length={len(user_prompt)}, sys_prompt length={len(full_sys)}", flush=True)
 
     # NOTE: We do NOT write to the file here. The C++ side (AiAssistWidget)
     # inserts the code into the document via QTextCursor and handles saving.
@@ -357,7 +426,8 @@ def cmd_append(data):
         except Exception as e:
             print(f"Background state update failed: {e}", flush=True)
 
-    threading.Thread(target=_bg_update_state, daemon=True).start()
+    if code and code.strip():
+        threading.Thread(target=_bg_update_state, daemon=True).start()
 
     utils.append_to_session_log("append", full_sys, user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
     return {"code": code, "new_composition_state": composition_state, "last_stats": stats_dict}
@@ -649,8 +719,16 @@ def _daemon_write_json(obj):
     if _daemon_stdout is None:
         return
     with _daemon_stdout_lock:
-        _daemon_stdout.write(json.dumps(obj, ensure_ascii=False) + "\n")
-        _daemon_stdout.flush()
+        try:
+            # CRITICAL FIX: ensure_ascii=True MUST be used on Windows.
+            # If False, Python's stdout pipe encoding (often cp1252) will corrupt
+            # non-ASCII characters (like pt-BR accents) into invalid bytes or ,
+            # causing the C++ IDE's QJsonDocument parser to fail silently.
+            _daemon_stdout.write(json.dumps(obj, ensure_ascii=True) + "\n")
+            _daemon_stdout.flush()
+        except Exception as e:
+            with open("c:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/child_crash.log", "a") as f:
+                f.write(f"WRITE_JSON ERROR: {e}\n{traceback.format_exc()}\n")
 
 
 def cmd_start_dictation(data):
@@ -661,45 +739,129 @@ def cmd_start_dictation(data):
       {"type": "dictation_partial", "text": "..."}
       {"type": "dictation_final",   "text": "..."}
     """
-    global _dictation_recorder, _dictation_thread, _dictation_active
+    global _dictation_recorder, _dictation_thread, _dictation_active, _dictation_session_id
 
     if _dictation_active:
         return {"status": "already_running"}
 
+    # Wait for old thread to finish (ensure microphone is released)
+    if _dictation_thread and _dictation_thread.is_alive():
+        _dictation_thread.join(timeout=5.0)
+
+    _dictation_session_id += 1
+    my_session = _dictation_session_id
     _dictation_active = True
     model_size = data.get("model", "base")
     language = data.get("language", "en")
 
-    print(f"Starting dictation (model={model_size}, lang={language})...", flush=True)
+    print(f"Starting dictation session #{my_session} (model={model_size}, lang={language})...", flush=True)
 
     def _run_dictation():
         global _dictation_recorder, _dictation_active
         # Suppress RealtimeSTT's internal print output ("speak now", model loading
-        # messages, etc.) by redirecting this thread's sys.stdout to devnull.
-        # Our own status messages use _daemon_write_json (writes to original stdout).
-        import os
-        devnull = open(os.devnull, 'w')
-        sys.stdout = devnull
+        # messages, etc.) by redirecting this thread's sys.stdout to a dummy object.
+        # Our own status messages use _daemon_write_json (writes to _daemon_stdout).
+        class DummyStdout:
+            def write(self, s): pass
+            def flush(self): pass
+            def close(self): pass
+        
+        original_stdout = sys.stdout
+        sys.stdout = DummyStdout()
         try:
-            from RealtimeSTT import AudioToTextRecorder  # lazy import (~first use loads model)
+            import logging
+
+            # Set up a dedicated file logger for dictation diagnostics.
+            # logging.basicConfig is a no-op after the first call in a process,
+            # so we configure the realtimestt logger's handler directly.
+            dict_log_path = os.path.join(SCRIPT_DIR, 'dictation_debug.log')
+            stt_logger = logging.getLogger("realtimestt")
+            # Remove any existing handlers to avoid duplicates on restart
+            stt_logger.handlers.clear()
+            fh = logging.FileHandler(dict_log_path, mode='w', encoding='utf-8')
+            fh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+            stt_logger.addHandler(fh)
+            stt_logger.setLevel(logging.DEBUG)  # file gets full detail
+            stt_logger.propagate = False         # don't leak to stderr
+
+            import torch.multiprocessing as tmp
+            venv_site_packages = os.path.join(SCRIPT_DIR, ".venv", "Lib", "site-packages")
+            if os.path.exists(venv_site_packages):
+                current_pythonpath = os.environ.get("PYTHONPATH", "")
+                if venv_site_packages not in current_pythonpath:
+                    os.environ["PYTHONPATH"] = venv_site_packages + (os.pathsep + current_pythonpath if current_pythonpath else "")
+            
+            from RealtimeSTT import AudioToTextRecorder
+            _daemon_write_json({"type": "debug", "msg": "RealtimeSTT imported"})
+
+            # Track whether the user was muted when speech started.
+            # This prevents dropping transcriptions captured while unmuted
+            # just because the user clicked mute during the post-speech
+            # silence / transcription delay.
+            _muted_at_rec_start = [False]  # mutable container for closure
 
             def on_final(text):
-                if text.strip():
+                """Called by recorder.text() ONCE per utterance after
+                speech→silence→transcription completes."""
+                # File-based diagnostic logging (survives stdout redirection and thread issues)
+                diag_path = os.path.join(SCRIPT_DIR, 'dictation_on_final.log')
+                try:
+                    with open(diag_path, 'a', encoding='utf-8') as diag:
+                        import datetime
+                        ts = datetime.datetime.now().isoformat()
+                        diag.write(f"[{ts}] on_final called, text={repr(text)}, "
+                                   f"session={my_session}, current_session={_dictation_session_id}, "
+                                   f"active={_dictation_active}, muted_at_start={_muted_at_rec_start[0]}\n")
+                except Exception:
+                    pass
+                # Guard: ignore results from a stale session (user stopped
+                # and restarted dictation while transcription was in progress)
+                if _dictation_session_id != my_session:
+                    _daemon_write_json({"type": "debug", "msg": f"on_final DROPPED (stale session {my_session} vs current {_dictation_session_id})"})
+                    return
+                if not _dictation_active:
+                    _daemon_write_json({"type": "debug", "msg": "on_final DROPPED (dictation inactive)"})
+                    return
+                _daemon_write_json({"type": "debug", "msg": f"on_final called: '{text[:80] if text else ''}', muted_at_start={_muted_at_rec_start[0]}"})
+                if _muted_at_rec_start[0]:
+                    return
+                if text and text.strip():
                     _daemon_write_json({"type": "dictation_final", "text": text})
+
+            def on_realtime_update(text):
+                """Fires continuously during speech with partial results.
+                Only used for status feedback — NOT for enqueuing blocks."""
+                if _dictation_muted:
+                    return  # suppress even status feedback while muted
+                if text and text.strip():
+                    _daemon_write_json({"type": "dictation_transcribing"})
+
+            def on_rec_start():
+                _muted_at_rec_start[0] = _dictation_muted
+                _daemon_write_json({"type": "debug", "msg": f"Recording started (VAD detected speech), muted={_muted_at_rec_start[0]}"})
+
+            def on_rec_stop():
+                _daemon_write_json({"type": "debug", "msg": "Recording stopped (silence detected)"})
 
             # Check if stop was called during model loading
             if not _dictation_active:
                 _daemon_write_json({"type": "dictation_stopped"})
                 return
 
+            _daemon_write_json({"type": "debug", "msg": f"Creating AudioToTextRecorder (model={model_size}, lang={language})..."})
             recorder = AudioToTextRecorder(
                 model=model_size,
                 language=language,
-                compute_type="int8",
-                beam_size=1,                       # fastest decoding
-                silero_sensitivity=0.4,            # VAD sensitivity
-                post_speech_silence_duration=1.0,   # 1s silence = block boundary
+                compute_type="int8",   # int8 quantization — runs efficiently on CPU without GPU
+                spinner=False,
+                level=logging.WARNING,  # WARNING — suppress noisy DEBUG on stderr
+                enable_realtime_transcription=True,
+                post_speech_silence_duration=1.5,
+                on_realtime_transcription_update=on_realtime_update,
+                on_recording_start=on_rec_start,
+                on_recording_stop=on_rec_stop,
             )
+            _daemon_write_json({"type": "debug", "msg": "AudioToTextRecorder created"})
 
             # Check again after model loading (may take several seconds)
             if not _dictation_active:
@@ -714,24 +876,39 @@ def cmd_start_dictation(data):
             _dictation_recorder = recorder
             _daemon_write_json({"type": "dictation_started"})
 
-            # Blocking loop: listens, VAD detects speech, transcribes, calls on_final
-            while _dictation_active:
-                text = recorder.text(on_final)  # blocks until speech→silence→transcription
+            # Blocking loop using the ORIGINAL working approach:
+            # recorder.text(callback) blocks in wait_audio(), then calls
+            # recorder.transcribe() in the current thread, passes the result
+            # to on_final in a new thread, and returns None so the loop
+            # re-arms for the next utterance immediately.
+            while _dictation_active and _dictation_session_id == my_session:
+                _daemon_write_json({"type": "dictation_listening"})
+                recorder.text(on_final)
                 if not _dictation_active:
-                    break  # stop_dictation was called
+                    break
 
         except Exception as e:
             import traceback
             _daemon_write_json({"type": "dictation_error", "error": str(e), "traceback": traceback.format_exc()})
         finally:
+            sys.stdout = original_stdout
             _dictation_recorder = None
-            _dictation_active = False
-            devnull.close()
+            # Only mark inactive if we are still the current session.
+            # If a new session was started, _dictation_session_id will
+            # have been incremented and _dictation_active re-set to True
+            # — we must NOT clobber that.
+            if _dictation_session_id == my_session:
+                _dictation_active = False
 
     _dictation_thread = threading.Thread(target=_run_dictation, daemon=True)
     _dictation_thread.start()
     return {"status": "dictation_starting"}
 
+
+def cmd_mute_dictation(data):
+    global _dictation_muted
+    _dictation_muted = data.get("muted", True)
+    return {"status": "muted" if _dictation_muted else "unmuted"}
 
 def cmd_stop_dictation(data):
     """Stop the active dictation session."""
@@ -780,6 +957,7 @@ COMMANDS = {
     "sync_to_drive": cmd_sync_to_drive,
     "start_dictation": cmd_start_dictation,
     "stop_dictation": cmd_stop_dictation,
+    "mute_dictation": cmd_mute_dictation,
 }
 
 
@@ -842,6 +1020,19 @@ def serve():
     Protocol: newline-delimited JSON on stdin/stdout, progress on stderr.
     """
     global _daemon_stdout
+
+    # CRITICAL: On Windows, when running under a proxy launcher (subprocess pipes),
+    # we must explicitly mark standard handles as inheritable so that any grandchild
+    # processes (like those spawned by torch.multiprocessing) can inherit them.
+    # Otherwise, they get WinError 6 (invalid handle) and crash silently on print.
+    import sys
+    if sys.platform == "win32":
+        try:
+            import msvcrt, os
+            for fd in (0, 1, 2):
+                os.set_handle_inheritable(msvcrt.get_osfhandle(fd), True)
+        except Exception as e:
+            print(f"Warning: failed to make handles inheritable: {e}", file=sys.stderr)
 
     # Redirect prints to stderr, preserve stdout for JSON responses
     original_stdout = sys.stdout
@@ -907,8 +1098,88 @@ def serve():
 
 
 if __name__ == "__main__":
-    # Support "serve" as a special first argument to enter daemon mode
-    if len(sys.argv) >= 2 and sys.argv[1].lower() == "serve":
-        serve()
+    import multiprocessing
+    import multiprocessing.process
+    if getattr(multiprocessing.process.current_process(), '_inheriting', False):
+        pass
     else:
-        main()
+        # CRITICAL: torch.multiprocessing (used by RealtimeSTT) spawns child
+        # processes via 'spawn' on Windows. Those children re-import __main__,
+        # and without freeze_support() they would re-enter serve()/main().
+        import torch.multiprocessing as _mp
+        _mp.freeze_support()
+
+        if len(sys.argv) >= 2 and sys.argv[1].lower() == "serve":
+            # LAUNCHER MODE: Isolate the QProcess stdin pipe from Windows multiprocessing bugs.
+            # Spawning multiprocessing workers directly from a QProcess pipe receiver
+            # breaks the stdin handle (EOF) on Windows. We act as a thin proxy here.
+            import subprocess
+            import threading
+            import os
+            
+            SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+            cmd = [sys.executable, __file__, "__impl_serve__"]
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            env["PYTHONUTF8"] = "1"  # Fix C++ faster-whisper UTF-8 -> cp1252 corruption
+            
+            p = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=env
+            )
+            
+            def forward_stdin():
+                try:
+                    while True:
+                        line = sys.stdin.buffer.readline()
+                        if not line: break
+                        p.stdin.write(line)
+                        p.stdin.flush()
+                except Exception: pass
+                finally:
+                    try: p.stdin.close()
+                    except: pass
+
+            def forward_stdout():
+                diag = open(os.path.join(SCRIPT_DIR, 'proxy_stdout.log'), 'wb')
+                try:
+                    while True:
+                        chunk = p.stdout.read1(4096)
+                        if not chunk: break
+                        diag.write(b'CHUNK: ' + chunk + b'\n---\n')
+                        diag.flush()
+                        sys.stdout.buffer.write(chunk)
+                        sys.stdout.buffer.flush()
+                except Exception as e:
+                    diag.write(f'ERROR: {e}\n'.encode())
+                finally:
+                    diag.close()
+
+            def forward_stderr():
+                try:
+                    while True:
+                        chunk = p.stderr.read1(4096)
+                        if not chunk: break
+                        sys.stderr.buffer.write(chunk)
+                        sys.stderr.buffer.flush()
+                except Exception: pass
+
+            t_in = threading.Thread(target=forward_stdin, daemon=True)
+            t_out = threading.Thread(target=forward_stdout, daemon=True)
+            t_err = threading.Thread(target=forward_stderr, daemon=True)
+            
+            t_in.start()
+            t_out.start()
+            t_err.start()
+            
+            p.wait()
+            sys.exit(p.returncode)
+
+        elif len(sys.argv) >= 2 and sys.argv[1] == "__impl_serve__":
+            # ACTUAL DAEMON MODE
+            serve()
+        else:
+            main()

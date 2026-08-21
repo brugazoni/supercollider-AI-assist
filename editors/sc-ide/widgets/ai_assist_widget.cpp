@@ -219,8 +219,19 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
 
 AiAssistWidget::~AiAssistWidget() {
     if (mDaemonProcess) {
-        mDaemonProcess->kill();
-        mDaemonProcess->waitForFinished(1000);
+        if (mDaemonProcess->state() == QProcess::Running) {
+            QJsonObject cmd;
+            cmd["command"] = QStringLiteral("stop_dictation");
+            QJsonDocument jsonDoc(cmd);
+            mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+            
+            mDaemonProcess->closeWriteChannel();
+            
+            if (!mDaemonProcess->waitForFinished(3000)) {
+                mDaemonProcess->kill();
+                mDaemonProcess->waitForFinished(1000);
+            }
+        }
         delete mDaemonProcess;
     }
 }
@@ -321,6 +332,8 @@ void AiAssistWidget::saveSessionFor(Document* doc) {
     session["design_use_kb"] = mDesignUseKb->isChecked();
     session["append_prompt"] = mAppendPrompt->toPlainText();
     session["append_use_kb"] = mAppendUseKb->isChecked();
+    session["append_log"] = mAutoAppendLog->toHtml();
+    session["append_block_index"] = mDictationBlockIndex;
     session["composition_state"] = mCompositionState;
     session["learn_history"] = mLearnHistory->toPlainText();
     session["learn_chat_history"] = mLearnChatHistory;
@@ -401,6 +414,8 @@ void AiAssistWidget::restoreSessionFor(const QString& filePath) {
     mDesignUseKb->setChecked(session["design_use_kb"].toBool(true));
     mAppendPrompt->setPlainText(session["append_prompt"].toString());
     if (session.contains("append_use_kb")) mAppendUseKb->setChecked(session["append_use_kb"].toBool(true));
+    if (session.contains("append_log")) mAutoAppendLog->setHtml(session["append_log"].toString());
+    if (session.contains("append_block_index")) mDictationBlockIndex = session["append_block_index"].toInt();
     mCompositionState = session["composition_state"].toString();
     mLearnHistory->setPlainText(session["learn_history"].toString());
     mLearnChatHistory = session["learn_chat_history"].toString();
@@ -518,6 +533,9 @@ void AiAssistWidget::clearSessionFields() {
     mCustomUseKb->setChecked(true);
     mAppendPrompt->clear();
     mAppendUseKb->setChecked(true);
+    mAutoAppendLog->clear();
+    mAppendQueue.clear();
+    mDictationBlockIndex = 0;
     mFixBlock->clear();
     mFixStackTrace->clear();
     mRemakeBlock->clear();
@@ -892,9 +910,6 @@ QWidget* AiAssistWidget::createAppendTab() {
     mAutoExecuteCheck->setChecked(Main::instance()->documentManager()->isAutoEvaluateEnabled());
     btnRow->addWidget(mAutoExecuteCheck);
     
-    mAppendUseCodeContext = new QCheckBox(tr("Use code as context"));
-    btnRow->addWidget(mAppendUseCodeContext);
-
     mAppendUseKb = new QCheckBox(tr("Use KB"));
     mAppendUseKb->setChecked(true);
     mAppendUseKb->setToolTip(tr("Include knowledge base RAG context in the prompt"));
@@ -913,6 +928,35 @@ QWidget* AiAssistWidget::createAppendTab() {
     connect(mAppendBtn, &QPushButton::clicked, this, &AiAssistWidget::onAppendClicked);
     btnRow->addWidget(mAppendBtn);
 
+    layout->addLayout(btnRow);
+
+    // --- Dictation controls row (second row) ---
+    QHBoxLayout* dictRow = new QHBoxLayout;
+    dictRow->setContentsMargins(0, 0, 0, 0);
+
+    // Dictation Language selector
+    mDictLangCombo = new QComboBox;
+    mDictLangCombo->addItem(tr("Português (BR)"), QStringLiteral("pt"));
+    mDictLangCombo->addItem(tr("English"), QStringLiteral("en"));
+    mDictLangCombo->addItem(tr("Español"), QStringLiteral("es"));
+    mDictLangCombo->addItem(tr("Auto-detect"), QStringLiteral(""));
+    mDictLangCombo->setCurrentIndex(0); // Default to pt-BR
+    mDictLangCombo->setToolTip(tr("Dictation language for speech recognition"));
+    dictRow->addWidget(mDictLangCombo);
+
+    // Dictation Model selector
+    mDictModelCombo = new QComboBox;
+    mDictModelCombo->addItem(tr("large-v3-turbo (best)"), QStringLiteral("large-v3-turbo"));
+    mDictModelCombo->addItem(tr("medium (accurate)"), QStringLiteral("medium"));
+    mDictModelCombo->addItem(tr("small (balanced)"), QStringLiteral("small"));
+    mDictModelCombo->addItem(tr("base (fast)"), QStringLiteral("base"));
+    mDictModelCombo->addItem(tr("tiny (fastest)"), QStringLiteral("tiny"));
+    mDictModelCombo->setCurrentIndex(0); // Default to large-v3-turbo
+    mDictModelCombo->setToolTip(tr("Whisper model size — larger = more accurate but slower and uses more RAM"));
+    dictRow->addWidget(mDictModelCombo);
+
+    dictRow->addStretch();
+
     mDictateBtn = new QPushButton(tr("\xF0\x9F\x8E\xA4"));  // 🎤 emoji
     mDictateBtn->setFixedWidth(32);
     mDictateBtn->setToolTip(tr("Voice dictation — click to start/stop microphone transcription"));
@@ -921,9 +965,32 @@ QWidget* AiAssistWidget::createAppendTab() {
         "QPushButton:checked { background-color: #c0392b; border: 2px solid #e74c3c; }");
     mDictateBtn->setCheckable(true);
     connect(mDictateBtn, &QPushButton::clicked, this, &AiAssistWidget::onDictateToggled);
-    btnRow->addWidget(mDictateBtn);
+    dictRow->addWidget(mDictateBtn);
 
-    layout->addLayout(btnRow);
+    mDictateMuteBtn = new QPushButton(tr("\xF0\x9F\x94\x87"));  // 🔇 emoji
+    mDictateMuteBtn->setFixedWidth(32);
+    mDictateMuteBtn->setToolTip(tr("Mute dictation (pause transcription without stopping)"));
+    mDictateMuteBtn->setStyleSheet(
+        "QPushButton { font-size: 14px; padding: 2px; }"
+        "QPushButton:checked { background-color: #f39c12; border: 2px solid #e67e22; }");
+    mDictateMuteBtn->setCheckable(true);
+    connect(mDictateMuteBtn, &QPushButton::clicked, this, &AiAssistWidget::onDictateMuteToggled);
+    dictRow->addWidget(mDictateMuteBtn);
+
+    layout->addLayout(dictRow);
+
+    // --- Auto-Append Activity Log ---
+    QLabel* logLabel = new QLabel(tr("Auto-Append Log:"));
+    logLabel->setStyleSheet("QLabel { color: #888; font-size: 9px; margin-top: 2px; }");
+    layout->addWidget(logLabel);
+
+    mAutoAppendLog = new QTextEdit;
+    mAutoAppendLog->setReadOnly(true);
+    mAutoAppendLog->setMaximumHeight(100);
+    mAutoAppendLog->setStyleSheet(
+        "QTextEdit { background-color: #1a1a2e; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; font-size: 9px; border: 1px solid #333; }");
+    mAutoAppendLog->setPlaceholderText(tr("Auto-append pipeline activity will appear here..."));
+    layout->addWidget(mAutoAppendLog);
 
     return tab;
 }
@@ -1162,11 +1229,15 @@ void AiAssistWidget::startDaemon() {
 
     connect(mDaemonProcess, &QProcess::readyReadStandardError, this, [this]() {
         if (!mDaemonProcess) return;
-        // Skip stderr status updates while an API call is in progress
+        
+        // ALWAYS read the buffer to prevent IPC pipe deadlock!
+        // If we don't read it, the OS pipe buffer fills up and Python's print() calls block forever.
+        QByteArray err = mDaemonProcess->readAllStandardError();
+        
+        // Skip updating the UI status text while an API call is in progress
         // (prevents RealtimeSTT prints like "speak now" from overwriting
         //  the "Processing..." or result status text)
         if (mDaemonBusy) return;
-        QByteArray err = mDaemonProcess->readAllStandardError();
         QString text = QString::fromUtf8(err).trimmed();
         if (!text.isEmpty()) {
             QStringList lines = text.split('\n', Qt::SkipEmptyParts);
@@ -1203,24 +1274,76 @@ void AiAssistWidget::startDaemon() {
     
     QStringList args;
     args << scriptPath << "serve";
+    qDebug() << "[AutoAppend] Starting daemon:" << pythonPath() << args;
     mDaemonProcess->start(pythonPath(), args);
+    qDebug() << "[AutoAppend] Daemon process started, pid:" << mDaemonProcess->processId();
 }
 
 void AiAssistWidget::onDaemonFinished(int exitCode, QProcess::ExitStatus exitStatus) {
-    Q_UNUSED(exitCode);
-    Q_UNUSED(exitStatus);
+    // Capture any remaining stderr before the process is destroyed
+    QString lastStderr;
+    if (mDaemonProcess) {
+        lastStderr = QString::fromUtf8(mDaemonProcess->readAllStandardError()).trimmed();
+    }
+
     setProcessingState(false);
     mDaemonReady = false;
     mDaemonBusy = false;
+    mCurrentCallback = nullptr;
+    mAppendQueue.clear();
+
+    // Reset dictation state if it was active
+    if (mDictating) {
+        mDictating = false;
+        mDictateBtn->setChecked(false);
+        mDictateMuteBtn->setChecked(false);
+        mDictationMuted = false;
+    }
+
+    // Dismiss dictation loading dialog if it's open
+    if (mDictationLoadingDialog) {
+        mDictationLoadingDialog->accept();
+        mDictationLoadingDialog->deleteLater();
+        mDictationLoadingDialog = nullptr;
+    }
+
     mDaemonProcess->deleteLater();
     mDaemonProcess = nullptr;
+
+    QString crashInfo = exitStatus == QProcess::CrashExit
+        ? tr("AI daemon CRASHED (signal/segfault)")
+        : tr("AI daemon exited with code %1").arg(exitCode);
+
+    if (!lastStderr.isEmpty()) {
+        // Show last 500 chars of stderr to help diagnose
+        QString stderrTail = lastStderr.right(500);
+        crashInfo += tr("\n\nLast stderr:\n%1").arg(stderrTail);
+    }
+
+    qDebug() << "[AutoAppend] DAEMON DIED:" << crashInfo;
+    mAutoAppendLog->append(QString("<span style='color:#e74c3c;'>[DAEMON CRASH]</span> %1")
+        .arg(crashInfo.left(200).toHtmlEscaped()));
+
     mFullStatusText = tr("AI daemon stopped unexpectedly.");
     mStatusBtn->setText(mFullStatusText);
+
+    // Show detailed error to user
+    QMessageBox::critical(this, tr("AI Daemon Crashed"), crashInfo);
 }
 
 void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
     QJsonDocument doc = QJsonDocument::fromJson(jsonLine);
-    if (doc.isNull() || !doc.isObject()) return;
+    if (doc.isNull() || !doc.isObject()) {
+        // If we were waiting for a response and got garbled JSON, recover
+        if (mDaemonBusy) {
+            qWarning() << "AiAssist: garbled daemon response while busy, resetting state:" << jsonLine.left(200);
+            setProcessingState(false);
+            mDaemonBusy = false;
+            mCurrentCallback = nullptr;
+            processAppendQueue();
+        }
+        return;
+    }
     QJsonObject result = doc.object();
 
     // --- Daemon ready handshake ---
@@ -1228,6 +1351,7 @@ void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
         mDaemonReady = true;
         mFullStatusText = tr("AI daemon ready.");
         mStatusBtn->setText(mFullStatusText);
+        qDebug() << "[AutoAppend] Daemon READY, pid:" << (mDaemonProcess ? mDaemonProcess->processId() : 0);
         return;
     }
 
@@ -1237,14 +1361,22 @@ void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
 
         if (type == "dictation_final") {
             // Block-based dictation: each finalized utterance is a separate block
+            // NOTE: Mute filtering is handled by the Python backend (muted_at_rec_start)
+            // which correctly checks mute state at recording START, not at transcription END.
+            // A redundant check here would drop valid transcriptions when the user
+            // clicks mute during the multi-second transcription delay.
             QString block = result["text"].toString();
             if (block.trimmed().isEmpty()) return;
             mLastDictationBlock = block;
+            ++mDictationBlockIndex;
 
-            // Append separator + block to prompt field
+            qDebug() << "[AutoAppend] dictation_final received, block #" << mDictationBlockIndex
+                     << ", text:" << block.left(80);
+
+            // Append indexed separator + block to prompt field
             QString current = mAppendPrompt->toPlainText();
             if (!current.isEmpty())
-                current += QString::fromUtf8("\n\u2014 \u2014 \u2014 \u2014 \u2014\n");  // — — — — —
+                current += QString("\n%1) \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n").arg(mDictationBlockIndex);  // N) ——————————
             current += block;
             mAppendPrompt->setPlainText(current);
             QTextCursor cursor = mAppendPrompt->textCursor();
@@ -1253,45 +1385,101 @@ void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
 
             // Auto-append: enqueue and try to process
             if (mAutoAppendCheck->isChecked()) {
+                mAutoAppendLog->append(QString("<span style='color:#5dade2;'>[Block #%1] Enqueued:</span> <span style='color:#ddd;'>%2</span>")
+                    .arg(mDictationBlockIndex).arg(block.left(100).toHtmlEscaped()));
                 mAppendQueue.enqueue(block);
+                qDebug() << "[AutoAppend] Enqueued block #" << mDictationBlockIndex
+                         << ", queue size:" << mAppendQueue.size()
+                         << ", daemonBusy:" << mDaemonBusy;
                 processAppendQueue();
             }
             return;
         }
 
-        if (type == "dictation_started") {
+        if (type == "dictation_started" || type == "dictation_listening") {
+            mDictationModelLoaded = true;
             mFullStatusText = tr("Listening...");
             mStatusBtn->setText(mFullStatusText);
+            mStatusBtn->setStyleSheet("QPushButton { color: #ff4444; font-size: 10px; padding: 0px 4px; border: none; font-weight: bold; }");
+            if (mDictationLoadingDialog) {
+                mDictationLoadingDialog->accept();
+                mDictationLoadingDialog->deleteLater();
+                mDictationLoadingDialog = nullptr;
+            }
+            return;
+        }
+
+        if (type == "dictation_transcribing") {
+            mFullStatusText = tr("Transcribing...");
+            mStatusBtn->setText(mFullStatusText);
+            // Change color to an orange/yellow to indicate transcription
+            mStatusBtn->setStyleSheet("QPushButton { color: #f39c12; font-size: 10px; padding: 0px 4px; border: none; font-weight: bold; }");
             return;
         }
 
         if (type == "dictation_stopped") {
             mDictating = false;
             mDictateBtn->setChecked(false);
+            mDictateMuteBtn->setChecked(false);
+            mDictationMuted = false;
             mFullStatusText = tr("Dictation stopped.");
             mStatusBtn->setText(mFullStatusText);
+            mStatusBtn->setStyleSheet("QPushButton { color: #aaa; font-size: 10px; padding: 0px 4px; border: none; }");
+            if (mDictationLoadingDialog) {
+                mDictationLoadingDialog->accept();
+                mDictationLoadingDialog->deleteLater();
+                mDictationLoadingDialog = nullptr;
+            }
             return;
         }
 
         if (type == "dictation_error") {
             mDictating = false;
             mDictateBtn->setChecked(false);
+            mDictateMuteBtn->setChecked(false);
+            mDictationMuted = false;
             mFullStatusText = tr("Dictation error.");
             mStatusBtn->setText(mFullStatusText);
-            QMessageBox::warning(this, tr("Dictation Error"),
-                                 result["error"].toString());
+            mStatusBtn->setStyleSheet("QPushButton { color: #e74c3c; font-size: 10px; padding: 0px 4px; border: none; }");
+            if (mDictationLoadingDialog) {
+                mDictationLoadingDialog->accept();
+                mDictationLoadingDialog->deleteLater();
+                mDictationLoadingDialog = nullptr;
+            }
+            QString errMsg = result["error"].toString();
+            mAutoAppendLog->append(QString("<span style='color:#e74c3c;'>[DICTATION ERROR]</span> %1").arg(errMsg.left(200).toHtmlEscaped()));
+            QMessageBox::critical(this, tr("Dictation Error"),
+                                  tr("Failed to start dictation:\n\n%1").arg(errMsg));
             return;
         }
+
+    }
+    // --- Skip unsolicited dictation command responses ---
+    // start_dictation/stop_dictation return {"status": "..."} via the serve loop,
+    // but they are NOT responses to runBackendCommand — ignore them.
+    if (result.contains("status") && !result.contains("error") && !result.contains("code")
+        && !result.contains("plan") && !result.contains("last_stats") && !result.contains("models")
+        && !result.contains("session_stats") && !result.contains("raw_log")) {
+        qDebug() << "[AutoAppend] Dropped unsolicited status response:"
+                 << result["status"].toString()
+                 << "| daemonBusy:" << mDaemonBusy;
+        return;
     }
 
     // --- Regular command responses ---
     if (mDaemonBusy) {
         setProcessingState(false);
         mDaemonBusy = false;
+        qDebug() << "[AutoAppend] Command response received, mDaemonBusy -> false"
+                 << "| hasError:" << result.contains("error")
+                 << "| hasCode:" << result.contains("code")
+                 << "| hasCallback:" << (mCurrentCallback != nullptr);
         
         if (result.contains("error")) {
+            QString errMsg = result["error"].toString();
+            mAutoAppendLog->append(QString("<span style='color:#e74c3c;'>[ERROR]</span> %1").arg(errMsg.left(200).toHtmlEscaped()));
             QMessageBox::critical(this, tr("Backend Error"),
-                                  result["error"].toString() + "\n\n" + result["traceback"].toString());
+                                  errMsg + "\n\n" + result["traceback"].toString());
         } else if (mCurrentCallback) {
             mCurrentCallback(result);
             mCurrentCallback = nullptr;
@@ -1305,12 +1493,19 @@ void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
 
         // Drain any queued auto-append blocks now that the daemon is free
         processAppendQueue();
+    } else {
+        qDebug() << "[AutoAppend] WARNING: response received but mDaemonBusy was false."
+                 << "Keys:" << result.keys();
     }
 }
 
 void AiAssistWidget::runBackendCommand(const QString& command, const QJsonObject& data,
                                        std::function<void(const QJsonObject&)> callback) {
     if (mDaemonBusy || mCurrentProcess) {
+        qDebug() << "[AutoAppend] runBackendCommand REJECTED:" << command
+                 << "| mDaemonBusy:" << mDaemonBusy
+                 << "| mCurrentProcess:" << (mCurrentProcess != nullptr);
+        mAutoAppendLog->append(QString("<span style='color:#f39c12;'>[BLOCKED]</span> Command '%1' rejected — daemon busy").arg(command));
         QMessageBox::warning(this, tr("Busy"), tr("A command is already running. Please wait."));
         return;
     }
@@ -1391,6 +1586,8 @@ void AiAssistWidget::runBackendCommand(const QString& command, const QJsonObject
     
     QJsonDocument jsonDoc(finalData);
     QByteArray payload = jsonDoc.toJson(QJsonDocument::Compact) + "\n";
+    qDebug() << "[AutoAppend] Sending daemon command:" << command
+             << "| payload size:" << payload.size() << "bytes";
     mDaemonProcess->write(payload);
 }
 
@@ -2097,23 +2294,62 @@ void AiAssistWidget::onDesignGenerateClicked() {
 void AiAssistWidget::onAppendClicked() {
     QString prompt = mAppendPrompt->toPlainText().trimmed();
     if (prompt.isEmpty()) return;
-    submitAppendForBlock(prompt);
+    submitAppendForBlock(prompt, false);
 }
 
-void AiAssistWidget::submitAppendForBlock(const QString& prompt) {
+void AiAssistWidget::onDictateMuteToggled() {
+    if (!mDaemonProcess || !mDaemonReady) {
+        mDictateMuteBtn->setChecked(false);
+        return;
+    }
+
+    mDictationMuted = mDictateMuteBtn->isChecked();
+
+    QJsonObject cmd;
+    cmd["command"] = QStringLiteral("mute_dictation");
+    cmd["muted"] = mDictationMuted;
+    QJsonDocument jsonDoc(cmd);
+    mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+    
+    if (mDictationMuted) {
+        mAutoAppendLog->append("<span style='color:#f39c12;'>[DICTATION]</span> Muted");
+    } else {
+        mAutoAppendLog->append("<span style='color:#f39c12;'>[DICTATION]</span> Unmuted");
+    }
+}
+
+void AiAssistWidget::submitAppendForBlock(const QString& prompt, bool isAuto) {
     if (prompt.isEmpty()) return;
 
-    QJsonObject data;
+    qDebug() << "[AutoAppend] submitAppendForBlock called"
+             << "| isAuto:" << isAuto
+             << "| prompt:" << prompt.left(80)
+             << "| mDaemonBusy:" << mDaemonBusy;
+
+    // runBackendCommand will internally check and set mDaemonBusy = true
+    // We just set the UI text here beforehand so it overrides the default "Processing..."
+    mFullStatusText = isAuto ? tr("Auto appending...") : tr("Processing...");
+    mStatusBtn->setText(mFullStatusText);
+
+    if (isAuto) {
+        mAutoAppendLog->append(QString("<span style='color:#f39c12;'>[SENDING]</span> Submitting to LLM: <span style='color:#ddd;'>%1</span>")
+            .arg(prompt.left(100).toHtmlEscaped()));
+    }
+
+    QJsonObject data = basePayload();
     data["prompt"] = prompt;
     data["composition_state"] = mCompositionState;
-    data["use_code_context"] = mAppendUseCodeContext->isChecked();
     data["use_kb"] = mAppendUseKb->isChecked();
     data["model"] = mModelCombo->currentText();
     data["sys_msgs"] = QJsonArray::fromStringList(mAppendSysMsgs);
 
-    runBackendCommand("append", data, [this](const QJsonObject& result) {
+    runBackendCommand("append", data, [this, isAuto](const QJsonObject& result) {
         // Insert appended code into the active document
         QString code = result["code"].toString();
+        qDebug() << "[AutoAppend] append callback received"
+                 << "| hasCode:" << !code.isEmpty()
+                 << "| codeLen:" << code.length();
+
         if (!code.isEmpty()) {
             Document* doc = Main::instance()->documentManager()->activeDocument();
             if (doc) {
@@ -2123,11 +2359,78 @@ void AiAssistWidget::submitAppendForBlock(const QString& prompt) {
                 if (mAutoExecuteCheck->isChecked()) {
                     QString evalCode = code;
                     evalCode.replace(QChar(0x2029), QChar('\n'));
-                    Main::evaluateCode(evalCode);
+
+                    // Split into top-level () blocks for separate evaluation.
+                    // SuperCollider's interpreter expects a single top-level
+                    // expression; multiple () blocks sent as one string cause
+                    // "syntax error, unexpected '(', expecting end of file".
+                    QStringList blocks;
+                    int depth = 0;
+                    int blockStart = -1;
+                    bool inLineComment = false;
+                    bool inBlockComment = false;
+                    bool inString = false;
+                    QChar stringChar;
+
+                    for (int i = 0; i < evalCode.length(); i++) {
+                        QChar c = evalCode[i];
+                        QChar next = (i + 1 < evalCode.length()) ? evalCode[i + 1] : QChar();
+
+                        if (inLineComment) {
+                            if (c == '\n') inLineComment = false;
+                            continue;
+                        }
+                        if (inBlockComment) {
+                            if (c == '*' && next == '/') { inBlockComment = false; i++; }
+                            continue;
+                        }
+                        if (inString) {
+                            if (c == stringChar) inString = false;
+                            continue;
+                        }
+                        if (c == '/' && next == '/') { inLineComment = true; i++; continue; }
+                        if (c == '/' && next == '*') { inBlockComment = true; i++; continue; }
+                        if (c == '"' || c == '\'') { inString = true; stringChar = c; continue; }
+
+                        if (c == '(') {
+                            if (depth == 0) blockStart = i;
+                            depth++;
+                        } else if (c == ')') {
+                            depth--;
+                            if (depth == 0 && blockStart >= 0) {
+                                blocks.append(evalCode.mid(blockStart, i - blockStart + 1));
+                                blockStart = -1;
+                            }
+                        }
+                    }
+
+                    if (blocks.size() > 1) {
+                        qDebug() << "[AutoAppend] Splitting" << blocks.size() << "top-level () blocks for evaluation";
+                        for (const QString& block : blocks) {
+                            Main::evaluateCode(block);
+                        }
+                    } else {
+                        Main::evaluateCode(evalCode);
+                    }
                     mFullStatusText = tr("Block appended and auto-evaluated");
                 } else {
                     mFullStatusText = tr("Block appended");
                 }
+                if (isAuto) {
+                    mAutoAppendLog->append(QString("<span style='color:#2ecc71;'>[OK]</span> Code inserted (%1 chars)%2")
+                        .arg(code.length())
+                        .arg(mAutoExecuteCheck->isChecked() ? " + auto-evaluated" : ""));
+                }
+            } else {
+                qDebug() << "[AutoAppend] WARNING: no active document to insert code into";
+                if (isAuto) {
+                    mAutoAppendLog->append("<span style='color:#e74c3c;'>[ERROR]</span> No active document");
+                }
+            }
+        } else {
+            qDebug() << "[AutoAppend] WARNING: empty code in response";
+            if (isAuto) {
+                mAutoAppendLog->append("<span style='color:#e74c3c;'>[WARN]</span> LLM returned empty code");
             }
         }
         // Update composition state
@@ -2141,10 +2444,28 @@ void AiAssistWidget::submitAppendForBlock(const QString& prompt) {
 }
 
 void AiAssistWidget::processAppendQueue() {
-    if (mAppendQueue.isEmpty() || mDaemonBusy || !mDaemonReady)
+    if (mAppendQueue.isEmpty()) {
+        qDebug() << "[AutoAppend] processAppendQueue: queue empty, nothing to do";
         return;
-    QString prompt = mAppendQueue.dequeue();
-    submitAppendForBlock(prompt);
+    }
+    if (mDaemonBusy) {
+        qDebug() << "[AutoAppend] processAppendQueue: daemon busy, will retry when free"
+                 << "| queued:" << mAppendQueue.size();
+        mAutoAppendLog->append(QString("<span style='color:#888;'>[WAIT]</span> Daemon busy, %1 block(s) queued")
+            .arg(mAppendQueue.size()));
+        return;
+    }
+    if (!mDaemonReady) {
+        qDebug() << "[AutoAppend] processAppendQueue: daemon not ready";
+        return;
+    }
+
+    // Dequeue one block at a time — each dictation block gets its own LLM call.
+    // After the callback fires, processAppendQueue() is called again to drain the next.
+    QString block = mAppendQueue.dequeue();
+    qDebug() << "[AutoAppend] Dequeued block, remaining:" << mAppendQueue.size()
+             << "| block:" << block.left(80);
+    submitAppendForBlock(block, true);
 }
 
 void AiAssistWidget::onDictateToggled() {
@@ -2152,26 +2473,55 @@ void AiAssistWidget::onDictateToggled() {
         QMessageBox::warning(this, tr("Not Ready"),
                              tr("The AI daemon is not ready yet. Please wait."));
         mDictateBtn->setChecked(false);
+        mDictateMuteBtn->setChecked(false);
+        mDictationMuted = false;
         return;
     }
 
     if (!mDictating) {
         // Start dictation
         mDictating = true;
+        mDictLangCombo->setEnabled(false);
+        mDictModelCombo->setEnabled(false);
         mFullStatusText = tr("Starting dictation...");
         mStatusBtn->setText(mFullStatusText);
 
+        // Debug: check daemon process state before writing
+        qDebug() << "[AutoAppend] Dictation START requested"
+                 << "| autoAppend:" << mAutoAppendCheck->isChecked()
+                 << "| daemonState:" << mDaemonProcess->state()
+                 << "| daemonPid:" << mDaemonProcess->processId();
+        mAutoAppendLog->append("<span style='color:#5dade2;'>[DICTATION]</span> Started");
+
+        if (!mDictationModelLoaded && !mDictationLoadingDialog) {
+            mDictationLoadingDialog = new QProgressDialog(tr("Loading dictation model... Please wait until you can begin speaking."), QString(), 0, 0, this);
+            mDictationLoadingDialog->setWindowTitle(tr("Voice Dictation"));
+            mDictationLoadingDialog->setWindowModality(Qt::WindowModal);
+            mDictationLoadingDialog->setCancelButton(nullptr);
+            mDictationLoadingDialog->show();
+        }
+
         QJsonObject cmd;
         cmd["command"] = QStringLiteral("start_dictation");
-        cmd["model"] = QStringLiteral("medium");  // good accuracy, ~1.5GB RAM
-        cmd["language"] = QStringLiteral("en");
+        cmd["model"] = mDictModelCombo->currentData().toString();
+        cmd["language"] = mDictLangCombo->currentData().toString();
         QJsonDocument jsonDoc(cmd);
-        mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+        QByteArray payload = jsonDoc.toJson(QJsonDocument::Compact) + "\n";
+        qint64 written = mDaemonProcess->write(payload);
+        qDebug() << "[AutoAppend] Wrote start_dictation to stdin:" << written << "bytes of" << payload.size();
     } else {
         // Stop dictation
         mDictating = false;
+        mDictLangCombo->setEnabled(true);
+        mDictModelCombo->setEnabled(true);
         mFullStatusText = tr("Stopping dictation...");
         mStatusBtn->setText(mFullStatusText);
+        qDebug() << "[AutoAppend] Dictation STOP requested";
+        mAutoAppendLog->append("<span style='color:#5dade2;'>[DICTATION]</span> Stopped");
+
+        mDictateMuteBtn->setChecked(false);
+        mDictationMuted = false;
+        mAppendQueue.clear();
 
         QJsonObject cmd;
         cmd["command"] = QStringLiteral("stop_dictation");
