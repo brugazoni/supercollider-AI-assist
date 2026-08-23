@@ -66,6 +66,25 @@ def _extract_impact_value(impact_field):
         return 0.0
 
 
+def strip_code_fences(raw_text):
+    """Remove markdown code fences from LLM output.
+    
+    Handles ```supercollider, ```sc, ```sclang, and bare ``` fences.
+    Logs a warning if stripping produces empty output from non-empty input.
+    """
+    import re
+    # Remove opening fences with optional language tag
+    text = re.sub(r'```(?:supercollider|sclang|sc)?\s*\n?', '', raw_text)
+    text = text.strip()
+    if not text and raw_text.strip():
+        print(f"WARNING: code fence stripping produced empty output from {len(raw_text)}-char input", flush=True)
+        print(f"  Raw input (first 200 chars): {raw_text[:200]}", flush=True)
+        # Fallback: return the raw text commented out so it's not totally lost
+        fallback = "\n".join(f"// {line}" for line in raw_text.splitlines())
+        return f"// WARNING: No code block found in LLM response.\n{fallback}"
+    return text
+
+
 class LLMClient:
     def __init__(self, provider=None, model_name=None):
         global _ecologits_initialized, _logfire_configured
@@ -88,29 +107,23 @@ class LLMClient:
 
         if self.provider == "gemini":
             if not config.GEMINI_API_KEY:
-                print("Gemini API key missing")
-                sys.exit(1)
+                raise ValueError("Gemini API key missing. Configure it via the API Keys button.")
             if not genai:
-                print("The 'google-genai' python package is required. pip install google-genai")
-                sys.exit(1)
+                raise ValueError("The 'google-genai' python package is required. pip install google-genai")
             self.gemini_client = genai.Client(api_key=config.GEMINI_API_KEY)
 
         elif self.provider == "openai":
             if not config.OPENAI_API_KEY:
-                print("OpenAI API key missing")
-                sys.exit(1)
+                raise ValueError("OpenAI API key missing. Configure it via the API Keys button.")
             if not OpenAI:
-                print("The 'openai' python package is required. pip install openai")
-                sys.exit(1)
+                raise ValueError("The 'openai' python package is required. pip install openai")
             self.openai_client = OpenAI(api_key=config.OPENAI_API_KEY)
 
         elif self.provider == "anthropic":
             if not config.ANTHROPIC_API_KEY:
-                print("Anthropic API key missing")
-                sys.exit(1)
+                raise ValueError("Anthropic API key missing. Configure it via the API Keys button.")
             if not anthropic:
-                print("The 'anthropic' python package is required. pip install anthropic")
-                sys.exit(1)
+                raise ValueError("The 'anthropic' python package is required. pip install anthropic")
             self.anthropic_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
     @traceable(name="LLM_Generate", run_type="llm")
@@ -236,7 +249,24 @@ class LLMClient:
             config=config_obj
         )
         usage = response.usage_metadata
-        text = response.text.replace("```supercollider", "").replace("```", "").strip()
+        
+        raw_text = ""
+        try:
+            raw_text = response.text
+        except ValueError:
+            # Handle cases where response.text throws an exception (e.g. safety blocks)
+            pass
+            
+        if not raw_text and hasattr(response, 'candidates') and response.candidates:
+            cand = response.candidates[0]
+            finish_reason = getattr(cand, 'finish_reason', None)
+            if finish_reason and finish_reason.name != "STOP":
+                raw_text = f"// API Error: Generation blocked by Google (Reason: {finish_reason.name})"
+                
+        if not raw_text:
+            raw_text = "// API Error: Model returned an empty response (possible silent safety block)."
+
+        text = strip_code_fences(raw_text)
         return text, usage.prompt_token_count, usage.candidates_token_count, response
 
     def _generate_openai(self, prompt, system_instruction, temperature=0.7):
@@ -250,7 +280,7 @@ class LLMClient:
             messages=messages,
             temperature=temperature
         )
-        text = response.choices[0].message.content.replace("```supercollider", "").replace("```", "").strip()
+        text = strip_code_fences(response.choices[0].message.content)
         return text, response.usage.prompt_tokens, response.usage.completion_tokens, response
 
     def _generate_anthropic(self, prompt, system_instruction, temperature=0.7, thinking_budget=0):
@@ -279,5 +309,5 @@ class LLMClient:
             if block.type == "text":
                 final_text = block.text
                 
-        text = final_text.replace("```supercollider", "").replace("```", "").strip()
+        text = strip_code_fences(final_text)
         return text, response.usage.input_tokens, response.usage.output_tokens, response
