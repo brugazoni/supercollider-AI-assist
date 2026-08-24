@@ -1003,7 +1003,7 @@ def main():
     try:
         result = COMMANDS[command](data)
         # Output JSON result to original stdout (the only channel the C++ UI reads)
-        print(json.dumps(result, ensure_ascii=False), file=original_stdout)
+        print(json.dumps(result, ensure_ascii=True), file=original_stdout)
     except Exception as e:
         import traceback
         print(json.dumps({
@@ -1093,7 +1093,12 @@ def serve():
                 import traceback
                 result = {"error": str(e), "traceback": traceback.format_exc()}
 
-        original_stdout.write(json.dumps(result, ensure_ascii=False) + "\n")
+        # CRITICAL: ensure_ascii=True MUST be used on Windows.
+        # If False, Python's stdout pipe encoding (often cp1252) will corrupt
+        # non-ASCII characters (like pt-BR accents in LLM-generated comments)
+        # into invalid bytes, causing QJsonDocument::fromJson on the C++ side
+        # to silently fail — resulting in empty code being delivered to the IDE.
+        original_stdout.write(json.dumps(result, ensure_ascii=True) + "\n")
         original_stdout.flush()
 
 
