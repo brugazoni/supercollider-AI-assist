@@ -1098,8 +1098,15 @@ def serve():
         # non-ASCII characters (like pt-BR accents in LLM-generated comments)
         # into invalid bytes, causing QJsonDocument::fromJson on the C++ side
         # to silently fail — resulting in empty code being delivered to the IDE.
-        original_stdout.write(json.dumps(result, ensure_ascii=True) + "\n")
-        original_stdout.flush()
+        #
+        # CRITICAL: Must acquire _daemon_stdout_lock because the dictation
+        # background thread also writes to original_stdout (via _daemon_write_json).
+        # Without the lock, the large JSON response from a command and a small
+        # dictation_transcribing message can interleave at the byte level,
+        # producing garbled JSON that the C++ side silently drops.
+        with _daemon_stdout_lock:
+            original_stdout.write(json.dumps(result, ensure_ascii=True) + "\n")
+            original_stdout.flush()
 
 
 if __name__ == "__main__":
