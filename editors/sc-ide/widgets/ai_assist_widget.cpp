@@ -42,6 +42,10 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     , mLastActiveDocument(nullptr)
     , mCurrentProcess(nullptr)
 {
+    mErrorCheckTimer = new QTimer(this);
+    mErrorCheckTimer->setSingleShot(true);
+    connect(mErrorCheckTimer, &QTimer::timeout, this, &AiAssistWidget::onErrorCheckTimeout);
+
     QVBoxLayout* mainLayout = new QVBoxLayout(this);
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(2);
@@ -1128,10 +1132,23 @@ void AiAssistWidget::setLastEvaluatedCode(const QString& code) {
 
 void AiAssistWidget::onPostWindowText(const QString& text) {
     // Detect error patterns in post window output
-    if (text.contains("ERROR:", Qt::CaseInsensitive)
+    bool isError = false;
+    if (text.contains("WARNING:", Qt::CaseInsensitive) || text.contains("INFO:", Qt::CaseInsensitive)) {
+        // Ignore warnings and info logs
+        isError = false;
+    } else if (text.contains("ERROR:", Qt::CaseInsensitive)
         || text.contains("Exception", Qt::CaseSensitive)
         || text.contains("syntax error", Qt::CaseInsensitive)
         || text.startsWith("!")) {
+        isError = true;
+    }
+    
+    if (isError) {
+        if (mWaitingForErrorCheck && !mRagFallbackCode.isEmpty()) {
+            mWaitingForErrorCheck = false;
+            mErrorCheckTimer->stop();
+            applyRagFallback();
+        }
         // Accumulate error text
         if (mLastStackTrace.length() > 4000)
             mLastStackTrace.clear(); // Prevent unbounded growth
@@ -1452,7 +1469,15 @@ void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
                                   tr("Failed to start dictation:\n\n%1").arg(errMsg));
             return;
         }
+        
+        if (type == "debug") {
+            qDebug() << "[Dictation Debug]" << result["msg"].toString();
+            return;
+        }
 
+        // Catch-all for any other streaming messages to ensure they don't fall through
+        // and prematurely trigger the command callback with a partial payload.
+        return;
     }
     // --- Skip unsolicited dictation command responses ---
     // start_dictation/stop_dictation return {"status": "..."} via the serve loop,
@@ -2433,13 +2458,17 @@ void AiAssistWidget::submitAppendForBlock(const QString& prompt, bool isAuto) {
                 mAutoAppendLog->append("<span style='color:#e74c3c;'>[WARN]</span> LLM returned empty code");
             }
         }
-        // Update composition state
-        if (result.contains("new_composition_state"))
-            mCompositionState = result["new_composition_state"].toString();
         mStatusBtn->setText(mFullStatusText);
-
-        // Drain next queued block if any
-        processAppendQueue();
+        
+        mRagFallbackCode = result["rag_fallback"].toString();
+        if (mAutoExecuteCheck->isChecked() && !mRagFallbackCode.isEmpty()) {
+            mWaitingForErrorCheck = true;
+            mErrorCheckTimer->start(100);
+            // We wait to process the next block until the error check clears
+        } else {
+            // Drain next queued block if any
+            processAppendQueue();
+        }
     });
 }
 
@@ -2955,6 +2984,52 @@ void AiAssistWidget::loadSysMsgDefaults() {
     load("remake", mRemakeSysMsgs);
     load("learn", mLearnSysMsgs);
     load("custom", mCustomSelectedSysMsgs);
+}
+
+
+
+void AiAssistWidget::onErrorCheckTimeout() {
+    mWaitingForErrorCheck = false;
+    mRagFallbackCode.clear();
+    processAppendQueue(); // Drain the next queued block now that we know there was no error
+}
+
+void AiAssistWidget::applyRagFallback() {
+    qDebug() << "[AutoAppend] applyRagFallback triggered!";
+    mAutoAppendLog->append("<span style='color:#e74c3c;'>[RAG FAILSAFE]</span> LLM code errored! Clearing layers and applying fallback...");
+    
+    // 1. Clear all active proxies gracefully (fade out over 1s)
+    Main::evaluateCode("Ndef.clear(1); Pdef.removeAll;");
+    
+    // 2. Wait 200ms to allow the clear to be processed, then execute fallback
+    QTimer::singleShot(200, this, [this]() {
+        // 3. Insert into active document
+        Document* doc = Main::instance()->documentManager()->activeDocument();
+        if (doc) {
+            QTextCursor cursor(doc->textDocument());
+            cursor.movePosition(QTextCursor::End);
+            cursor.insertText("\n\n// [RAG FAILSAFE APPLIED]\n" + mRagFallbackCode);
+        }
+        
+        // 4. Auto-execute the fallback block
+        Main::evaluateCode(mRagFallbackCode);
+        
+        // 5. Send reset_composition_state to the daemon
+        QJsonObject cmd;
+        cmd["command"] = "reset_composition_state";
+        cmd["code"] = mRagFallbackCode;
+        if (doc) {
+            cmd["active_file"] = doc->filePath();
+        }
+        
+        QJsonDocument jsonDoc(cmd);
+        if (mDaemonProcess && mDaemonReady) {
+            mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+        }
+        
+        mRagFallbackCode.clear();
+        processAppendQueue(); // Continue processing any pending dictates
+    });
 }
 
 } // namespace ScIDE
