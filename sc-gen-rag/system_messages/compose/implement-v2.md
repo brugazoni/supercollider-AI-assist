@@ -21,6 +21,7 @@ Implementation Rules:
 8. Formatting: Ensure the entire code block is wrappable and executable as a single block by starting and ending the code with parenthesis ( ... ). Output ONLY the valid SuperCollider code block. Do NOT include markdown fences around the code if it's the final output.
 9. GUI: Include s.makeGui; at the end of the script.
 10. Scope & Execution: Beware of asynchronous execution. Put setup code, SynthDef loading, bus allocation, and effect routing inside an s.waitForBoot or separate parenthesis block from the actual performance Tdef, combined with s.sync, to guarantee smooth execution without "node not found" errors. 
+11. Volume handling: be careful with how the limiter affects dynamics, avoiding pushing instrument volumes into being compressed by the limiter later on
 
 *Note: The example below demonstrates the required FORMAT (Safety Limiter, Bus Routing, Active Waits, Hard Stops). Generate highly varied synthesis techniques, rhythms, and architectures based on what the specific Composition Plan demands.*
 

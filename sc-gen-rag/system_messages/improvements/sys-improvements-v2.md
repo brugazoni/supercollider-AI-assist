@@ -24,7 +24,7 @@
 #### 4. Syntax & Core Language
 * **Dynamic vs. Static Arrays:** Use standard Arrays `[...]` when elements involve UGen calculations. Literal Arrays `#[...]` are strictly for static constants and will crash if used dynamically.
 * **Argument Defaults:** Always parenthesize negative default values in functions (e.g., `|pan=(-0.8)|`) to prevent `BINOP` syntax errors.
-* **Variable Scope:** All `var` declarations must be placed at the absolute top of a scope block before any executed code.
+* **Variable Scope (CRITICAL):** All `var` declarations MUST be placed at the absolute top of a scope block `{ ... }`, strictly before ANY executed code or assignments. Interleaving `var` declarations with executed statements will cause a fatal syntax error.
 * **Bus Mapping:** Always append `.asMap` when routing a `Bus.control` to a Synth argument upon instantiation. Passing the bus object directly sends its raw integer ID, blowing out parameters.
 * **Execution Blocks:** Inside an executing function (like `waitForBoot`), every statement (even those wrapped in parentheses) must terminate with a semicolon.
 

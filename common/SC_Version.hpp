@@ -27,7 +27,7 @@ static const int SC_VersionPatch = 0;
 static const char SC_VersionTweak[] = "-dev";
 static const char SC_RefType[] = "branch";
 static const char SC_BranchOrTag[] = "develop";
-static const char SC_CommitHash[] = "835641a1b";
+static const char SC_CommitHash[] = "bce7a9645";
 
 // For backward compatibility in scsynth and supernova only.
 static const char SC_VersionPostfix[] = ".0-dev";

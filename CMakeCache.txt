@@ -266,6 +266,9 @@ CMAKE_STATIC_LINKER_FLAGS_RELEASE:STRING=
 // during RELWITHDEBINFO builds.
 CMAKE_STATIC_LINKER_FLAGS_RELWITHDEBINFO:STRING=
 
+//No help, variable specified on the command line.
+CMAKE_TOOLCHAIN_FILE:UNINITIALIZED=C:\Qt\6.10.1\msvc2022_64\bin\\../lib/cmake/Qt6\qt.toolchain.cmake
+
 //If this value is on, makefiles will be generated without the
 // .SILENT directive, and all commands will be echoed to the console
 // during the make.  This is useful for debugging only. With Visual
@@ -287,6 +290,9 @@ CTEST_SUBMIT_RETRY_DELAY:STRING=5
 
 //Maximum time allowed before CTest will kill the test.
 DART_TESTING_TIMEOUT:STRING=1500
+
+//Path to a program.
+DEPLOY_PROG:FILEPATH=C:/Qt/6.10.1/msvc2022_64/bin/windeployqt.exe
 
 //Path to a library.
 DL:FILEPATH=DL-NOTFOUND
@@ -344,6 +350,9 @@ MEMORYCHECK_COMMAND:FILEPATH=MEMORYCHECK_COMMAND-NOTFOUND
 
 //File that contains suppressions for the memory checker
 MEMORYCHECK_SUPPRESSIONS_FILE:FILEPATH=
+
+//Path to a file.
+MSVC_REDIST_DIR:PATH=E:/visual studio/VC/Redist/MSVC/14.42.34433
 
 //Build with nova-simd support.
 NOVA_SIMD:BOOL=ON
@@ -413,8 +422,13 @@ QT_ADDITIONAL_HOST_PACKAGES_PREFIX_PATH:STRING=
 //Additional directories where find(Qt6 ...) components are searched
 QT_ADDITIONAL_PACKAGES_PREFIX_PATH:STRING=
 
+QT_BIN_PATH:STRING=C:/Qt/6.10.1/msvc2022_64/bin
+
 //The directory containing a CMake configuration file for QT.
 QT_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6
+
+//Location of qt plugins for windows
+QT_PLUGINS_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/bin/../plugins
 
 //The directory containing a CMake configuration file for Qt6Concurrent.
 Qt6Concurrent_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Concurrent
@@ -437,11 +451,17 @@ Qt6GuiTools_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6GuiTools
 //The directory containing a CMake configuration file for Qt6Gui.
 Qt6Gui_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Gui
 
+//The directory containing a CMake configuration file for Qt6LinguistTools.
+Qt6LinguistTools_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6LinguistTools
+
 //The directory containing a CMake configuration file for Qt6Network.
 Qt6Network_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Network
 
 //The directory containing a CMake configuration file for Qt6OpenGL.
 Qt6OpenGL_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6OpenGL
+
+//The directory containing a CMake configuration file for Qt6Positioning.
+Qt6Positioning_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Positioning
 
 //The directory containing a CMake configuration file for Qt6PrintSupport.
 Qt6PrintSupport_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6PrintSupport
@@ -473,6 +493,9 @@ Qt6Qml_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Qml
 //The directory containing a CMake configuration file for Qt6QuickTools.
 Qt6QuickTools_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6QuickTools
 
+//The directory containing a CMake configuration file for Qt6QuickWidgets.
+Qt6QuickWidgets_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6QuickWidgets
+
 //The directory containing a CMake configuration file for Qt6Quick.
 Qt6Quick_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Quick
 
@@ -480,13 +503,19 @@ Qt6Quick_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Quick
 Qt6Svg_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Svg
 
 //The directory containing a CMake configuration file for Qt6WebChannel.
-Qt6WebChannel_DIR:PATH=Qt6WebChannel_DIR-NOTFOUND
+Qt6WebChannel_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6WebChannel
 
 //The directory containing a CMake configuration file for Qt6WebEngineCoreTools.
 Qt6WebEngineCoreTools_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6WebEngineCoreTools
 
 //The directory containing a CMake configuration file for Qt6WebEngineCore.
 Qt6WebEngineCore_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6WebEngineCore
+
+//The directory containing a CMake configuration file for Qt6WebEngineWidgets.
+Qt6WebEngineWidgets_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6WebEngineWidgets
+
+//The directory containing a CMake configuration file for Qt6WebSockets.
+Qt6WebSockets_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6WebSockets
 
 //The directory containing a CMake configuration file for Qt6WidgetsTools.
 Qt6WidgetsTools_DIR:PATH=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6WidgetsTools
@@ -521,6 +550,9 @@ SC_COMPILER_ARCH_FLAGS:STRING=/arch:SSE4.2
 //Pre-render SCDoc documentation. (For putting online, etc)
 SC_DOC_RENDER:BOOL=OFF
 
+//Build emacs-based IDE.
+SC_EL:BOOL=OFF
+
 //Build with HID support
 SC_HIDAPI:BOOL=ON
 
@@ -538,6 +570,9 @@ SC_SYMLINK_CLASSLIB:BOOL=OFF
 
 //Build with Qt WebEngine.
 SC_USE_QTWEBENGINE:BOOL=ON
+
+//Build vim-based IDE.
+SC_VIM:BOOL=OFF
 
 //Folder name of SC install
 SC_WIN_BUNDLE_NAME:STRING=SuperCollider
@@ -585,10 +620,10 @@ SuperCollider_SOURCE_DIR:STATIC=C:/Users/Bruno Gazoni/Desktop/supercollider-proj
 USE_CCACHE:BOOL=ON
 
 //Path to a program.
-Vulkan_GLSLANG_VALIDATOR_EXECUTABLE:FILEPATH=Vulkan_GLSLANG_VALIDATOR_EXECUTABLE-NOTFOUND
+Vulkan_GLSLANG_VALIDATOR_EXECUTABLE:FILEPATH=C:/msys64/ucrt64/bin/glslangValidator.exe
 
 //Path to a program.
-Vulkan_GLSLC_EXECUTABLE:FILEPATH=Vulkan_GLSLC_EXECUTABLE-NOTFOUND
+Vulkan_GLSLC_EXECUTABLE:FILEPATH=C:/msys64/ucrt64/bin/glslc.exe
 
 //Path to a file.
 Vulkan_INCLUDE_DIR:PATH=Vulkan_INCLUDE_DIR-NOTFOUND
@@ -745,7 +780,7 @@ CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_MT
 CMAKE_MT-ADVANCED:INTERNAL=1
 //number of local generators
-CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=13
+CMAKE_NUMBER_OF_MAKEFILES:INTERNAL=22
 //Platform information initialized
 CMAKE_PLATFORM_INFO_INITIALIZED:INTERNAL=1
 //noop for ranlib
@@ -801,10 +836,20 @@ CTEST_SUBMIT_RETRY_COUNT-ADVANCED:INTERNAL=1
 CTEST_SUBMIT_RETRY_DELAY-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: DART_TESTING_TIMEOUT
 DART_TESTING_TIMEOUT-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: DL
+DL-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: FFTW3F_INCLUDE_DIR
+FFTW3F_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: FFTW3F_LIBRARY
+FFTW3F_LIBRARY-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: FFTW3F_LIBRARY_DIR
+FFTW3F_LIBRARY_DIR-ADVANCED:INTERNAL=1
 //Details about finding ASIOSDK
 FIND_PACKAGE_MESSAGE_DETAILS_ASIOSDK:INTERNAL=[C:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/external_libraries/portaudio/asiosdk][C:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/external_libraries/portaudio/asiosdk/common][v()]
 //Details about finding Sndfile
 FIND_PACKAGE_MESSAGE_DETAILS_Sndfile:INTERNAL=[C:/Users/Bruno Gazoni/Desktop/supercollider-project/x64/libsndfile/lib/sndfile.lib][C:/Users/Bruno Gazoni/Desktop/supercollider-project/x64/libsndfile/include][v()]
+//Details about finding Threads
+FIND_PACKAGE_MESSAGE_DETAILS_Threads:INTERNAL=[TRUE][v()]
 //Details about finding WrapAtomic
 FIND_PACKAGE_MESSAGE_DETAILS_WrapAtomic:INTERNAL=[1][v()]
 //ADVANCED property for variable: GITCOMMAND
@@ -817,6 +862,8 @@ MAKECOMMAND-ADVANCED:INTERNAL=1
 MEMORYCHECK_COMMAND-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: MEMORYCHECK_SUPPRESSIONS_FILE
 MEMORYCHECK_SUPPRESSIONS_FILE-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: MSVC_REDIST_DIR
+MSVC_REDIST_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: PA_LIBNAME_ADD_SUFFIX
 PA_LIBNAME_ADD_SUFFIX-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: PA_USE_WDMKS_DEVICE_INFO
@@ -1117,6 +1164,8 @@ QT_FEATURE_gssapi:INTERNAL=OFF
 QT_FEATURE_gtk3:INTERNAL=OFF
 //Qt feature: gui (from target Qt6::Core)
 QT_FEATURE_gui:INTERNAL=ON
+//Qt feature: gypsy (from target Qt6::Positioning)
+QT_FEATURE_gypsy:INTERNAL=OFF
 //Qt feature: harfbuzz (from target Qt6::Gui)
 QT_FEATURE_harfbuzz:INTERNAL=ON
 //Qt feature: highdpiscaling (from target Qt6::Gui)
@@ -1756,6 +1805,52 @@ QT_FEATURE_wayland_shm_emulation_server_buffer:INTERNAL=OFF
 QT_FEATURE_wayland_vulkan_server_buffer:INTERNAL=OFF
 //Qt feature: waylandscanner (from target Qt6::Gui)
 QT_FEATURE_waylandscanner:INTERNAL=OFF
+//Qt feature: webengine_arm64_udot_support (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_arm64_udot_support:INTERNAL=OFF
+//Qt feature: webengine_embedded_build (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_embedded_build:INTERNAL=OFF
+//Qt feature: webengine_extensions (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_extensions:INTERNAL=ON
+//Qt feature: webengine_full_debug_info (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_full_debug_info:INTERNAL=OFF
+//Qt feature: webengine_geolocation (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_geolocation:INTERNAL=ON
+//Qt feature: webengine_kerberos (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_kerberos:INTERNAL=ON
+//Qt feature: webengine_native_spellchecker (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_native_spellchecker:INTERNAL=OFF
+//Qt feature: webengine_pepper_plugins (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_pepper_plugins:INTERNAL=ON
+//Qt feature: webengine_printing_and_pdf (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_printing_and_pdf:INTERNAL=ON
+//Qt feature: webengine_proprietary_codecs (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_proprietary_codecs:INTERNAL=OFF
+//Qt feature: webengine_sanitizer (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_sanitizer:INTERNAL=OFF
+//Qt feature: webengine_spellchecker (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_spellchecker:INTERNAL=ON
+//Qt feature: webengine_system_alsa (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_system_alsa:INTERNAL=OFF
+//Qt feature: webengine_system_gbm (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_system_gbm:INTERNAL=OFF
+//Qt feature: webengine_system_pulseaudio (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_system_pulseaudio:INTERNAL=OFF
+//Qt feature: webengine_v8_context_snapshot (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_v8_context_snapshot:INTERNAL=ON
+//Qt feature: webengine_vaapi (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_vaapi:INTERNAL=OFF
+//Qt feature: webengine_vulkan (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_vulkan:INTERNAL=ON
+//Qt feature: webengine_webchannel (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_webchannel:INTERNAL=ON
+//Qt feature: webengine_webrtc (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_webrtc:INTERNAL=ON
+//Qt feature: webengine_webrtc_pipewire (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_webrtc_pipewire:INTERNAL=OFF
+//Qt feature: webengine_webrtc_system_openh264 (from target Qt6::WebEngineCore)
+QT_FEATURE_webengine_webrtc_system_openh264:INTERNAL=OFF
+//Qt feature: webenginedriver (from target Qt6::WebEngineCore)
+QT_FEATURE_webenginedriver:INTERNAL=ON
 //Qt feature: whatsthis (from target Qt6::Gui)
 QT_FEATURE_whatsthis:INTERNAL=ON
 //Qt feature: wheelevent (from target Qt6::Gui)
@@ -1764,6 +1859,8 @@ QT_FEATURE_wheelevent:INTERNAL=ON
 QT_FEATURE_widgets:INTERNAL=ON
 //Qt feature: widgettextcontrol (from target Qt6::Widgets)
 QT_FEATURE_widgettextcontrol:INTERNAL=ON
+//Qt feature: winrt_geolocation (from target Qt6::Positioning)
+QT_FEATURE_winrt_geolocation:INTERNAL=ON
 //Qt feature: winsdkicu (from target Qt6::Core)
 QT_FEATURE_winsdkicu:INTERNAL=ON
 //Qt feature: wizard (from target Qt6::Widgets)
@@ -1802,6 +1899,12 @@ QT_FEATURE_xmlstreamwriter:INTERNAL=ON
 QT_FEATURE_xrender:INTERNAL=OFF
 //Qt feature: zstd (from target Qt6::Core)
 QT_FEATURE_zstd:INTERNAL=OFF
+//ADVANCED property for variable: READLINE_INCLUDE_DIR
+READLINE_INCLUDE_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: READLINE_LIBRARY
+READLINE_LIBRARY-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: SC_HIDAPI
+SC_HIDAPI-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: SITE
 SITE-ADVANCED:INTERNAL=1
 //Test SNDFILE_HAS_MPEG
@@ -1814,6 +1917,8 @@ SNDFILE_HAS_VORBIS:INTERNAL=1
 SNDFILE_INCLUDE_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: SNDFILE_LIBRARY
 SNDFILE_LIBRARY-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: SNDFILE_LIBRARY_DIR
+SNDFILE_LIBRARY_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: Vulkan_GLSLANG_VALIDATOR_EXECUTABLE
 Vulkan_GLSLANG_VALIDATOR_EXECUTABLE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: Vulkan_GLSLC_EXECUTABLE
@@ -1824,5 +1929,6 @@ Vulkan_INCLUDE_DIR-ADVANCED:INTERNAL=1
 Vulkan_LIBRARY-ADVANCED:INTERNAL=1
 //CMAKE_INSTALL_PREFIX during last run
 _GNUInstallDirs_LAST_CMAKE_INSTALL_PREFIX:INTERNAL=C:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/Install
+_Qt6_LINGUIST_TOOLS_DIR:INTERNAL=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6LinguistTools
 __qt_qml_macros_module_base_dir:INTERNAL=C:/Qt/6.10.1/msvc2022_64/lib/cmake/Qt6Qml
 

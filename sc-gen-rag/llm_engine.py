@@ -299,8 +299,13 @@ class LLMClient:
             kwargs["temperature"] = temperature
             
         if system_instruction:
-            kwargs["system"] = system_instruction
-            
+            kwargs["system"] = [
+                {
+                    "type": "text",
+                    "text": system_instruction,
+                    "cache_control": {"type": "ephemeral"}
+                }
+            ]
         response = self.anthropic_client.messages.create(**kwargs)
         
         # In Anthropic with thinking enabled, content block is a list: first text is 'thinking', second text is final text

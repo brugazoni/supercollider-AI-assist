@@ -32,3 +32,9 @@ vectordb_sc_help/
 .vscode/
 .idea/
 *.swp
+
+# AI session context document
+SCRATCHPAD.md
+
+#inspection logs
+realtimesst.log

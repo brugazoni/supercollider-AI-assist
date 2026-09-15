@@ -89,6 +89,7 @@ import utils
 
 # Daemon-mode composition state cache (thread-safe via GIL for simple dict ops)
 _composition_states = {}  # active_file -> latest composition state
+_composition_state_events = {}  # active_file -> threading.Event (signals when bg state update is done)
 
 # Daemon-mode stdout reference — set by serve(), used by dictation thread
 # to stream unsolicited JSON lines (partials/finals) back to the C++ side.
@@ -341,15 +342,128 @@ def cmd_custom_generate(data):
     return {"code": code, "last_stats": stats_dict}
 
 
+
+def _rag_failsafe_lookup(prompt):
+    """Perform a parallel lookup to find the best semantic RAG block."""
+    try:
+        import rag_engine
+        import config
+        retriever = rag_engine.get_retriever()
+        docs = retriever(prompt)
+        if not docs:
+            return ""
+            
+        for doc in docs:
+            top_chunk = doc.page_content
+            filename = doc.metadata.get("filename", "")
+            if not filename:
+                continue
+                
+            file_path = os.path.join(config.CONTEXT_FOLDER, filename)
+            if not os.path.exists(file_path):
+                continue
+                
+            with open(file_path, "r", encoding="utf-8") as f:
+                file_content = f.read()
+                
+            idx = file_content.find(top_chunk.strip())
+            if idx == -1:
+                idx = file_content.find(top_chunk.strip()[:100])
+                if idx == -1:
+                    continue
+            
+            # 1. Pre-parse all top-level blocks
+            blocks = []
+            stack = []
+            start_idx = -1
+            for i, char in enumerate(file_content):
+                if char == '(':
+                    if not stack:
+                        # Only start a top-level block if '(' is at the beginning of a line
+                        if i == 0 or file_content[i-1] == '\n':
+                            start_idx = i
+                            stack.append(i)
+                    else:
+                        stack.append(i)
+                elif char == ')':
+                    if stack:
+                        stack.pop()
+                        if not stack:
+                            blocks.append((start_idx, i))
+            
+            # Find the block that overlaps with the chunk
+            chunk_end = idx + len(top_chunk)
+            matched_block_idx = -1
+            for i, (b_start, b_end) in enumerate(blocks):
+                if b_start <= chunk_end and b_end >= idx:
+                    matched_block_idx = i
+                    break
+                    
+            if matched_block_idx == -1:
+                continue
+                
+            # 2. Find section boundaries
+            import re
+            delimiter_pattern = re.compile(r'^(/{5,}|// ={3,}|// Source:)', re.MULTILINE)
+            delimiters = [m.start() for m in delimiter_pattern.finditer(file_content)]
+            
+            section_start = 0
+            for pos in reversed(delimiters):
+                if pos <= blocks[matched_block_idx][0]:
+                    section_start = pos
+                    break
+                    
+            section_end = len(file_content)
+            for pos in delimiters:
+                if pos > blocks[matched_block_idx][1]:
+                    section_end = pos
+                    break
+                    
+            # 3. Collect all blocks in this section, filtering teardowns
+            collected_code = []
+            for b_start, b_end in blocks:
+                if b_start >= section_start and b_end <= section_end:
+                    # Check the preceding comment for teardown keywords
+                    prev_end = section_start
+                    for prev_b_start, prev_b_end in blocks:
+                        if prev_b_end < b_start and prev_b_end > prev_end:
+                            prev_end = prev_b_end
+                            
+                    preceding_text = file_content[prev_end:b_start].lower()
+                    
+                    if not any(kw in preceding_text for kw in ["fade", "ending", "stop", "clear"]):
+                        collected_code.append(file_content[b_start:b_end+1])
+                        
+            if collected_code:
+                return "\n\n".join(collected_code)
+                                
+        return ""
+    except Exception as e:
+        print(f"RAG failsafe lookup error: {e}", flush=True)
+        return ""
+
 def cmd_append(data):
     """Append a new block to the composition (incremental mode)."""
     prompt = data.get("prompt", "")
     model_key = data.get("model", "")
     active_file = data.get("active_file", "")
 
+    # Use a stable cache key even for unsaved documents (empty active_file).
+    # Without this, the empty string is falsy and all state lookups/waits are skipped.
+    state_key = active_file if active_file else "__unsaved__"
+
+    # Wait for any in-flight background state update from a previous block
+    # to complete before reading the composition state. This prevents the race
+    # condition where block N+1 starts before block N's state update finishes.
+    if state_key in _composition_state_events:
+        evt = _composition_state_events[state_key]
+        if not evt.is_set():
+            print("Waiting for previous composition state update...", flush=True)
+            evt.wait(timeout=30)
+
     # Use daemon's cached composition state if available, otherwise fall back to C++ state
-    if active_file and active_file in _composition_states:
-        composition_state = _composition_states[active_file]
+    if state_key in _composition_states:
+        composition_state = _composition_states[state_key]
     else:
         composition_state = data.get("composition_state", "")
 
@@ -376,8 +490,10 @@ def cmd_append(data):
     comp_section = f"\n\n=== CURRENT COMPOSITION STATE ===\n{composition_state}" if composition_state else \
         "\n\n=== CURRENT COMPOSITION STATE ===\n(Empty — this is the first block)"
 
-    # Always include up to 2000 characters of the active file as fallback context
-    prev_content = _read_scd(active_file)[-2000:] if active_file else ""
+    # Always include up to 6000 characters of the active file as fallback context.
+    # 2000 was too small — by block 4 of a typical session (~6000 chars total),
+    # only the last block was visible, causing the LLM to lose track of earlier instruments.
+    prev_content = _read_scd(active_file)[-6000:] if active_file else ""
     prev_section = f"\n\n=== PREVIOUS CODE ===\n{prev_content}" if prev_content else ""
 
     user_prompt = (
@@ -391,7 +507,22 @@ def cmd_append(data):
     print(f"Generating next block... (including {len(prev_content)} chars of previous code context)", flush=True)
     temperature = data.get("temperature", config.AVAILABLE_MODELS.get(model_key, {}).get("default_temp", 0.7))
     thinking_budget = data.get("thinking", 0)
-    code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
+    
+    import concurrent.futures
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        rag_future = executor.submit(_rag_failsafe_lookup, prompt)
+        code, stats_dict = client.generate(user_prompt, full_sys, temperature=temperature, thinking_budget=thinking_budget)
+        rag_fallback = rag_future.result()
+
+    if code and code.strip():
+        # Validate and auto-fix common runtime-breaking bugs
+        try:
+            from code_validator import validate_and_fix
+            code, fix_log = validate_and_fix(code)
+            if fix_log:
+                print(f"Code validator applied fixes: {fix_log}", flush=True)
+        except Exception as e:
+            print(f"Code validator failed: {e}", flush=True)
 
     if not code or not code.strip():
         print(f"WARNING: LLM returned empty code for prompt: '{prompt[:100]}'", flush=True)
@@ -405,34 +536,44 @@ def cmd_append(data):
 
     # Fire composition state update in a background thread so the code
     # is returned to the IDE immediately without waiting for the 2nd LLM call.
-    def _bg_update_state():
+    # A threading.Event ensures the NEXT cmd_append call will wait for this
+    # update to complete before reading the composition state.
+    def _bg_update_state(evt):
         try:
-            state_prompt = (
-                f"You are tracking the state of a SuperCollider live coding composition.\n\n"
-                f"PREVIOUS STATE:\n{composition_state if composition_state else '(empty)'}\n\n"
-                f"NEW CODE BLOCK:\n{code}\n\n"
-                f"TASK: Output the UPDATED composition state. List ALL currently active elements:\n"
-                f"- Active Ndefs (name + key arguments)\n"
-                f"- Active Pbindefs (name + key parameters)\n"
-                f"- Effect slots assigned (which Ndef, which slot index, what effect)\n"
-                f"- Current wetness levels if set\n\n"
-                f"If a fade_out block cleared an instrument, REMOVE it from the state.\n"
-                f"Be concise. Use a structured list format."
-            )
-            state_sys = "You are a concise SuperCollider composition state tracker. Output only structured state lists."
-            new_state, state_stats = client.generate(state_prompt, state_sys, temperature=0.0)
-            _composition_states[active_file] = new_state.strip()
-            print(f"Background state update complete for {active_file}", flush=True)
+            import sc_state_parser
+            new_state = sc_state_parser.update_composition_state(composition_state, code)
+            _composition_states[state_key] = new_state.strip()
+            print(f"Background state update complete for {state_key}", flush=True)
         except Exception as e:
             print(f"Background state update failed: {e}", flush=True)
+        finally:
+            evt.set()  # Always signal completion so the next block isn't stuck waiting
 
     if code and code.strip():
-        threading.Thread(target=_bg_update_state, daemon=True).start()
+        state_evt = threading.Event()
+        _composition_state_events[state_key] = state_evt
+        threading.Thread(target=_bg_update_state, args=(state_evt,), daemon=True).start()
 
     utils.append_to_session_log("append", full_sys, user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
-    return {"code": code, "new_composition_state": composition_state, "last_stats": stats_dict}
+    return {"code": code, "last_stats": stats_dict, "rag_fallback": rag_fallback}
 
 
+
+def cmd_reset_composition_state(data):
+    """Reset composition state from scratch using a specific block (failsafe fallback)."""
+    code = data.get("code", "")
+    active_file = data.get("active_file", "")
+    state_key = active_file if active_file else "__unsaved__"
+    
+    try:
+        import sc_state_parser
+        new_state = sc_state_parser.update_composition_state("", code)
+        _composition_states[state_key] = new_state.strip()
+        print(f"Composition state reset for {state_key}", flush=True)
+    except Exception as e:
+        print(f"Composition state reset failed: {e}", flush=True)
+        
+    return {"status": "ok"}
 def cmd_fix(data):
     """Fix a code block using its stack trace."""
     block = data.get("block", "")
@@ -852,7 +993,8 @@ def cmd_start_dictation(data):
             recorder = AudioToTextRecorder(
                 model=model_size,
                 language=language,
-                compute_type="int8",   # int8 quantization — runs efficiently on CPU without GPU
+                device="cuda",
+                compute_type="default",
                 spinner=False,
                 level=logging.WARNING,  # WARNING — suppress noisy DEBUG on stderr
                 enable_realtime_transcription=True,
@@ -944,6 +1086,7 @@ COMMANDS = {
     "generate_code": cmd_generate_code,
     "custom_generate": cmd_custom_generate,
     "append": cmd_append,
+    "reset_composition_state": cmd_reset_composition_state,
     "fix": cmd_fix,
     "remake": cmd_remake,
     "learn": cmd_learn,

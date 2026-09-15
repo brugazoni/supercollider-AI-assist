@@ -206,7 +206,7 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     // Safety net: if process fails or JSON is invalid, ensure combo box is usable
     if (mModelCombo->count() == 0) {
         mModelCombo->addItem("gemini/gemini-2.5-flash");
-        mModelCombo->addItem("gemini/gemini-3.5-flash");
+        mModelCombo->addItem("gemini/gemini-3.8-flash");
         mModelCombo->addItem("gemini/gemini-3.1-pro-preview");
         mModelCombo->addItem("ollama/qwen3:4b");
         mModelCombo->addItem("anthropic/claude-3-7-sonnet");

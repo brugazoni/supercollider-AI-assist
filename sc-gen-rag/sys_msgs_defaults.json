@@ -1,9 +1,9 @@
 {
     "append": [
-        "append/system-instruction-incremental-v2.md"
+        "append/system-instruction-incremental-v3.md"
     ],
     "compose_code": [
-        "compose/implement-v2.md",
+        "compose/implement-v3.md",
         "improvements/sys-improvements-v2.md"
     ],
     "compose_plan": [

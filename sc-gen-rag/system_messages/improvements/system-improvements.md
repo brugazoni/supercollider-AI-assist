@@ -3,9 +3,6 @@
 
 Do not apply `Collection` methods like `.flat` directly to SuperCollider `Pattern` objects (e.g., `Pn`, `Pseq`). Patterns generate a flattened stream of values by design; when patterns contain other patterns (like `Pwhite` inside `Pseq`), the outer pattern evaluates the inner ones and yields their values directly, not nested structures requiring `flat`.
 
-### Entry [2026-03-16 19:05] (User Feedback)
-LESSON: Be cautious with or avoid distortion effects, as the previous implementation was not well-received; prioritize clean sinewave generation.
-
 ### Entry [2026-03-20 12:06] (External Fix — Incremental Block 2)
 LESSON: To avoid `DynKlank` `Message 'at' not understood` errors and incorrect argument warnings:
 1.  **`specificationsArrayRef` Format:** The `specificationsArrayRef` argument *must* be a `Ref` to an array containing exactly three sub-arrays: `#[all_frequencies_array, all_amplitudes_array, all_ring_times_array]`. It does *not* accept an array of `[freq, amp, ring_time]` tuples.
@@ -16,16 +13,11 @@ LESSON: Improve `dynklang` generation quality to reduce the need for external co
 
 Pattern Streaming: Never apply array methods like .flat to Pattern objects (e.g., Pn, Pseq). Patterns inherently yield flattened streams; outer patterns evaluate inner patterns directly without needing structural flattening.
 
-Timbre Preferences: Avoid distortion effects entirely. Prioritize clean, precise synthesis (e.g., pure sinewaves).
-
 DynKlank Architecture: DynKlank requires strict array formatting and specific arguments:
 
 Array Formatting: The parameter array must be wrapped in a Ref (`) and contain exactly three distinct sub-arrays: [[all_freqs], [all_amps], [all_ring_times]]. It will fail if passed an array of parameter tuples.
 
 Arguments: Do not use rq or decay. Use decayscale as the global multiplier for the ring times defined in your array.
-
-### Entry [2026-03-23 14:01] (User Feedback)
-LESSON: Improve sound quality and aesthetics of generated SuperCollider code.
 
 ### Entry [2026-03-23 15:19] (System Correction)
 LESSON: When implementing a Karplus-Strong plucked string model, do not use K2A.ar as the audio source. K2A converts a scalar value into a static DC audio offset; applying a percussive envelope to this simply produces an unpitched transient (a click).
@@ -49,17 +41,8 @@ Event Architecture: Sequence higher-level pitch keys like \midinote or \degree i
 
 Dedicated Modifiers: Build custom offset or multiplier arguments into the actual instrument definition (e.g., adding a freqMult argument to the Ndef). Use the pattern exclusively for the base \freq, and reserve Ndef.set(\freqMult, ...) strictly for global live tweaks.
 
-### Entry [2026-03-24 11:59] (User Feedback)
-LESSON: Improve accuracy and reduce "little mistakes" in SuperCollider code generation.
-
 ### Entry [2026-03-25 11:58] (Auto Fix)
 **LESSON:** In SuperCollider, use a standard array literal `[...]` when an array needs to contain values derived from dynamic calculations or variables (e.g., `freq*1.5`). The 'literal array' or 'quoted array' syntax `#[...]` is for arrays of static, non-evaluated literals and will cause a syntax error if expressions requiring computation are included.
-
-### Entry [2026-03-25 11:58] (User Feedback)
-LESSON: Ensure volume relations are normalized and the generated code includes a defined ending.
-
-### Entry [2026-03-26 20:25] (Fix Tab)
-**LESSON:** Always verify the existence of a specific Unit Generator (UGen) class (e.g., `Flanger.ar`) in SuperCollider's library before attempting to use it. A 'Class not defined' error indicates the UGen does not exist, and the desired effect may need to be implemented using combinations of available primitive UGens (e.g., `CombL.ar` with modulation for flanging).
 
 ### Entry [2026-03-28 12:58] (Fix Tab)
 LESSON: When defining default values for arguments in SuperCollider function/closure headers (`|arg=default_value|`), always parenthesize negative numerical values. The parser can misinterpret a leading minus sign (`-`) as an unexpected binary operator, rather than part of the number literal, leading to a `syntax error, unexpected BINOP`.
@@ -159,3 +142,68 @@ Wrapping an individual definition (like an `Ndef` or `SynthDef`) in standalone p
 If the semicolon is omitted, the SuperCollider parser fails to separate the expressions and throws an `unexpected CLASSNAME` syntax error when it reads the next line. 
 
 **Best Practice:** Remove unnecessary standalone wrapping parentheses around individual definitions when they are already nested inside an outer execution block.
+
+
+### Entry [2026-06-26 11:31] (Fix Tab - Offline)
+**LESSON:**
+
+When using JITLib's `\filter` role in an `Ndef` or `NodeProxy` (e.g., `Ndef(\mix)[10] = \filter -> { |in| ... }`), JITLib automatically generates a dry/wet crossfader and a corresponding control parameter named `wet<index>` (e.g., `wet10`). 
+
+Manually declaring `\wet10.kr` inside your filter function conflicts with this auto-generated control, triggering the `NamedControl: cannot have more than one set of default values` error. 
+
+**To avoid this:**
+Do not manually implement the crossfader or declare the `wet` control inside the function. Simply return the 100% processed (wet) signal, and let JITLib handle the routing. You can then control the mix externally using `.set(\wet10, value)`.
+
+### Entry [2026-07-06 13:59] (Fix Tab - Offline)
+**Lesson:**
+
+**Do not declare a custom `gate` argument in `Ndef` or `NodeProxy` functions.** 
+
+JITLib reserves and automatically manages the `gate` control internally to handle node freeing, crossfading, and fading out. Explicitly defining a `gate` argument in your function signature overrides this internal control, resulting in the `"supplied gate overrides inner gate"` error. 
+
+**How to avoid it:**
+* Use custom trigger arguments (e.g., `t_trig` or `trig`) for internal envelope sequencing.
+* Allow JITLib to manage the release and crossfading behavior automatically using its built-in fade times (`Ndef(\name).fadeTime = x`).
+
+### Entry [2026-08-14 13:34] (Fix Tab - Offline)
+The `mirror` method in SuperCollider is defined for `Array` objects, not for `Pseq` (or other Pattern) objects. The error "Message 'mirror' not understood" occurs because the `mirror` method was called on an instance of `Pseq`.
+
+**LESSON:** When constructing patterns like `Pseq` that operate on a sequence of elements, ensure that any array manipulation methods (such as `mirror`, `reverse`, `dropLast`, `flat`, etc.) are applied to the `Array` itself *before* it is passed to the pattern constructor. Patterns consume data; they don't necessarily inherit or directly expose all the manipulation methods of the underlying data structure they contain.
+
+### Entry [2026-08-14 13:34] (Fix Tab - Offline)
+**LESSON:**
+
+In SuperCollider, collections (like `Array`) do not have a `dropLast` method. To remove elements from the end of a collection, use the `drop` method with a negative integer argument. 
+
+For example, to drop the last element, use `.drop(-1)` instead of `.dropLast`. Conversely, to drop elements from the beginning, use a positive integer (e.g., `.drop(1)`).
+
+### Entry [2026-08-14 13:35] (Fix Tab - Offline)
+**LESSON:**
+
+1. **Avoid Unused `gate` Arguments in JITLib:** When defining an `Ndef` (or `NodeProxy`), do not declare a `gate` argument unless it is actively used by an `EnvGen` to free the synth (e.g., with `doneAction: 2`). If you are using a fixed-duration envelope (like `Env.perc`) triggered by a `t_trig`, omit the `gate` argument completely. Including an unused `gate` overrides JITLib's internal fade-out mechanisms, resulting in the `"supplied gate overrides inner gate"` error.
+2. **Invalid Pattern Methods:** Do not call methods like `.coin` or `.neg` directly on a Pattern object (e.g., `Pseq(...)`). Patterns are templates, not values. To apply math or logic to a pattern's output, wrap it in another pattern (like `Pfunc` or `Pcollect`) or apply the method to the values inside the array before sequencing.
+
+### Entry [2026-08-14 13:35] (Fix Tab - Offline)
+**LESSON:**
+
+1. **Explicit Initialization:** Always explicitly define an `Ndef`'s rate and channel count (e.g., `Ndef(\name).ar(2)`) before assigning a synth function. If left to automatic inference, JITLib can sometimes incorrectly adopt a control rate or mono channel configuration based on previous states or arguments, resulting in a silent patch and the `Can't monitor a control rate bus` warning.
+2. **Native Proxy Sequencing:** Instead of manually hacking a `Pbind` to target an `Ndef`'s group using `\type, \set` and `\id`, use JITLib's native NodeProxy roles. Assigning `\set -> Pbind(...)` directly to a proxy slot (e.g., `Ndef(\name)[1] = ...`) ensures robust, automatic node routing and lifecycle management.
+3. **Explicit Pitch Arguments:** When using the `\set` role to sequence a running `Ndef`, default pattern pitch keys (like `\degree`, `\octave`, `\scale`) will calculate a frequency under the hood, but you **must** explicitly include `\freq` in your `\args` array for that calculated value to actually be sent to the synth.
+
+### Entry [2026-08-31 11:01] (Fix Tab - Offline)
+**LESSON:**
+
+In SuperCollider patterns (like `Pbind` or `Pbindef`), never use the symbol `\rest` inside the `\dur` (duration) key. The scheduler relies on `\dur` to calculate the time delta (`_Event_Delta`) to the next event, which strictly requires a numerical value. Passing a symbol like `\rest` causes a `Wrong type` primitive failure.
+
+To correctly implement rests:
+1. **Via Duration:** Use the `Rest()` class in the `\dur` key, passing the numerical duration of the rest as its argument (e.g., `Rest(0.8)`). 
+2. **Via Pitch:** Alternatively, keep `\dur` strictly numerical and place the `\rest` symbol in a pitch-related key (like `\degree`, `\note`, or `\freq`).
+
+### Entry [2026-08-31 11:01] (Fix Tab - Offline)
+**LESSON:**
+
+SynthDef arguments (like `t_trig`) are created as control-rate (`.kr`) signals by default. Passing a control-rate argument directly into an audio-rate UGen (e.g., `Decay2.ar`) causes a rate mismatch error (`first input is not audio rate`). 
+
+To avoid this, you must ensure the rate of the UGen matches the rate of its input signal. You can do this in two ways:
+1. **Match the UGen to the input rate:** Use the control-rate version of the UGen (e.g., `Decay2.kr(t_trig)`).
+2. **Convert the input to audio-rate:** If you strictly need audio-rate processing, convert the control signal using `K2A.ar()` (e.g., `Decay2.ar(K2A.ar(t_trig))`). Alternatively, in a `SynthDef`, you can define the argument as audio-rate using an `\ar` rate specification (though this is less common for triggers).

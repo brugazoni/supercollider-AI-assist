@@ -112,6 +112,8 @@ private slots:
 
     // Process handling
     void onProcessFinished(int exitCode, QProcess::ExitStatus exitStatus);
+    void applyRagFallback();
+    void onErrorCheckTimeout();
 
     // Session Stats & Setup
     void onSessionStatsClicked();
@@ -247,6 +249,10 @@ private:
     QProgressDialog* mDictationLoadingDialog = nullptr;
     QString mLastDictationBlock;
     QQueue<QString> mAppendQueue;
+
+    QString mRagFallbackCode;
+    bool mWaitingForErrorCheck = false;
+    QTimer* mErrorCheckTimer = nullptr;
 
     // Fix tab widgets
     QPlainTextEdit* mFixBlock;
