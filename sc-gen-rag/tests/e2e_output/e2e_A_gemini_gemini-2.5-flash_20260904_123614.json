@@ -1,0 +1,132 @@
+{
+  "scenario": "A",
+  "name": "The Red Cyclone — Creation & Cross-Cutting Directive",
+  "model": "gemini/gemini-2.5-flash",
+  "timestamp": "20260904_123614",
+  "passed": true,
+  "steps": [
+    {
+      "step": 1,
+      "prompt": "Chega o ciclone rubro à sua cabeça.",
+      "expect_type": "ADD_INSTRUMENT",
+      "passed": true,
+      "code_length": 2038,
+      "elapsed": 17.855590105056763,
+      "validations": [
+        {
+          "name": "ndef_created",
+          "passed": true,
+          "detail": "found: ['cyclone']"
+        },
+        {
+          "name": "pbindef_created",
+          "passed": true,
+          "detail": "found: ['cycloneSeq']"
+        },
+        {
+          "name": "has_play",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "wrapped_in_parens",
+          "passed": true,
+          "detail": "found ( block"
+        },
+        {
+          "name": "brackets_balanced",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "ndef_names": [
+        "cyclone"
+      ]
+    },
+    {
+      "step": 2,
+      "prompt": "Implora a enxames brancos de seus sonhos vagos, mãos de unhas cor de prata.",
+      "expect_type": "ADD_INSTRUMENT",
+      "passed": true,
+      "code_length": 3235,
+      "elapsed": 16.176512718200684,
+      "validations": [
+        {
+          "name": "ndef_created",
+          "passed": true,
+          "detail": "found: ['silverGrains']"
+        },
+        {
+          "name": "pbindef_created",
+          "passed": true,
+          "detail": "found: ['silverSeq']"
+        },
+        {
+          "name": "no_ndef_name_collision",
+          "passed": true,
+          "detail": "unique"
+        },
+        {
+          "name": "brackets_balanced",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "ndef_names": [
+        "silverGrains"
+      ]
+    },
+    {
+      "step": 3,
+      "prompt": "Coloque todos os sons dentro de uma caverna espaçosa.",
+      "expect_type": "CROSS-CUTTING / ADD_EFFECTS",
+      "passed": true,
+      "code_length": 773,
+      "elapsed": 4.503212213516235,
+      "validations": [
+        {
+          "name": "has_effect_slot",
+          "passed": true,
+          "detail": "found filter slot assignment"
+        },
+        {
+          "name": "has_wet_control",
+          "passed": true,
+          "detail": "found wet control"
+        },
+        {
+          "name": "brackets_balanced",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "ndef_names": []
+    },
+    {
+      "step": 4,
+      "prompt": "Silencie as camadas de ciclone.",
+      "expect_type": "FADE_OUT (Partial)",
+      "passed": true,
+      "code_length": 153,
+      "elapsed": 2.6612071990966797,
+      "validations": [
+        {
+          "name": "has_fade_or_clear",
+          "passed": true,
+          "detail": "found clear/fadeTime"
+        },
+        {
+          "name": "has_stop",
+          "passed": true,
+          "detail": ""
+        },
+        {
+          "name": "brackets_balanced",
+          "passed": true,
+          "detail": ""
+        }
+      ],
+      "ndef_names": []
+    }
+  ]
+}

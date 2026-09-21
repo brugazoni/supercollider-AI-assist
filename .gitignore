@@ -49,3 +49,85 @@ CMakeFiles/
 !.vscode/launch.json
 !.vscode/c_cpp_properties.json
 external_libraries/portaudio/portaudio_submodule
+
+# CMake in-source build artifacts
+CMakeCache.txt
+cmake_install.cmake
+cmake_uninstall.cmake
+DartConfiguration.tcl
+CTestTestfile.cmake
+*.vcxproj
+*.vcxproj.filters
+*.sln
+.qt/
+
+# Visual Studio / MSBuild build output
+*.obj
+*.tlog
+*.lastbuildstate
+*.recipe
+*.cpp_parameters
+x64/
+Release/
+Debug/
+MinSizeRel/
+RelWithDebInfo/
+
+# Generated source files
+**/qrc_resources.cpp
+
+# Compiled libraries (in-source)
+*.lib
+
+# Qt translation / deploy files
+*.qm
+
+# Logs and debug output
+*.log
+rtt.txt
+
+# Temporary test/debug Python scripts (root level)
+/daemon_test.py
+/direct_spawn.py
+/dump_env.py
+/dump_gui_env.py
+/dummy_python.py
+/dummy_python.spec
+/dummy_python_wrapper.bat
+/python_wrapper.bat
+/python_wrapper.py
+/patch_cpp.py
+/patch_hpp.py
+/patch_gui_backend.py
+/format.py
+/lint.py
+/fix_filename.py
+/fix_namespace.py
+/test_*.py
+/mp_*.py
+/sitecustomize*.log
+
+# Temp files
+*.patch
+temp_diff.txt
+temp_diff_utf8.patch
+child_*.log
+child_*.txt
+daemon_*.log
+worker_*.log
+worker_*.txt
+
+# PyInstaller dist
+/dist/
+
+# SC-IDE generated HelpSource in build dir
+**/Release/HelpSource/
+
+# Generated version header (from CMake)
+common/SC_Version.hpp
+
+# Qt MOC-generated files (in-source builds)
+**/moc_*.cpp
+**/ui_*.h
+**/*.qrc.depends
+**/__/

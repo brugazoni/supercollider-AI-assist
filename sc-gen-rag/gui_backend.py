@@ -435,7 +435,15 @@ def _rag_failsafe_lookup(prompt):
                         collected_code.append(file_content[b_start:b_end+1])
                         
             if collected_code:
-                return "\n\n".join(collected_code)
+                # Consolidate all blocks into a single () block for atomic evaluation.
+                inner_parts = []
+                for block in collected_code:
+                    stripped = block.strip()
+                    if stripped.startswith('(') and stripped.endswith(')'):
+                        inner_parts.append(stripped[1:-1].strip())
+                    else:
+                        inner_parts.append(stripped)
+                return "(\n" + "\n\n".join(inner_parts) + "\n)"
                                 
         return ""
     except Exception as e:
@@ -969,12 +977,9 @@ def cmd_start_dictation(data):
                 if text and text.strip():
                     _daemon_write_json({"type": "dictation_final", "text": text})
 
-            def on_realtime_update(text):
-                """Fires continuously during speech with partial results.
-                Only used for status feedback — NOT for enqueuing blocks."""
-                if _dictation_muted:
-                    return  # suppress even status feedback while muted
-                if text and text.strip():
+            def on_transcription_start(*args, **kwargs):
+                """Fires when silence is detected and the main model starts processing."""
+                if not _dictation_muted:
                     _daemon_write_json({"type": "dictation_transcribing"})
 
             def on_rec_start():
@@ -994,14 +999,19 @@ def cmd_start_dictation(data):
                 model=model_size,
                 language=language,
                 device="cuda",
-                compute_type="default",
+                compute_type="int8",
                 spinner=False,
                 level=logging.WARNING,  # WARNING — suppress noisy DEBUG on stderr
-                enable_realtime_transcription=True,
-                post_speech_silence_duration=1.5,
-                on_realtime_transcription_update=on_realtime_update,
+                enable_realtime_transcription=False,
+                post_speech_silence_duration=1.0,
+                early_transcription_on_silence=0.3,
+                beam_size=1,
+                batch_size=4,
+                initial_prompt="SuperCollider, Ndef, Pbindef, synth, filter, reverb, delay, frequency, amplitude",
+                on_transcription_start=on_transcription_start,
                 on_recording_start=on_rec_start,
                 on_recording_stop=on_rec_stop,
+                no_log_file=True,
             )
             _daemon_write_json({"type": "debug", "msg": "AudioToTextRecorder created"})
 

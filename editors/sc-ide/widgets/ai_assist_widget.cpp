@@ -21,6 +21,8 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QTemporaryFile>
+#include <QDateTime>
+#include <QMenu>
 #include <QMessageBox>
 #include <QDialog>
 #include <QList>
@@ -30,6 +32,7 @@
 #include <QUuid>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
+#include <QRegularExpression>
 
 
 namespace ScIDE {
@@ -2359,6 +2362,23 @@ void AiAssistWidget::submitAppendForBlock(const QString& prompt, bool isAuto) {
     if (isAuto) {
         mAutoAppendLog->append(QString("<span style='color:#f39c12;'>[SENDING]</span> Submitting to LLM: <span style='color:#ddd;'>%1</span>")
             .arg(prompt.left(100).toHtmlEscaped()));
+            
+        Document* doc = Main::instance()->documentManager()->activeDocument();
+        if (doc) {
+            QString docText = doc->textDocument()->toPlainText();
+            if (!docText.contains("History.clear.start;")) {
+                QTextCursor cursor(doc->textDocument());
+                cursor.movePosition(QTextCursor::Start);
+                QString startCode = "History.clear.start;";
+                cursor.insertText(startCode + "\n\n");
+                Main::evaluateCode(startCode);
+
+                cursor.movePosition(QTextCursor::End);
+                QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+                QString endCode = QString("\n\n//History.end;\n//History.saveStory(\"C:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/sc-gen-rag/sc-files/session-recordings/%1.scd\");\n").arg(timestamp);
+                cursor.insertText(endCode);
+            }
+        }
     }
 
     QJsonObject data = basePayload();
@@ -2379,64 +2399,50 @@ void AiAssistWidget::submitAppendForBlock(const QString& prompt, bool isAuto) {
             Document* doc = Main::instance()->documentManager()->activeDocument();
             if (doc) {
                 QTextCursor cursor(doc->textDocument());
-                cursor.movePosition(QTextCursor::End);
-                cursor.insertText("\n\n" + code);
-                if (mAutoExecuteCheck->isChecked()) {
-                    QString evalCode = code;
-                    evalCode.replace(QChar(0x2029), QChar('\n'));
+                QString docText = doc->textDocument()->toPlainText();
+                int historyIdx = docText.lastIndexOf("//History.end;");
+                if (historyIdx != -1) {
+                    cursor.setPosition(historyIdx);
+                    cursor.insertText(code + "\n\n");
+                } else {
+                    cursor.movePosition(QTextCursor::End);
+                    cursor.insertText("\n\n" + code);
+                }
 
-                    // Split into top-level () blocks for separate evaluation.
-                    // SuperCollider's interpreter expects a single top-level
-                    // expression; multiple () blocks sent as one string cause
-                    // "syntax error, unexpected '(', expecting end of file".
-                    QStringList blocks;
-                    int depth = 0;
-                    int blockStart = -1;
-                    bool inLineComment = false;
-                    bool inBlockComment = false;
-                    bool inString = false;
-                    QChar stringChar;
-
-                    for (int i = 0; i < evalCode.length(); i++) {
-                        QChar c = evalCode[i];
-                        QChar next = (i + 1 < evalCode.length()) ? evalCode[i + 1] : QChar();
-
-                        if (inLineComment) {
-                            if (c == '\n') inLineComment = false;
-                            continue;
-                        }
-                        if (inBlockComment) {
-                            if (c == '*' && next == '/') { inBlockComment = false; i++; }
-                            continue;
-                        }
-                        if (inString) {
-                            if (c == stringChar) inString = false;
-                            continue;
-                        }
-                        if (c == '/' && next == '/') { inLineComment = true; i++; continue; }
-                        if (c == '/' && next == '*') { inBlockComment = true; i++; continue; }
-                        if (c == '"' || c == '\'') { inString = true; stringChar = c; continue; }
-
-                        if (c == '(') {
-                            if (depth == 0) blockStart = i;
-                            depth++;
-                        } else if (c == ')') {
-                            depth--;
-                            if (depth == 0 && blockStart >= 0) {
-                                blocks.append(evalCode.mid(blockStart, i - blockStart + 1));
-                                blockStart = -1;
-                            }
-                        }
+                // --- Generate commented-out volume reduction lines ---
+                // Extract Ndef names from the generated code: matches Ndef(\name, ...)
+                // which indicates a new Ndef definition (not .set/.xset/.clear calls)
+                QRegularExpression ndefRx("Ndef\\(\\s*\\\\(\\w+)\\s*,");
+                QRegularExpressionMatchIterator it = ndefRx.globalMatch(code);
+                QStringList ndefNames;
+                while (it.hasNext()) {
+                    QRegularExpressionMatch match = it.next();
+                    QString name = match.captured(1);
+                    if (!ndefNames.contains(name))
+                        ndefNames.append(name);
+                }
+                if (!ndefNames.isEmpty()) {
+                    QString quietLines = "// --- Quiet new textures (uncomment to reduce volume to ~1/10) ---\n";
+                    for (const QString& name : ndefNames) {
+                        quietLines += QString("//Ndef(\\%1).set(\\amp, 0.03);\n").arg(name);
                     }
+                    quietLines += "\n";
 
-                    if (blocks.size() > 1) {
-                        qDebug() << "[AutoAppend] Splitting" << blocks.size() << "top-level () blocks for evaluation";
-                        for (const QString& block : blocks) {
-                            Main::evaluateCode(block);
-                        }
+                    // Insert after the code block
+                    QTextCursor endCursor(doc->textDocument());
+                    QString updatedText = doc->textDocument()->toPlainText();
+                    int quietIdx = updatedText.lastIndexOf("//History.end;");
+                    if (quietIdx != -1) {
+                        endCursor.setPosition(quietIdx);
+                        endCursor.insertText(quietLines);
                     } else {
-                        Main::evaluateCode(evalCode);
+                        endCursor.movePosition(QTextCursor::End);
+                        endCursor.insertText(quietLines);
                     }
+                }
+
+                if (mAutoExecuteCheck->isChecked()) {
+                    evaluateCodeBlocks(code);
                     mFullStatusText = tr("Block appended and auto-evaluated");
                 } else {
                     mFullStatusText = tr("Block appended");
@@ -3012,7 +3018,7 @@ void AiAssistWidget::applyRagFallback() {
         }
         
         // 4. Auto-execute the fallback block
-        Main::evaluateCode(mRagFallbackCode);
+        evaluateCodeBlocks(mRagFallbackCode);
         
         // 5. Send reset_composition_state to the daemon
         QJsonObject cmd;
@@ -3030,6 +3036,60 @@ void AiAssistWidget::applyRagFallback() {
         mRagFallbackCode.clear();
         processAppendQueue(); // Continue processing any pending dictates
     });
+}
+
+void AiAssistWidget::evaluateCodeBlocks(const QString& evalCode) {
+    QString code = evalCode;
+    code.replace(QChar(0x2029), QChar('\n'));
+
+    QStringList blocks;
+    int depth = 0;
+    int blockStart = -1;
+    bool inLineComment = false;
+    bool inBlockComment = false;
+    bool inString = false;
+    QChar stringChar;
+
+    for (int i = 0; i < code.length(); i++) {
+        QChar c = code[i];
+        QChar next = (i + 1 < code.length()) ? code[i + 1] : QChar();
+
+        if (inLineComment) {
+            if (c == '\n') inLineComment = false;
+            continue;
+        }
+        if (inBlockComment) {
+            if (c == '*' && next == '/') { inBlockComment = false; i++; }
+            continue;
+        }
+        if (inString) {
+            if (c == stringChar) inString = false;
+            continue;
+        }
+        if (c == '/' && next == '/') { inLineComment = true; i++; continue; }
+        if (c == '/' && next == '*') { inBlockComment = true; i++; continue; }
+        if (c == '"' || c == '\'') { inString = true; stringChar = c; continue; }
+
+        if (c == '(') {
+            if (depth == 0) blockStart = i;
+            depth++;
+        } else if (c == ')') {
+            depth--;
+            if (depth == 0 && blockStart >= 0) {
+                blocks.append(code.mid(blockStart, i - blockStart + 1));
+                blockStart = -1;
+            }
+        }
+    }
+
+    if (blocks.size() > 1) {
+        qDebug() << "[AiAssist] Splitting" << blocks.size() << "top-level () blocks for evaluation";
+        for (const QString& block : blocks) {
+            Main::evaluateCode(block);
+        }
+    } else {
+        Main::evaluateCode(code);
+    }
 }
 
 } // namespace ScIDE

@@ -148,6 +148,7 @@ private:
     void loadSysMsgDefaults();
     void setProcessingState(bool processing);
     void updateLatestBlockFields();
+    void evaluateCodeBlocks(const QString& code);
     void tryUpdateSessionStats();
 
     // Session persistence
