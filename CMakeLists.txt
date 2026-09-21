@@ -1,9 +1,36 @@
 cmake_minimum_required(VERSION 3.12)
 
 # pick up vcpkg installation, if VCPKG_ROOT is set
-if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE AND NOT "$ENV{VCPKG_ROOT}" STREQUAL "")
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+if(DEFINED ENV{VCPKG_ROOT} AND NOT "$ENV{VCPKG_ROOT}" STREQUAL "")
+	# vcpkg packages config
+	if(WIN32)
+		set(VCPKG_DEFAULT ON)
+	else()
+		set(VCPKG_DEFAULT OFF)
+	endif()
+	option(USE_VCPKG_FFTW "Use fftw3 from vcpkg" ${VCPKG_DEFAULT})
+	option(USE_VCPKG_LIBSNDFILE "Use libsndfile from vcpkg" ${VCPKG_DEFAULT})
+	option(USE_VCPKG_READLINE "Use readline from vcpkg" ${VCPKG_DEFAULT})
+
+	set(VCPKG_FEATURES "")
+	if(USE_VCPKG_FFTW)
+		list(APPEND VCPKG_FEATURES "fftw3")
+	endif()
+	if(USE_VCPKG_LIBSNDFILE)
+		list(APPEND VCPKG_FEATURES "libsndfile")
+	endif()
+	if(USE_VCPKG_READLINE)
+		list(APPEND VCPKG_FEATURES "readline")
+	endif()
+	set(VCPKG_MANIFEST_FEATURES ${VCPKG_FEATURES})
+
+	# set toolchain file and overlay triplets
+	if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    	set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+	endif()
     message(STATUS "Using CMAKE_TOOLCHAIN_FILE at ${CMAKE_TOOLCHAIN_FILE}")
+	set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg/triplets")
+	message(STATUS "Using VCPKG_OVERLAY_TRIPLETS at ${VCPKG_OVERLAY_TRIPLETS}")
 endif()
 
 include(SCVersion.txt)
@@ -20,8 +47,12 @@ endif()
 
 message(STATUS "SuperCollider Version: ${SC_VERSION}")
 message(STATUS "Building from ${GIT_REF_TYPE} ${GIT_BRANCH_OR_TAG}, commit hash is ${GIT_COMMIT_HASH}")
+
+# Stops CTest from generating a bunch of targets we don't care about.
+set_property(GLOBAL PROPERTY CTEST_TARGETS_ADDED 1)
 include(CTest)
 enable_testing()
+list(APPEND CMAKE_CTEST_ARGUMENTS "--output-on-failure")
 
 include (cmake_modules/FinalFile.cmake)
 
@@ -48,6 +79,7 @@ CONFIGURE_FILE(
 
 ADD_CUSTOM_TARGET(uninstall
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake")
+set_property(TARGET uninstall PROPERTY FOLDER Util)
 
 # identify target architecture
 if(WIN32)
@@ -59,39 +91,16 @@ if(WIN32)
         SET(CMAKE_LIBRARY_ARCHITECTURE "x86" CACHE STRING "Architecture of target system (for 32bit)")
     endif()
 
-    # installing to default application-location creates an error (a privileges and/or path syntax problem)
-    if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-        SET(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/Install" CACHE PATH "Cmake install path" FORCE)
-    endif()
-
 endif(WIN32)
 
-#############################################
-# Compiler flags etc
-
-if (${CMAKE_COMPILER_IS_GNUCXX})
-    execute_process(
-            COMMAND ${CMAKE_CXX_COMPILER} -dumpversion
-            OUTPUT_VARIABLE _gcc_version
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
-
-	if(${_gcc_version} VERSION_LESS 4.8)
-		message(FATAL_ERROR "SuperCollider requires at least gcc-4.8 when compiled with gcc.")
-	endif()
-
-elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_ID STREQUAL "AppleClang")
-    set(CMAKE_COMPILER_IS_CLANG 1)
-endif()
-
-if(APPLE)
+# install settings
+if(APPLE OR WIN32)
 	if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
-		set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/Install" CACHE STRING "Cmake install path" FORCE)
+		set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}/Install" CACHE PATH "Cmake install path" FORCE)
 	endif()
 elseif(UNIX)
-	add_definitions(-DSC_DATA_DIR="${CMAKE_INSTALL_PREFIX}/share/SuperCollider")
+	add_compile_definitions(SC_DATA_DIR="${CMAKE_INSTALL_PREFIX}/share/SuperCollider")
 endif()
-
 
 #############################################
 # Options
@@ -101,7 +110,7 @@ option(USE_CCACHE "Use ccache if available." ON)
 
 option(FFT_GREEN "Use internal 'Green' FFT lib rather than FFTW. (Not recommended.)" OFF)
 
-set(AUDIOAPI "default" CACHE STRING "Audio API to use (one of {default,coreaudio,jack,portaudio,bela})")
+set(AUDIOAPI "default" CACHE STRING "Audio API to use (one of {default,coreaudio,jack,portaudio,bela,webaudio})")
 
 if (AUDIOAPI STREQUAL jack)
 	# here we check for JACK metadata API
@@ -114,6 +123,7 @@ if (AUDIOAPI STREQUAL jack)
 endif()
 
 option(LIBSCSYNTH "Compile libscsynth as shared library" OFF)
+option(STATIC_PLUGINS "Compile plugins as static libraries (scsynth only)" OFF)
 
 option(INSTALL_HELP "Install help docs and examples along with the software" ON)
 option(SC_DOC_RENDER "Pre-render SCDoc documentation. (For putting online, etc)" OFF)
@@ -131,8 +141,7 @@ option(NO_X11 "Disables the building of plugins that require the X11 library (fo
 
 option(ENABLE_TESTSUITE "Compile testsuite." ON)
 
-# Build supernova by default only when on Linux or BSD systems
-option(SUPERNOVA "Build with supernova as optional audio synthesis server" ${LINUX_OR_BSD})
+option(SUPERNOVA "Build with supernova as an alternative audio synthesis server" ON)
 
 option(SN_MEMORY_DEBUGGING "Build supernova for memory debugging (disable memory pools).")
 option(SC_MEMORY_DEBUGGING "Build sclang&scsynth for memory debugging (disable memory pools).")
@@ -144,15 +153,14 @@ if(WIN32)
 else(WIN32)
     option(NO_AVAHI "Disable Avahi support. (Not recommended.)" OFF)
 endif(WIN32)
-option(NO_GPL3 "Disable GPL3 code, for pure-GPL2 situations. (Not recommended.)" OFF)
 
 option(SCLANG_SERVER "Build with internal server." ON)
 
-if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_COMPILER_IS_CLANG)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     option(NATIVE "Optimize binary for this architecture (binaries may not run on other machines).")
 endif()
 
-if(CMAKE_COMPILER_IS_GNUCXX)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU")
     option(LTO "Use GCC's link time optimizer' (experimental).")
 endif()
 
@@ -167,20 +175,16 @@ endif()
 option(SYSTEM_ABLETON_LINK "Use link from system" OFF)
 option(SYSTEM_BOOST   "Use boost libraries from system" OFF)
 option(SYSTEM_YAMLCPP "Use yaml-cpp library from system" OFF)
-option(SYSTEM_PORTAUDIO "Use PortAudio libraries from system" ON)
-if(WIN32)
-    set(SYSTEM_PORTAUDIO OFF)
+if(WIN32 OR (APPLE AND SUPERNOVA))
+    option(SYSTEM_PORTAUDIO "Use PortAudio libraries from system" OFF)
 else()
+    option(SYSTEM_PORTAUDIO "Use PortAudio libraries from system" ON)
     mark_as_advanced(SYSTEM_PORTAUDIO)
 endif()
 
 option(FORTIFY "Define -D_FORTIFY_SOURCE=2 to check for programming errors" OFF)
 
-if(MINGW AND (${CMAKE_CXX_COMPILER_VERSION} VERSION_LESS 5.3.0))
-    option(SC_HIDAPI "Build with HID support" OFF)
-else()
-    option(SC_HIDAPI "Build with HID support" ON)
-endif()
+option(SC_HIDAPI "Build with HID support" ON)
 
 option(SC_ABLETON_LINK "Build with Ableton Link support" ON)
 
@@ -193,6 +197,19 @@ if(APPLE)
     # verify_app fails with official Qt; we'll still use it for Qt from homebrew
     option(SC_VERIFY_APP "Run verify_app on the app bundle" OFF)
 endif()
+
+if(SC_DISABLE_XCODE_CODESIGNING)
+    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
+    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+endif()
+
+if(EMSCRIPTEN)
+    # see # see https://developer.chrome.com/blog/wasm-debugging-2020
+    set(WASM_DEBUG OFF CACHE BOOL "include DWARF debug symbols in wasm build?")
+    set(WASM_ASSET_DIR ${CMAKE_SOURCE_DIR}/platform/wasm)
+    set(WASM_DIST_DIR ${CMAKE_BINARY_DIR}/wasm-dist)
+endif()
+
 
 #############################################
 # Detect CCache
@@ -256,7 +273,7 @@ endif()
 #############################################
 # some default libraries
 
-if (NOT WIN32)
+if (NOT WIN32 AND NOT EMSCRIPTEN)
     find_package(Pthreads)
 
     if (NOT PTHREADS_FOUND)
@@ -300,8 +317,6 @@ if(SYSTEM_YAMLCPP)
 else()
   set(SYSTEM_YAMLCPP OFF)
 endif()
-
-set(CMAKE_CXX_STANDARD 17)
 
 #############################################
 # compiler settings - hardware
@@ -367,7 +382,9 @@ if(NOT "${SC_COMPILER_ARCH_FLAGS}" STREQUAL "")
 endif()
 
 #############################################
-# other compiler settings
+# other compiler flags
+
+set(CMAKE_CXX_STANDARD 17)
 
 # set default symbol visibility
 SET(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -418,16 +435,13 @@ if(WIN32)
 endif()
 
 if(MSVC)
-  foreach(flag CMAKE_C_FLAGS CMAKE_CXX_FLAGS)
-    set(${flag} "${${flag}} /wd4018") # signed/unsigned mismatch
-    set(${flag} "${${flag}} /wd4102") # unreferenced label
-    set(${flag} "${${flag}} /wd4267") # conversion from 'size_t' to 'int', possible loss of data
-    set(${flag} "${${flag}} /wd4244") # conversion from '__int64' to 'int', possible loss of data
-    set(${flag} "${${flag}} /wd4305") # '=' : truncation from 'double' to 'float'
-    set(${flag} "${${flag}} /wd4309") # '=' : truncation of constant value
-    set(${flag} "${${flag}} /wd4800") # forcing value to bool 'true' or 'false' (performance warning)
-    set(${flag} "${${flag}} /wd4996") # The POSIX name for this item is deprecated.
-  endforeach()
+  add_compile_options(
+    /wd4100 # unreferenced parameter
+    /wd4101 # unreferenced local variable
+    /wd4102 # unreferenced label
+    /wd4200 # nonstandard extension used: zero-sized array in struct/union
+	/diagnostics:caret # better diagnostics, shows source code location in error repot
+  )
 
 # this flag causes MSVC to correctly report __cplusplus, which prevents a compiler error
 # caused by some versions of libsndfile's C++ header redefining nullptr as NULL.
@@ -436,37 +450,20 @@ if(MSVC)
 
 # for math operations, we expect the default /fp:precise flag to be used, so that we match settings for gcc/clang
 
-# _ENABLE_ATOMIC_ALIGNMENT_FIX prevents the build from breaking when VS2015 update 2 upwards are used
-# see http://boost.2283326.n4.nabble.com/lockfree-ENABLE-ATOMIC-ALIGNMENT-FIX-for-VS-2015-Update-2-td4685955.html
-  add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS -D_ENABLE_ATOMIC_ALIGNMENT_FIX)
 endif(MSVC)
-
-if (SC_MEMORY_DEBUGGING)
-	add_definitions(-DDISABLE_MEMORY_POOLS)
-	add_definitions(-DENABLE_MEMORY_CHECKS)
-endif()
 
 if(MINGW)
 	add_compile_options(-mstackrealign)
 endif()
 
-if (NO_GPL3)
-	add_definitions(-DNO_GPL3)
-endif()
-
-if(SC_DISABLE_XCODE_CODESIGNING)
-    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGNING_REQUIRED "NO")
-    set(CMAKE_XCODE_ATTRIBUTE_CODE_SIGN_IDENTITY "")
+if (SC_MEMORY_DEBUGGING)
+	add_compile_definitions(DISABLE_MEMORY_POOLS ENABLE_MEMORY_CHECKS)
 endif()
 
 #############################################
 # subdirectories
 add_subdirectory(tools)
 add_subdirectory(external_libraries)
-
-if(NOT YAMLCPP_FOUND)
-  set(YAMLCPP_LIBRARY yaml)
-endif()
 
 
 configure_file(common/SC_Version.hpp.in common/SC_Version.hpp)
@@ -486,6 +483,7 @@ else()
 endif()
 
 add_subdirectory(server)
+add_subdirectory(langutils)
 add_subdirectory(lang)
 add_subdirectory(platform)
 add_subdirectory(editors)
@@ -680,3 +678,15 @@ mark_as_advanced(MATH_LIBRARY)
 mark_as_advanced(QT_QMAKE_EXECUTABLE)
 mark_as_advanced(SNDFILE SNDFILE_LIBRARY_DIR)
 mark_as_advanced(SC_HIDAPI)
+
+#############################################
+# uninstall target
+if(NOT TARGET uninstall)
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake_uninstall.cmake.in"
+    "${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake"
+    IMMEDIATE @ONLY)
+
+  add_custom_target(uninstall
+    COMMAND ${CMAKE_COMMAND} -P ${CMAKE_CURRENT_BINARY_DIR}/cmake_uninstall.cmake)
+endif()
