@@ -103,14 +103,25 @@ _dictation_active = False  # guards against race between start/stop during model
 _dictation_muted = False   # skips transcription final output when muted
 _dictation_session_id = 0  # incremented on each start; prevents stale callbacks
 
+# Pre-loaded dictation recorder (created at startup, reused across sessions)
+_preloaded_recorder = None
+_preloaded_recorder_model = None
+_preloaded_recorder_lang = None
+
 
 def _resolve_model(model_key):
     """Resolve a model key like 'gemini/gemini-2.5-flash' to (provider, model_name)."""
+    print(f"[DEBUG _resolve_model] model_key={model_key!r}", flush=True)
     if not model_key:
         return config.CURRENT_LLM_PROVIDER, config.CURRENT_MODEL_NAME
     entry = config.AVAILABLE_MODELS.get(model_key)
     if entry:
         return entry["provider"], entry["model"]
+        
+    # OpenRouter models: key prefixed with openrouter:
+    if model_key.startswith("openrouter:"):
+        return "openrouter", model_key[11:]
+
     # Fallback: try to split on /
     parts = model_key.split("/", 1)
     if len(parts) == 2:
@@ -182,6 +193,55 @@ def cmd_list_models(data):
     """Return all available models."""
     models = list(config.AVAILABLE_MODELS.keys())
     return {"models": models, "models_info": config.AVAILABLE_MODELS}
+
+
+def cmd_list_openrouter_models(data):
+    """Fetch available models from OpenRouter's API."""
+    import urllib.request
+    import json as json_mod
+    
+    if not config.OPENROUTER_API_KEY:
+        return {"error": "OPENROUTER_API_KEY not configured", "models": []}
+    
+    try:
+        req = urllib.request.Request(
+            "https://openrouter.ai/api/v1/models",
+            headers={"Authorization": f"Bearer {config.OPENROUTER_API_KEY}"}
+        )
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            raw = json_mod.loads(resp.read().decode())
+    except Exception as e:
+        return {"error": str(e), "models": []}
+    
+    models = []
+    for m in raw.get("data", []):
+        output_modalities = m.get("architecture", {}).get("output_modalities", [])
+        if output_modalities and "text" not in output_modalities:
+            continue
+        if ":batch" in m.get("id", ""):
+            continue
+            
+        pricing = m.get("pricing", {})
+        prompt_raw = float(pricing.get("prompt", 0))
+        completion_raw = float(pricing.get("completion", 0))
+        prompt_price = -1.0 if prompt_raw < 0 else prompt_raw * 1_000_000
+        completion_price = -1.0 if completion_raw < 0 else completion_raw * 1_000_000
+        
+        model_id = m["id"]
+        config.PRICING_PER_1M_TOKENS[model_id] = {"in": prompt_price, "out": completion_price}
+        config.CONTEXT_WINDOW_SIZES[model_id] = m.get("context_length", 0)
+        
+        models.append({
+            "id": model_id,
+            "name": m.get("name", model_id),
+            "context_length": m.get("context_length", 0),
+            "price_in": round(prompt_price, 3),
+            "price_out": round(completion_price, 3),
+            "default_temp": 0.7,
+            "max_temp": 2.0,
+        })
+    
+    return {"models": models}
 
 
 def cmd_generate_plan(data):
@@ -450,6 +510,24 @@ def _rag_failsafe_lookup(prompt):
         print(f"RAG failsafe lookup error: {e}", flush=True)
         return ""
 
+def _merge_stats(stats1, stats2):
+    """Merge two stats_dict objects by summing numeric fields.
+    Used by cross_append to combine plan + code generation stats."""
+    if not stats1:
+        return stats2 or {}
+    if not stats2:
+        return stats1 or {}
+    merged = {}
+    for key in set(list(stats1.keys()) + list(stats2.keys())):
+        v1 = stats1.get(key, 0)
+        v2 = stats2.get(key, 0)
+        if isinstance(v1, (int, float)) and isinstance(v2, (int, float)):
+            merged[key] = v1 + v2
+        else:
+            # For non-numeric (strings, bools), take from stats2 (the later stage)
+            merged[key] = v2 if key in stats2 else v1
+    return merged
+
 def cmd_append(data):
     """Append a new block to the composition (incremental mode)."""
     prompt = data.get("prompt", "")
@@ -565,6 +643,135 @@ def cmd_append(data):
     utils.append_to_session_log("append", full_sys, user_prompt, code, stats_dict, f"{provider}/{model_name}", active_file=active_file)
     return {"code": code, "last_stats": stats_dict, "rag_fallback": rag_fallback}
 
+
+def cmd_cross_append(data):
+    """Cross-Append: route voice transcription through the selected mode's pipeline.
+    
+    Reuses existing command implementations but orchestrates multi-stage pipelines
+    (plan→code) automatically for compose/design/generate modes.
+    All modes update the shared composition state for cross-mode awareness.
+    """
+    mode = data.get("mode", "append")
+    active_file = data.get("active_file", "")
+    state_key = active_file if active_file else "__unsaved__"
+    
+    if mode == "append":
+        # Delegate directly — cmd_append already handles state tracking
+        result = cmd_append(data)
+        return result
+    
+    # For compose/design/generate: two-stage plan→code pipeline
+    plan_sys_msgs = data.get("plan_sys_msgs", [])
+    code_sys_msgs = data.get("code_sys_msgs", [])
+    prompt = data.get("prompt", "")
+    model_key = data.get("model", "")
+    provider, model_name = _resolve_model(model_key)
+    
+    # --- Stage 1: Generate Plan ---
+    plan_data = dict(data)
+    plan_data["sys_msgs"] = plan_sys_msgs
+    plan_data["mode"] = mode
+    if mode == "generate":
+        plan_data["include_ending"] = False
+    
+    plan_result = cmd_generate_plan(plan_data)
+    plan = plan_result.get("plan", "")
+    plan_stats = plan_result.get("last_stats", {})
+    
+    # Log the plan separately for observability
+    utils.append_to_session_log(
+        f"cross_append_{mode}_plan",
+        _build_system_prompt({"sys_msgs": plan_sys_msgs}),
+        prompt,
+        plan,
+        plan_stats,
+        f"{provider}/{model_name}",
+        active_file=active_file
+    )
+    
+    # --- Stage 2: Generate Code from Plan ---
+    code_data = dict(data)
+    code_data["sys_msgs"] = code_sys_msgs
+    code_data["plan"] = plan
+    code_data["prompt"] = prompt
+    code_data["mode"] = mode
+    if mode == "generate":
+        code_data["include_ending"] = False
+    
+    code_result = cmd_generate_code(code_data)
+    code = code_result.get("code", "")
+    code_stats = code_result.get("last_stats", {})
+    
+    # Log the code generation
+    utils.append_to_session_log(
+        f"cross_append_{mode}",
+        _build_system_prompt({"sys_msgs": code_sys_msgs}),
+        f"Plan:\n{plan}\n\nOriginal Prompt: {prompt}",
+        code,
+        code_stats,
+        f"{provider}/{model_name}",
+        active_file=active_file
+    )
+    
+    # Update composition state with the generated code
+    # (reuse the same background thread pattern from cmd_append)
+    if code and code.strip():
+        # Wait for any in-flight state update first
+        if state_key in _composition_state_events:
+            evt = _composition_state_events[state_key]
+            if not evt.is_set():
+                evt.wait(timeout=30)
+        
+        # Read current state
+        if state_key in _composition_states:
+            composition_state = _composition_states[state_key]
+        else:
+            composition_state = data.get("composition_state", "")
+        
+        state_evt = threading.Event()
+        _composition_state_events[state_key] = state_evt
+        
+        def _bg_update_xa(evt, comp_state, new_code, sk):
+            try:
+                import sc_state_parser
+                new_state = sc_state_parser.update_composition_state(comp_state, new_code)
+                _composition_states[sk] = new_state.strip()
+                print(f"Cross-append state update complete for {sk} (mode={mode})", flush=True)
+            except Exception as e:
+                print(f"Cross-append state update failed: {e}", flush=True)
+            finally:
+                evt.set()
+        
+        threading.Thread(
+            target=_bg_update_xa,
+            args=(state_evt, composition_state, code, state_key),
+            daemon=True
+        ).start()
+    
+    # Merge stats from both stages
+    merged_stats = _merge_stats(plan_stats, code_stats)
+    
+    return {
+        "code": code,
+        "plan": plan,
+        "last_stats": merged_stats,
+        "rag_fallback": ""
+    }
+
+
+def cmd_rag_lookup(data):
+    """RAG-only lookup (no LLM call) used by the X-Append validation "RAG" buttons.
+
+    Runs the exact same semantic lookup used by the RAG failsafe so the
+    failsafe path can be exercised on demand with a preset prompt.
+    """
+    prompt = data.get("prompt", "")
+    mode = data.get("mode", "append")
+    if not prompt.strip():
+        return {"code": "", "mode": mode}
+    print(f"RAG validation lookup (mode={mode}): {prompt[:100]}", flush=True)
+    code = _rag_failsafe_lookup(prompt)
+    return {"code": code, "mode": mode}
 
 
 def cmd_reset_composition_state(data):
@@ -977,6 +1184,14 @@ def cmd_start_dictation(data):
                 if text and text.strip():
                     _daemon_write_json({"type": "dictation_final", "text": text})
 
+            def on_realtime_update(text):
+                if _dictation_session_id != my_session:
+                    return
+                if _muted_at_rec_start[0]:
+                    return
+                if text and text.strip():
+                    _daemon_write_json({"type": "dictation_partial", "text": text})
+
             def on_transcription_start(*args, **kwargs):
                 """Fires when silence is detected and the main model starts processing."""
                 if not _dictation_muted:
@@ -1002,7 +1217,11 @@ def cmd_start_dictation(data):
                 compute_type="int8",
                 spinner=False,
                 level=logging.WARNING,  # WARNING — suppress noisy DEBUG on stderr
-                enable_realtime_transcription=False,
+                enable_realtime_transcription=True,
+                realtime_model_type="tiny",
+                realtime_processing_pause=0.3,
+                on_realtime_transcription_update=on_realtime_update,
+                beam_size_realtime=1,
                 post_speech_silence_duration=1.0,
                 early_transcription_on_silence=0.3,
                 beam_size=1,
@@ -1091,12 +1310,15 @@ def cmd_stop_dictation(data):
 # Command dispatcher
 COMMANDS = {
     "list_models": cmd_list_models,
+    "list_openrouter_models": cmd_list_openrouter_models,
     "init_session": cmd_init_session,
     "generate_plan": cmd_generate_plan,
     "generate_code": cmd_generate_code,
     "custom_generate": cmd_custom_generate,
     "append": cmd_append,
+    "cross_append": cmd_cross_append,
     "reset_composition_state": cmd_reset_composition_state,
+    "rag_lookup": cmd_rag_lookup,
     "fix": cmd_fix,
     "remake": cmd_remake,
     "learn": cmd_learn,
@@ -1216,6 +1438,53 @@ def serve():
         print("RAG embeddings loaded.", flush=True)
     except Exception as e:
         print(f"RAG pre-warm skipped: {e}", flush=True)
+
+    # Pre-load the dictation model into GPU memory
+    print("Pre-loading dictation model (large-v3-turbo)...", flush=True)
+    try:
+        import io
+        _real_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        try:
+            import logging as _logging
+            _stt_logger = _logging.getLogger("realtimestt")
+            _stt_logger.setLevel(_logging.CRITICAL)
+            _stt_logger.propagate = False
+
+            from RealtimeSTT import AudioToTextRecorder
+            # Warm up the dictation model and CUDA kernels
+            _preloaded = AudioToTextRecorder(
+                model="large-v3-turbo",
+                language="pt",
+                device="cuda",
+                compute_type="int8",
+                use_microphone=True,  # Must be True to properly warm up audio workers
+                spinner=False,
+                level=_logging.CRITICAL,
+                enable_realtime_transcription=True,
+                realtime_model_type="tiny",
+                realtime_processing_pause=0.3,
+                beam_size_realtime=1,
+                post_speech_silence_duration=1.0,
+                early_transcription_on_silence=0.3,
+                beam_size=1,
+                batch_size=4,
+                initial_prompt="SuperCollider, Ndef, Pbindef, synth, filter, reverb, delay, frequency, amplitude",
+                no_log_file=True,
+            )
+            # Immediately shut it down so the OS microphone indicator turns off
+            try:
+                _preloaded.shutdown()
+            except Exception:
+                pass
+            _preloaded = None
+            import gc; gc.collect()
+        finally:
+            sys.stdout = _real_stdout
+        print("Dictation model pre-loaded and ready.", flush=True)
+    except Exception as e:
+        print(f"Dictation pre-load skipped: {e}", flush=True)
+        import traceback; traceback.print_exc()
 
     # Signal readiness to the C++ side
     print("Daemon ready.", flush=True)
@@ -1348,3 +1617,4 @@ if __name__ == "__main__":
             serve()
         else:
             main()
+

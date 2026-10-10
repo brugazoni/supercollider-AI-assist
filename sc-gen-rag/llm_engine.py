@@ -100,7 +100,7 @@ class LLMClient:
         # Initialize EcoLogits with explicit provider list (once)
         if EcoLogits and not _ecologits_initialized:
             try:
-                EcoLogits.init(providers=["google_genai", "openai", "anthropic"])
+                EcoLogits.init(providers=["google_genai", "anthropic"])
             except Exception as e:
                 print(f"  ⚠ EcoLogits init failed ({e}), environmental metrics will use fallback estimates.")
             _ecologits_initialized = True
@@ -118,6 +118,20 @@ class LLMClient:
             if not OpenAI:
                 raise ValueError("The 'openai' python package is required. pip install openai")
             self.openai_client = OpenAI(api_key=config.OPENAI_API_KEY)
+
+        elif self.provider == "openrouter":
+            if not config.OPENROUTER_API_KEY:
+                raise ValueError("OpenRouter API key missing. Configure it via the API Keys button.")
+            if not OpenAI:
+                raise ValueError("The 'openai' python package is required. pip install openai")
+            self.openai_client = OpenAI(
+                api_key=config.OPENROUTER_API_KEY,
+                base_url="https://openrouter.ai/api/v1",
+                default_headers={
+                    "HTTP-Referer": "https://github.com/brugazoni/supercollider-AI-assist",
+                    "X-Title": "SuperCollider AI Assist",
+                }
+            )
 
         elif self.provider == "anthropic":
             if not config.ANTHROPIC_API_KEY:
@@ -233,6 +247,8 @@ class LLMClient:
             return self._generate_openai(prompt, system_instruction, temperature)
         elif self.provider == "anthropic":
             return self._generate_anthropic(prompt, system_instruction, temperature, thinking_budget)
+        elif self.provider == "openrouter":
+            return self._generate_openai(prompt, system_instruction, temperature)
         else:
             raise ValueError(f"unknown provider: {self.provider}")
 

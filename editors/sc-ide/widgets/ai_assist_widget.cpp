@@ -4,6 +4,150 @@
 */
 
 #include "ai_assist_widget.hpp"
+
+#include <QDialog>
+#include <QTreeWidget>
+#include <QLineEdit>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QHeaderView>
+#include <QMessageBox>
+
+class OpenRouterBrowserDialog : public QDialog {
+public:
+    class ModelItem : public QTreeWidgetItem {
+    public:
+        ModelItem(QTreeWidget* parent) : QTreeWidgetItem(parent) {}
+        bool operator<(const QTreeWidgetItem& other) const override {
+            int col = treeWidget()->sortColumn();
+            if (col == 2) { // Context length
+                return data(col, Qt::UserRole).toInt() < other.data(col, Qt::UserRole).toInt();
+            } else if (col == 3 || col == 4) { // Prices
+                return data(col, Qt::UserRole).toDouble() < other.data(col, Qt::UserRole).toDouble();
+            }
+            return QTreeWidgetItem::operator<(other);
+        }
+    };
+
+    OpenRouterBrowserDialog(const QJsonArray& models, QWidget* parent = nullptr) 
+        : QDialog(parent), mModels(models) 
+    {
+        setWindowTitle(tr("OpenRouter Model Browser"));
+        resize(900, 600);
+
+        QVBoxLayout* layout = new QVBoxLayout(this);
+
+        QHBoxLayout* searchLayout = new QHBoxLayout;
+        searchLayout->addWidget(new QLabel(tr("Search:")));
+        mSearchBox = new QLineEdit;
+        mSearchBox->setPlaceholderText(tr("Type to filter by name or ID..."));
+        searchLayout->addWidget(mSearchBox);
+        layout->addLayout(searchLayout);
+
+        mTree = new QTreeWidget;
+        mTree->setHeaderLabels({tr("Provider"), tr("Model"), tr("Context"), tr("Input ($/1M)"), tr("Output ($/1M)"), tr("ID")});
+        mTree->setAlternatingRowColors(true);
+        mTree->setSelectionBehavior(QAbstractItemView::SelectRows);
+        mTree->setSelectionMode(QAbstractItemView::SingleSelection);
+        mTree->setSortingEnabled(true);
+        mTree->setRootIsDecorated(false); // Make it look like a flat table
+        
+        mTree->header()->resizeSection(0, 120);
+        mTree->header()->resizeSection(1, 280);
+        mTree->header()->resizeSection(2, 90);
+        mTree->header()->resizeSection(3, 90);
+        mTree->header()->resizeSection(4, 90);
+        
+        layout->addWidget(mTree);
+
+        QHBoxLayout* btnLayout = new QHBoxLayout;
+        btnLayout->addStretch();
+        QPushButton* cancelBtn = new QPushButton(tr("Cancel"));
+        QPushButton* selectBtn = new QPushButton(tr("Select"));
+        selectBtn->setDefault(true);
+        btnLayout->addWidget(cancelBtn);
+        btnLayout->addWidget(selectBtn);
+        layout->addLayout(btnLayout);
+
+        connect(mSearchBox, &QLineEdit::textChanged, [this](const QString& text){
+            populateTree(text);
+        });
+
+        connect(cancelBtn, &QPushButton::clicked, this, &QDialog::reject);
+        connect(selectBtn, &QPushButton::clicked, [this]() {
+            acceptSelection();
+        });
+        connect(mTree, &QTreeWidget::itemDoubleClicked, [this](QTreeWidgetItem* item, int) {
+            if (item) {
+                acceptSelection();
+            }
+        });
+
+        populateTree("");
+        mTree->sortByColumn(0, Qt::AscendingOrder); // Default sort by Provider
+    }
+
+    QString selectedModelId() const { return mSelectedId; }
+
+private:
+    QTreeWidget* mTree;
+    QLineEdit* mSearchBox;
+    QString mSelectedId;
+    QJsonArray mModels;
+
+    void populateTree(const QString& filter) {
+        mTree->clear();
+
+        QString f = filter.toLower();
+
+        for (const QJsonValue& val : mModels) {
+            QJsonObject m = val.toObject();
+            QString id = m["id"].toString();
+            QString name = m["name"].toString();
+            
+            if (!f.isEmpty() && !id.toLower().contains(f) && !name.toLower().contains(f)) {
+                continue;
+            }
+
+            QString provider = "Other";
+            int slashIdx = id.indexOf('/');
+            if (slashIdx > 0) {
+                provider = id.left(slashIdx);
+                provider[0] = provider[0].toUpper();
+            }
+
+            ModelItem* mItem = new ModelItem(mTree);
+            mItem->setText(0, provider);
+            mItem->setText(1, name);
+            
+            int ctx = m["context_length"].toInt();
+            QString ctxStr = ctx >= 1000 ? QString::number(ctx / 1000) + "k" : QString::number(ctx);
+            mItem->setText(2, ctxStr);
+            mItem->setData(2, Qt::UserRole, ctx);
+            
+            double priceIn = m["price_in"].toDouble();
+            double priceOut = m["price_out"].toDouble();
+            mItem->setText(3, priceIn < 0 ? "Auto" : QString::number(priceIn, 'f', 2));
+            mItem->setData(3, Qt::UserRole, priceIn);
+            mItem->setText(4, priceOut < 0 ? "Auto" : QString::number(priceOut, 'f', 2));
+            mItem->setData(4, Qt::UserRole, priceOut);
+            
+            mItem->setText(5, id);
+            mItem->setData(0, Qt::UserRole, id);
+        }
+    }
+
+    void acceptSelection() {
+        QTreeWidgetItem* item = mTree->currentItem();
+        if (!item) {
+            return;
+        }
+        mSelectedId = item->data(0, Qt::UserRole).toString();
+        accept();
+    }
+};
+
+
 #include "post_window.hpp"
 #include "../core/doc_manager.hpp"
 #include "../core/main.hpp"
@@ -16,6 +160,7 @@
 #include <QScrollBar>
 #include <QProgressBar>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QInputDialog>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -53,12 +198,18 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     mainLayout->setContentsMargins(0, 0, 0, 0);
     mainLayout->setSpacing(2);
 
+    QButtonGroup* providerGroup = new QButtonGroup(this);
+
     // === Row 1: Model, Temperature, Thinking ===
     QHBoxLayout* row1 = new QHBoxLayout;
     row1->setContentsMargins(4, 2, 4, 0);
     row1->setSpacing(4);
 
-    row1->addWidget(new QLabel(tr("Model:")));
+    mProviderDirectRadio = new QRadioButton(tr("Direct:"));
+    mProviderDirectRadio->setChecked(true);
+    providerGroup->addButton(mProviderDirectRadio);
+    row1->addWidget(mProviderDirectRadio);
+    
     mModelCombo = new QComboBox;
     mModelCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
     row1->addWidget(mModelCombo);
@@ -89,6 +240,67 @@ AiAssistWidget::AiAssistWidget(PostWindow* postWindow, QWidget* parent)
     row1->addWidget(mThinkingCombo);
 
     mainLayout->addLayout(row1);
+
+    // === Row 1b: OpenRouter model selector ===
+    QHBoxLayout* row1b = new QHBoxLayout;
+    row1b->setContentsMargins(4, 0, 4, 0);
+    row1b->setSpacing(4);
+
+    mProviderOpenRouterRadio = new QRadioButton(tr("OR:"));
+    providerGroup->addButton(mProviderOpenRouterRadio);
+    row1b->addWidget(mProviderOpenRouterRadio);
+    
+    mOpenRouterCombo = new QComboBox;
+    mOpenRouterCombo->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
+    mOpenRouterCombo->setEditable(true);
+    mOpenRouterCombo->setInsertPolicy(QComboBox::NoInsert);
+    // Seed with the default model so it's not empty while fetching
+    mOpenRouterCombo->addItem("google/gemini-3.8-flash - $0.75/$3.75", "google/gemini-3.8-flash");
+    mOpenRouterCombo->setCurrentIndex(0);
+    mOpenRouterCombo->setToolTip(tr("OpenRouter model\nRequires OPENROUTER_API_KEY in API settings.\nSelecting a model here automatically switches to OpenRouter."));
+    row1b->addWidget(mOpenRouterCombo);
+
+    mOpenRouterBrowseBtn = new QPushButton(tr("Browse..."));
+    mOpenRouterBrowseBtn->setToolTip(tr("Browse all OpenRouter models"));
+    row1b->addWidget(mOpenRouterBrowseBtn);
+
+    // Auto-switch provider radio when user interacts with either combo.
+    // QComboBox::activated is emitted only for user picks (never for
+    // programmatic changes such as session restore), and — unlike
+    // currentIndexChanged — it also fires when the user re-picks the item that
+    // is already current. That matters for the OR combo: after the model list
+    // is loaded, picking the visible item would otherwise never flip the radio.
+    connect(mModelCombo, QOverload<int>::of(&QComboBox::activated),
+            this, [this](int) {
+        mProviderDirectRadio->setChecked(true);
+    });
+
+    connect(mOpenRouterCombo, QOverload<int>::of(&QComboBox::activated),
+            this, [this](int index) {
+        if (index >= 0) {
+            mProviderOpenRouterRadio->setChecked(true);
+        }
+    });
+
+    connect(mOpenRouterCombo, QOverload<int>::of(&QComboBox::currentIndexChanged),
+            this, [this](int index) {
+        if (index >= 0) {
+            mProviderOpenRouterRadio->setChecked(true);
+        }
+        onOpenRouterModelChanged(index);
+    });
+
+    // Also auto-switch when user types in the editable OR combo
+    connect(mOpenRouterCombo->lineEdit(), &QLineEdit::textEdited, this, [this](const QString&) {
+        mProviderOpenRouterRadio->setChecked(true);
+    });
+
+    connect(mOpenRouterBrowseBtn, &QPushButton::clicked,
+            this, &AiAssistWidget::onOpenRouterBrowseClicked);
+
+
+
+    mainLayout->addLayout(row1b);
 
     // === Row 2: Utility actions ===
     QHBoxLayout* row2 = new QHBoxLayout;
@@ -243,6 +455,144 @@ AiAssistWidget::~AiAssistWidget() {
     }
 }
 
+QString AiAssistWidget::currentModelKey() const {
+    if (mProviderOpenRouterRadio && mProviderOpenRouterRadio->isChecked()) {
+        // If the edit text still matches the selected list item, use its data (ID).
+        // Otherwise the user typed/edited the text manually (e.g. a raw ID such as
+        // "~google/gemini-flash-latest"), so use the typed text. Note that typing in an
+        // editable QComboBox does NOT change currentIndex, so checking the index alone
+        // would silently send the previously selected model instead.
+        int idx = mOpenRouterCombo->currentIndex();
+        QString text = mOpenRouterCombo->currentText().trimmed();
+        QString orKey = (idx >= 0 && text == mOpenRouterCombo->itemText(idx))
+                            ? mOpenRouterCombo->itemData(idx).toString()
+                            : text;
+        if (!orKey.isEmpty())
+            return "openrouter:" + orKey;
+    }
+    return mModelCombo->currentText();
+}
+
+void AiAssistWidget::populateOpenRouterCombo(const QJsonArray& models) {
+    mOpenRouterModels = models;
+
+    // Work out which model should be selected after repopulating:
+    // a model restored from a session takes priority, otherwise keep whatever
+    // the user had selected/typed before the refresh.
+    QString wanted = mPendingOpenRouterModel;
+    if (wanted.isEmpty()) {
+        int idx = mOpenRouterCombo->currentIndex();
+        QString text = mOpenRouterCombo->currentText().trimmed();
+        wanted = (idx >= 0 && text == mOpenRouterCombo->itemText(idx))
+                     ? mOpenRouterCombo->itemData(idx).toString()
+                     : text;
+        if (wanted.isEmpty()) {
+            wanted = "google/gemini-3.8-flash";
+        }
+    }
+
+    mOpenRouterCombo->blockSignals(true);
+    mOpenRouterCombo->clear();
+
+    for (const QJsonValue& v : mOpenRouterModels) {
+        QJsonObject m = v.toObject();
+        QString id = m["id"].toString();
+        double priceIn = m["price_in"].toDouble();
+        double priceOut = m["price_out"].toDouble();
+        QString label = QString("%1 - %2/%3")
+                            .arg(id)
+                            .arg(priceIn < 0 ? "Auto" : "$" + QString::number(priceIn, 'f', 2))
+                            .arg(priceOut < 0 ? "Auto" : "$" + QString::number(priceOut, 'f', 2));
+        mOpenRouterCombo->addItem(label, id);
+    }
+
+    // Do NOT silently pre-select item 0: an implicitly selected item looks
+    // "chosen" in the UI while the Direct provider is still active, and picking
+    // that same item would not emit currentIndexChanged.
+    int restoredIdx = wanted.isEmpty() ? -1 : mOpenRouterCombo->findData(wanted);
+    mOpenRouterCombo->setCurrentIndex(restoredIdx);
+    if (restoredIdx < 0 && !wanted.isEmpty())
+        mOpenRouterCombo->setEditText(wanted); // keep custom/unknown IDs usable
+    if (mOpenRouterCombo->lineEdit())
+        mOpenRouterCombo->lineEdit()->setPlaceholderText(tr("Select an OpenRouter model..."));
+
+    mOpenRouterCombo->blockSignals(false);
+    mPendingOpenRouterModel.clear();
+    // Intentionally no onOpenRouterModelChanged() here: this only re-applies an
+    // existing/restored selection, so the user's (or session's) temperature is kept.
+
+    mFullStatusText = QString("OpenRouter: %1 models loaded").arg(mOpenRouterModels.size());
+    mStatusBtn->setText(mFullStatusText);
+}
+
+void AiAssistWidget::fetchOpenRouterModels() {
+    runBackendCommand("list_openrouter_models", QJsonObject(), [this](const QJsonObject& result) {
+        if (result.contains("error") && !result["error"].toString().isEmpty()) {
+            mFullStatusText = "OpenRouter: " + result["error"].toString();
+            mStatusBtn->setText(mFullStatusText.left(30) + (mFullStatusText.length() > 30 ? "..." : ""));
+            return;
+        }
+        populateOpenRouterCombo(result["models"].toArray());
+    });
+}
+
+void AiAssistWidget::onOpenRouterBrowseClicked() {
+    auto openDialog = [this]() {
+        if (mOpenRouterModels.isEmpty()) {
+            QMessageBox::warning(this, tr("No Models"), tr("No OpenRouter models found. Please ensure your API key is set."));
+            return;
+        }
+        OpenRouterBrowserDialog dlg(mOpenRouterModels, this);
+        if (dlg.exec() == QDialog::Accepted) {
+            QString id = dlg.selectedModelId();
+            int idx = mOpenRouterCombo->findData(id);
+            if (idx >= 0) {
+                mOpenRouterCombo->setCurrentIndex(idx);
+            } else if (!id.isEmpty()) {
+                mOpenRouterCombo->setEditText(id);
+            }
+            // Explicit: setCurrentIndex() emits nothing if idx was already current.
+            if (!id.isEmpty())
+                mProviderOpenRouterRadio->setChecked(true);
+        }
+    };
+
+    if (mOpenRouterModels.isEmpty()) {
+        mFullStatusText = "Fetching OpenRouter models...";
+        mStatusBtn->setText(mFullStatusText);
+        runBackendCommand("list_openrouter_models", QJsonObject(), [this, openDialog](const QJsonObject& result) {
+            if (result.contains("error") && !result["error"].toString().isEmpty()) {
+                mFullStatusText = "OpenRouter: " + result["error"].toString();
+                mStatusBtn->setText(mFullStatusText.left(30) + (mFullStatusText.length() > 30 ? "..." : ""));
+                return;
+            }
+            populateOpenRouterCombo(result["models"].toArray());
+            openDialog();
+        });
+    } else {
+        openDialog();
+    }
+}
+
+void AiAssistWidget::onOpenRouterModelChanged(int index) {
+    if (index < 0) return;
+    
+    QString modelId = mOpenRouterCombo->currentData().toString();
+    for (const QJsonValue& v : mOpenRouterModels) {
+        QJsonObject m = v.toObject();
+        if (m["id"].toString() == modelId) {
+            double defaultTemp = m.value("default_temp").toDouble(0.7);
+            double maxTemp = m.value("max_temp").toDouble(2.0);
+            mTempSlider->blockSignals(true);
+            mTempSlider->setRange(0, maxTemp * 10);
+            mTempSlider->setValue(defaultTemp * 10);
+            mTempLabel->setText(QString::number(defaultTemp, 'f', 1));
+            mTempSlider->blockSignals(false);
+            break;
+        }
+    }
+}
+
 void AiAssistWidget::onModelChanged(const QString& modelName) {
     if (mModelConfig.contains(modelName)) {
         QJsonObject conf = mModelConfig[modelName];
@@ -290,6 +640,7 @@ void AiAssistWidget::connectDocumentSignals() {
 
     // Initial fetch of session stats
     tryUpdateSessionStats();
+    fetchOpenRouterModels();
 
     // Fire-and-forget: sync pending session logs to Google Docs.
     // Heap-allocated so the process survives past this function's scope.
@@ -326,6 +677,35 @@ bool AiAssistWidget::hasSessionContent() const {
         || !mLearnHistory->toPlainText().trimmed().isEmpty();
 }
 
+bool AiAssistWidget::hasApiKeyForCurrentModel() {
+    QString provider;
+    if (mProviderOpenRouterRadio && mProviderOpenRouterRadio->isChecked()) {
+        provider = "openrouter";
+    } else {
+        QString modelName = currentModelKey();
+        if (mModelConfig.contains(modelName)) {
+            provider = mModelConfig[modelName]["provider"].toString();
+        }
+    }
+
+    if (provider.isEmpty()) return true; // Can't validate, assume ok
+
+    QString envPath = QFileInfo(backendScriptPath()).absolutePath() + QDir::separator() + ".env";
+    QFile file(envPath);
+    if (file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+        QTextStream in(&file);
+        QString keyPrefix = provider.toUpper() + "_API_KEY=";
+        while (!in.atEnd()) {
+            QString line = in.readLine().trimmed();
+            if (line.startsWith(keyPrefix)) {
+                QString val = line.mid(keyPrefix.length()).trimmed();
+                if (!val.isEmpty()) return true;
+            }
+        }
+    }
+    return false;
+}
+
 void AiAssistWidget::saveSessionFor(Document* doc) {
     if (!doc) return;
     
@@ -341,10 +721,22 @@ void AiAssistWidget::saveSessionFor(Document* doc) {
     session["append_use_kb"] = mAppendUseKb->isChecked();
     session["append_log"] = mAutoAppendLog->toHtml();
     session["append_block_index"] = mDictationBlockIndex;
+    
+    session["x_append_prompt"] = mXPrompt->toPlainText();
+    session["x_append_use_kb"] = mXUseKbCheck->isChecked();
+    session["x_append_auto_execute"] = mXAutoExecuteCheck->isChecked();
+    session["x_append_auto_append"] = mXAutoAppendCheck->isChecked();
+    session["x_append_log"] = mXAutoAppendLog->toHtml();
+    session["x_append_block_index"] = mXDictationBlockIndex;
+    QString xMode = "append";
+    if (mXComposeRadio->isChecked()) xMode = "compose";
+    else if (mXDesignRadio->isChecked()) xMode = "design";
+    else if (mXGenerateRadio->isChecked()) xMode = "generate";
+    session["x_append_mode"] = xMode;
     session["composition_state"] = mCompositionState;
     session["learn_history"] = mLearnHistory->toPlainText();
     session["learn_chat_history"] = mLearnChatHistory;
-    session["model"] = mModelCombo->currentText();
+    session["model"] = currentModelKey();
     session["temperature"] = mTempSlider->value();
     session["remake_prompt"] = mRemakePrompt->toPlainText();
     session["kb_description"] = mKbDescription->toPlainText();
@@ -423,6 +815,20 @@ void AiAssistWidget::restoreSessionFor(const QString& filePath) {
     if (session.contains("append_use_kb")) mAppendUseKb->setChecked(session["append_use_kb"].toBool(true));
     if (session.contains("append_log")) mAutoAppendLog->setHtml(session["append_log"].toString());
     if (session.contains("append_block_index")) mDictationBlockIndex = session["append_block_index"].toInt();
+
+    mXPrompt->setPlainText(session["x_append_prompt"].toString());
+    if (session.contains("x_append_use_kb")) mXUseKbCheck->setChecked(session["x_append_use_kb"].toBool(true));
+    if (session.contains("x_append_auto_execute")) mXAutoExecuteCheck->setChecked(session["x_append_auto_execute"].toBool(true));
+    if (session.contains("x_append_auto_append")) mXAutoAppendCheck->setChecked(session["x_append_auto_append"].toBool(false));
+    if (session.contains("x_append_log")) mXAutoAppendLog->setHtml(session["x_append_log"].toString());
+    if (session.contains("x_append_block_index")) mXDictationBlockIndex = session["x_append_block_index"].toInt();
+    if (session.contains("x_append_mode")) {
+        QString xMode = session["x_append_mode"].toString();
+        if (xMode == "compose") mXComposeRadio->setChecked(true);
+        else if (xMode == "design") mXDesignRadio->setChecked(true);
+        else if (xMode == "generate") mXGenerateRadio->setChecked(true);
+        else mXAppendRadio->setChecked(true);
+    }
     mCompositionState = session["composition_state"].toString();
     mLearnHistory->setPlainText(session["learn_history"].toString());
     mLearnChatHistory = session["learn_chat_history"].toString();
@@ -468,10 +874,28 @@ void AiAssistWidget::restoreSessionFor(const QString& filePath) {
     if (session.contains("stats_ctx_text")) mContextLabel->setText(session["stats_ctx_text"].toString());
     if (session.contains("stats_ctx_value")) mContextBar->setValue(session["stats_ctx_value"].toInt());
 
-    // Restore model selection
     QString model = session["model"].toString();
-    int idx = mModelCombo->findText(model);
-    if (idx >= 0) mModelCombo->setCurrentIndex(idx);
+    if (model.startsWith("openrouter:")) {
+        // The OR model list is fetched asynchronously and is usually still empty
+        // during the initial restore, so also stash the ID for populateOpenRouterCombo().
+        QString orId = model.mid(QString("openrouter:").length());
+        int orIdx = mOpenRouterCombo->findData(orId);
+        mOpenRouterCombo->blockSignals(true);
+        mOpenRouterCombo->setCurrentIndex(orIdx);
+        if (orIdx < 0) {
+            mOpenRouterCombo->setEditText(orId);
+            mPendingOpenRouterModel = orId;
+        }
+        mOpenRouterCombo->blockSignals(false);
+        if (orIdx >= 0) onOpenRouterModelChanged(orIdx);
+        mProviderOpenRouterRadio->setChecked(true);
+    } else {
+        int mainIdx = mModelCombo->findText(model);
+        if (mainIdx >= 0) {
+            mModelCombo->setCurrentIndex(mainIdx);
+            mProviderDirectRadio->setChecked(true);
+        }
+    }
     
     if (session.contains("temperature")) {
         mTempSlider->setValue(session["temperature"].toInt());
@@ -543,6 +967,16 @@ void AiAssistWidget::clearSessionFields() {
     mAutoAppendLog->clear();
     mAppendQueue.clear();
     mDictationBlockIndex = 0;
+    
+    mXPrompt->clear();
+    mXUseKbCheck->setChecked(true);
+    mXAutoExecuteCheck->setChecked(true);
+    mXAutoAppendCheck->setChecked(false);
+    mXAutoAppendLog->clear();
+    mXAppendQueue.clear();
+    mXDictationBlockIndex = 0;
+    mXAppendRadio->setChecked(true);
+    
     mFixBlock->clear();
     mFixStackTrace->clear();
     mRemakeBlock->clear();
@@ -620,15 +1054,18 @@ void AiAssistWidget::onApiKeysClicked() {
     QLineEdit* anthropicInput = new QLineEdit;
     QLineEdit* openaiInput = new QLineEdit;
     QLineEdit* langchainInput = new QLineEdit;
+    QLineEdit* openrouterInput = new QLineEdit;
     
     geminiInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
     anthropicInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
     openaiInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
     langchainInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
+    openrouterInput->setEchoMode(QLineEdit::PasswordEchoOnEdit);
 
     form->addRow(tr("GEMINI_API_KEY:"), geminiInput);
     form->addRow(tr("ANTHROPIC_API_KEY:"), anthropicInput);
     form->addRow(tr("OPENAI_API_KEY:"), openaiInput);
+    form->addRow(tr("OPENROUTER_API_KEY:"), openrouterInput);
     form->addRow(tr("LANGCHAIN_API_KEY:"), langchainInput);
     
     layout->addLayout(form);
@@ -642,6 +1079,7 @@ void AiAssistWidget::onApiKeysClicked() {
             if (line.startsWith("GEMINI_API_KEY=")) geminiInput->setText(line.mid(15).trimmed());
             else if (line.startsWith("ANTHROPIC_API_KEY=")) anthropicInput->setText(line.mid(18).trimmed());
             else if (line.startsWith("OPENAI_API_KEY=")) openaiInput->setText(line.mid(15).trimmed());
+            else if (line.startsWith("OPENROUTER_API_KEY=")) openrouterInput->setText(line.mid(19).trimmed());
             else if (line.startsWith("LANGCHAIN_API_KEY=")) langchainInput->setText(line.mid(18).trimmed());
         }
         file.close();
@@ -663,6 +1101,7 @@ void AiAssistWidget::onApiKeysClicked() {
             if (!geminiInput->text().trimmed().isEmpty()) out << "GEMINI_API_KEY=" << geminiInput->text().trimmed() << "\n";
             if (!anthropicInput->text().trimmed().isEmpty()) out << "ANTHROPIC_API_KEY=" << anthropicInput->text().trimmed() << "\n";
             if (!openaiInput->text().trimmed().isEmpty()) out << "OPENAI_API_KEY=" << openaiInput->text().trimmed() << "\n";
+            if (!openrouterInput->text().trimmed().isEmpty()) out << "OPENROUTER_API_KEY=" << openrouterInput->text().trimmed() << "\n";
             if (!langchainInput->text().trimmed().isEmpty()) out << "LANGCHAIN_API_KEY=" << langchainInput->text().trimmed() << "\n";
             outFile.close();
             QMessageBox::information(&dlg, tr("Saved"), tr("API keys updated globally."));
@@ -714,6 +1153,9 @@ void AiAssistWidget::createTabs() {
 
     // Tab 5: Append
     mTabWidget->addTab(createAppendTab(), tr("Append"));
+
+    // Tab 6: Cross-Append (multi-mode voice-driven performance)
+    mTabWidget->addTab(createCrossAppendTab(), tr("X-Append"));
 
     // Tab 3: Fix
     mTabWidget->addTab(createFixTab(), tr("Fix"));
@@ -954,6 +1396,7 @@ QWidget* AiAssistWidget::createAppendTab() {
     // Dictation Model selector
     mDictModelCombo = new QComboBox;
     mDictModelCombo->addItem(tr("large-v3-turbo (best)"), QStringLiteral("large-v3-turbo"));
+    mDictModelCombo->addItem(tr("distil-large-v3 (EN only, 2x fast)"), QStringLiteral("distil-large-v3"));
     mDictModelCombo->addItem(tr("medium (accurate)"), QStringLiteral("medium"));
     mDictModelCombo->addItem(tr("small (balanced)"), QStringLiteral("small"));
     mDictModelCombo->addItem(tr("base (fast)"), QStringLiteral("base"));
@@ -998,6 +1441,162 @@ QWidget* AiAssistWidget::createAppendTab() {
         "QTextEdit { background-color: #1a1a2e; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; font-size: 9px; border: 1px solid #333; }");
     mAutoAppendLog->setPlaceholderText(tr("Auto-append pipeline activity will appear here..."));
     layout->addWidget(mAutoAppendLog);
+
+    return tab;
+}
+
+// "append" -> "Append" (used for validation button labels / log messages)
+static QString xModeLabel(const QString& mode) {
+    if (mode.isEmpty()) return mode;
+    return mode.left(1).toUpper() + mode.mid(1);
+}
+
+QWidget* AiAssistWidget::createCrossAppendTab() {
+    QWidget* tab = new QWidget;
+    QVBoxLayout* layout = new QVBoxLayout(tab);
+    layout->setContentsMargins(4, 4, 4, 4);
+
+    layout->addWidget(new QLabel(tr("What should be added to the performance?")));
+    mXPrompt = new QPlainTextEdit;
+    mXPrompt->setPlaceholderText(tr("Speak or type — routed through the selected mode..."));
+    layout->addWidget(mXPrompt, 1);
+
+    // --- Validation buttons (Send / RAG with "P" presets) + mode selection ---
+    // Grid columns: 0 = row label, 1..4 = Append / Compose / Design / Generate.
+    // Each Send/RAG cell sits directly above its mode's radio button.
+    loadXTestPrompts();
+    QGridLayout* modeGrid = new QGridLayout;
+    modeGrid->setContentsMargins(0, 0, 0, 0);
+    modeGrid->setHorizontalSpacing(6);
+    modeGrid->setVerticalSpacing(2);
+
+    const QStringList xModes = { "append", "compose", "design", "generate" };
+    for (int i = 0; i < xModes.size(); ++i) {
+        const QString& m = xModes[i];
+        const QString label = xModeLabel(m);
+        modeGrid->addWidget(createXTestCell("send", m, tr("Send %1").arg(label)), 0, i + 1);
+        modeGrid->addWidget(createXTestCell("rag", m, tr("RAG %1").arg(label)), 1, i + 1);
+    }
+
+    modeGrid->addWidget(new QLabel(tr("Mode:")), 2, 0);
+
+    QButtonGroup* modeGroup = new QButtonGroup(this);
+    mXAppendRadio = new QRadioButton(tr("Append"));
+    mXAppendRadio->setToolTip(tr("Incremental block — adds a single element to the running composition"));
+    mXAppendRadio->setChecked(true);
+    modeGroup->addButton(mXAppendRadio);
+    modeGrid->addWidget(mXAppendRadio, 2, 1);
+
+    mXComposeRadio = new QRadioButton(tr("Compose"));
+    mXComposeRadio->setToolTip(tr("Fixed-timeline composition — plans and implements a full piece with movements"));
+    modeGroup->addButton(mXComposeRadio);
+    modeGrid->addWidget(mXComposeRadio, 2, 2);
+
+    mXDesignRadio = new QRadioButton(tr("Design"));
+    mXDesignRadio->setToolTip(tr("Synthesizer design — creates a playable MIDI instrument"));
+    modeGroup->addButton(mXDesignRadio);
+    modeGrid->addWidget(mXDesignRadio, 2, 3);
+
+    mXGenerateRadio = new QRadioButton(tr("Generate"));
+    mXGenerateRadio->setToolTip(tr("Open-ended generation — creates live-coding blocks"));
+    modeGroup->addButton(mXGenerateRadio);
+    modeGrid->addWidget(mXGenerateRadio, 2, 4);
+
+    for (int c = 1; c <= 4; ++c)
+        modeGrid->setColumnStretch(c, 1);
+
+    connect(mXAppendRadio, &QRadioButton::toggled, this, &AiAssistWidget::onXAppendModeChanged);
+    connect(mXComposeRadio, &QRadioButton::toggled, this, &AiAssistWidget::onXAppendModeChanged);
+    connect(mXDesignRadio, &QRadioButton::toggled, this, &AiAssistWidget::onXAppendModeChanged);
+    connect(mXGenerateRadio, &QRadioButton::toggled, this, &AiAssistWidget::onXAppendModeChanged);
+
+    layout->addLayout(modeGrid);
+
+    // --- Controls row ---
+    QHBoxLayout* btnRow = new QHBoxLayout;
+
+    mXAutoExecuteCheck = new QCheckBox(tr("Auto-Execute"));
+    mXAutoExecuteCheck->setToolTip(tr("Auto-evaluate appended blocks in sclang (Append mode only)"));
+    mXAutoExecuteCheck->setChecked(true);
+    btnRow->addWidget(mXAutoExecuteCheck);
+
+    mXUseKbCheck = new QCheckBox(tr("Use KB"));
+    mXUseKbCheck->setChecked(true);
+    mXUseKbCheck->setToolTip(tr("Include knowledge base RAG context in the prompt"));
+    btnRow->addWidget(mXUseKbCheck);
+
+    mXAutoAppendCheck = new QCheckBox(tr("Auto-Append"));
+    mXAutoAppendCheck->setToolTip(tr("Automatically route each dictation utterance through the selected mode"));
+    btnRow->addWidget(mXAutoAppendCheck);
+
+    btnRow->addStretch();
+
+    mXAppendBtn = new QPushButton(tr("Submit"));
+    connect(mXAppendBtn, &QPushButton::clicked, this, &AiAssistWidget::onXAppendClicked);
+    btnRow->addWidget(mXAppendBtn);
+
+    layout->addLayout(btnRow);
+
+    // --- Dictation controls row ---
+    QHBoxLayout* dictRow = new QHBoxLayout;
+    dictRow->setContentsMargins(0, 0, 0, 0);
+
+    mXDictLangCombo = new QComboBox;
+    mXDictLangCombo->addItem(tr("Português (BR)"), QStringLiteral("pt"));
+    mXDictLangCombo->addItem(tr("English"), QStringLiteral("en"));
+    mXDictLangCombo->addItem(tr("Español"), QStringLiteral("es"));
+    mXDictLangCombo->addItem(tr("Auto-detect"), QStringLiteral(""));
+    mXDictLangCombo->setCurrentIndex(0);
+    mXDictLangCombo->setToolTip(tr("Dictation language for speech recognition"));
+    dictRow->addWidget(mXDictLangCombo);
+
+    mXDictModelCombo = new QComboBox;
+    mXDictModelCombo->addItem(tr("large-v3-turbo (best)"), QStringLiteral("large-v3-turbo"));
+    mXDictModelCombo->addItem(tr("distil-large-v3 (EN only, 2x fast)"), QStringLiteral("distil-large-v3"));
+    mXDictModelCombo->addItem(tr("medium (accurate)"), QStringLiteral("medium"));
+    mXDictModelCombo->addItem(tr("small (balanced)"), QStringLiteral("small"));
+    mXDictModelCombo->addItem(tr("base (fast)"), QStringLiteral("base"));
+    mXDictModelCombo->addItem(tr("tiny (fastest)"), QStringLiteral("tiny"));
+    mXDictModelCombo->setCurrentIndex(0);
+    mXDictModelCombo->setToolTip(tr("Whisper model size — larger = more accurate but slower"));
+    dictRow->addWidget(mXDictModelCombo);
+
+    dictRow->addStretch();
+
+    mXDictateBtn = new QPushButton(tr("\xF0\x9F\x8E\xA4"));  // 🎤 emoji
+    mXDictateBtn->setFixedWidth(32);
+    mXDictateBtn->setToolTip(tr("Voice dictation — click to start/stop microphone transcription"));
+    mXDictateBtn->setStyleSheet(
+        "QPushButton { font-size: 14px; padding: 2px; }"
+        "QPushButton:checked { background-color: #c0392b; border: 2px solid #e74c3c; }");
+    mXDictateBtn->setCheckable(true);
+    connect(mXDictateBtn, &QPushButton::clicked, this, &AiAssistWidget::onXDictateToggled);
+    dictRow->addWidget(mXDictateBtn);
+
+    mXDictateMuteBtn = new QPushButton(tr("\xF0\x9F\x94\x87"));  // 🔇 emoji
+    mXDictateMuteBtn->setFixedWidth(32);
+    mXDictateMuteBtn->setToolTip(tr("Mute dictation (pause transcription without stopping)"));
+    mXDictateMuteBtn->setStyleSheet(
+        "QPushButton { font-size: 14px; padding: 2px; }"
+        "QPushButton:checked { background-color: #f39c12; border: 2px solid #e67e22; }");
+    mXDictateMuteBtn->setCheckable(true);
+    connect(mXDictateMuteBtn, &QPushButton::clicked, this, &AiAssistWidget::onXDictateMuteToggled);
+    dictRow->addWidget(mXDictateMuteBtn);
+
+    layout->addLayout(dictRow);
+
+    // --- Activity Log ---
+    QLabel* logLabel = new QLabel(tr("Cross-Append Log:"));
+    logLabel->setStyleSheet("QLabel { color: #888; font-size: 9px; margin-top: 2px; }");
+    layout->addWidget(logLabel);
+
+    mXAutoAppendLog = new QTextEdit;
+    mXAutoAppendLog->setReadOnly(true);
+    mXAutoAppendLog->setMaximumHeight(120);
+    mXAutoAppendLog->setStyleSheet(
+        "QTextEdit { background-color: #1a1a2e; color: #aaa; font-family: 'Consolas', 'Courier New', monospace; font-size: 9px; border: 1px solid #333; }");
+    mXAutoAppendLog->setPlaceholderText(tr("Cross-append pipeline activity will appear here..."));
+    layout->addWidget(mXAutoAppendLog);
 
     return tab;
 }
@@ -1227,7 +1826,7 @@ QJsonObject AiAssistWidget::basePayload() const {
     if (doc) {
         data["active_file"] = doc->filePath();
     }
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["temperature"] = mTempSlider->value() / 10.0;
     data["thinking"] = mThinkingCombo->currentData().toInt();
     return data;
@@ -1372,6 +1971,8 @@ void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
         mFullStatusText = tr("AI daemon ready.");
         mStatusBtn->setText(mFullStatusText);
         qDebug() << "[AutoAppend] Daemon READY, pid:" << (mDaemonProcess ? mDaemonProcess->processId() : 0);
+        processAppendQueue();
+        processXAppendQueue();
         return;
     }
 
@@ -1380,39 +1981,72 @@ void AiAssistWidget::handleDaemonResponse(const QByteArray& jsonLine) {
         QString type = result["type"].toString();
 
         if (type == "dictation_final") {
-            // Block-based dictation: each finalized utterance is a separate block
-            // NOTE: Mute filtering is handled by the Python backend (muted_at_rec_start)
-            // which correctly checks mute state at recording START, not at transcription END.
-            // A redundant check here would drop valid transcriptions when the user
-            // clicks mute during the multi-second transcription delay.
             QString block = result["text"].toString();
             if (block.trimmed().isEmpty()) return;
             mLastDictationBlock = block;
-            ++mDictationBlockIndex;
+            
+            bool isCrossAppend = (mTabWidget->tabText(mTabWidget->currentIndex()) == tr("X-Append"));
+            
+            if (isCrossAppend) {
+                ++mXDictationBlockIndex;
+                qDebug() << "[CrossAppend] dictation_final received, block #" << mXDictationBlockIndex << ", text:" << block.left(80);
 
-            qDebug() << "[AutoAppend] dictation_final received, block #" << mDictationBlockIndex
-                     << ", text:" << block.left(80);
+                QString current = mXPrompt->toPlainText();
+                if (!current.isEmpty())
+                    current += QString("\n%1) \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n").arg(mXDictationBlockIndex);
+                current += block;
+                mXPrompt->setPlainText(current);
+                QTextCursor cursor = mXPrompt->textCursor();
+                cursor.movePosition(QTextCursor::End);
+                mXPrompt->setTextCursor(cursor);
 
-            // Append indexed separator + block to prompt field
-            QString current = mAppendPrompt->toPlainText();
-            if (!current.isEmpty())
-                current += QString("\n%1) \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n").arg(mDictationBlockIndex);  // N) ——————————
-            current += block;
-            mAppendPrompt->setPlainText(current);
-            QTextCursor cursor = mAppendPrompt->textCursor();
-            cursor.movePosition(QTextCursor::End);
-            mAppendPrompt->setTextCursor(cursor);
+                if (mXAutoAppendCheck->isChecked()) {
+                    mXAutoAppendLog->append(QString("<span style='color:#5dade2;'>[Block #%1] Enqueued:</span> <span style='color:#ddd;'>%2</span>")
+                        .arg(mXDictationBlockIndex).arg(block.left(100).toHtmlEscaped()));
+                    
+                    QString mode = "append";
+                    if (mXComposeRadio->isChecked()) mode = "compose";
+                    else if (mXDesignRadio->isChecked()) mode = "design";
+                    else if (mXGenerateRadio->isChecked()) mode = "generate";
+                    
+                    mXAppendQueue.enqueue({ block, mode, XJobKind::Dictation });
+                    qDebug() << "[CrossAppend] Enqueued block #" << mXDictationBlockIndex << ", queue size:" << mXAppendQueue.size();
+                    processXAppendQueue();
+                }
+            } else {
+                ++mDictationBlockIndex;
+                qDebug() << "[AutoAppend] dictation_final received, block #" << mDictationBlockIndex << ", text:" << block.left(80);
 
-            // Auto-append: enqueue and try to process
-            if (mAutoAppendCheck->isChecked()) {
-                mAutoAppendLog->append(QString("<span style='color:#5dade2;'>[Block #%1] Enqueued:</span> <span style='color:#ddd;'>%2</span>")
-                    .arg(mDictationBlockIndex).arg(block.left(100).toHtmlEscaped()));
-                mAppendQueue.enqueue(block);
-                qDebug() << "[AutoAppend] Enqueued block #" << mDictationBlockIndex
-                         << ", queue size:" << mAppendQueue.size()
-                         << ", daemonBusy:" << mDaemonBusy;
-                processAppendQueue();
+                QString current = mAppendPrompt->toPlainText();
+                if (!current.isEmpty())
+                    current += QString("\n%1) \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n").arg(mDictationBlockIndex);
+                current += block;
+                mAppendPrompt->setPlainText(current);
+                QTextCursor cursor = mAppendPrompt->textCursor();
+                cursor.movePosition(QTextCursor::End);
+                mAppendPrompt->setTextCursor(cursor);
+
+                if (mAutoAppendCheck->isChecked()) {
+                    mAutoAppendLog->append(QString("<span style='color:#5dade2;'>[Block #%1] Enqueued:</span> <span style='color:#ddd;'>%2</span>")
+                        .arg(mDictationBlockIndex).arg(block.left(100).toHtmlEscaped()));
+                    mAppendQueue.enqueue(block);
+                    qDebug() << "[AutoAppend] Enqueued block #" << mDictationBlockIndex << ", queue size:" << mAppendQueue.size();
+                    processAppendQueue();
+                }
             }
+        }
+        
+        if (type == "dictation_partial") {
+            QString partialText = result["text"].toString();
+            if (partialText.trimmed().isEmpty()) return;
+
+            QString truncated = partialText;
+            if (truncated.length() > 50)
+                truncated = truncated.left(50) + "...";
+            mFullStatusText = QString::fromUtf8("\xF0\x9F\x97\xA3 ") + truncated; // 🗣
+            mStatusBtn->setText(mFullStatusText);
+            mStatusBtn->setStyleSheet(
+                "QPushButton { color: #5dade2; font-size: 10px; padding: 0px 4px; border: none; font-weight: bold; }");
             return;
         }
 
@@ -1731,7 +2365,7 @@ void AiAssistWidget::tryUpdateSessionStats() {
                     mEcoLabel->setText(ecoStr);
 
                     // Context Progress Bar - specific to the current model
-                    QString currentModel = mModelCombo->currentText();
+                    QString currentModel = currentModelKey();
                     QJsonObject providers = stats["providers"].toObject();
                     if (providers.contains(currentModel)) {
                         QJsonObject p = providers[currentModel].toObject();
@@ -1994,7 +2628,7 @@ void AiAssistWidget::onPlanClicked() {
     data["prompt"] = prompt;
     data["use_kb"] = mGenUseKb->isChecked();
     data["include_ending"] = mGenIncludeEnding->isChecked();
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["sys_msgs"] = QJsonArray::fromStringList(mGenPlanSysMsgs);
 
     runBackendCommand("generate_plan", data, [this](const QJsonObject& result) {
@@ -2011,7 +2645,7 @@ void AiAssistWidget::onGenerateClicked() {
     data["prompt"] = mGenPrompt->toPlainText().trimmed();
     data["use_kb"] = mGenUseKb->isChecked();
     data["include_ending"] = mGenIncludeEnding->isChecked();
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["sys_msgs"] = QJsonArray::fromStringList(mGenCodeSysMsgs);
 
     runBackendCommand("generate_code", data, [this](const QJsonObject& result) {
@@ -2039,7 +2673,7 @@ void AiAssistWidget::onComposePlanClicked() {
     QJsonObject data;
     data["prompt"] = prompt;
     data["use_kb"] = mComposeUseKb->isChecked();
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["mode"] = "compose";
     data["sys_msgs"] = QJsonArray::fromStringList(mComposePlanSysMsgs);
 
@@ -2056,7 +2690,7 @@ void AiAssistWidget::onComposeGenerateClicked() {
     data["plan"] = plan;
     data["prompt"] = mComposePrompt->toPlainText().trimmed();
     data["use_kb"] = mComposeUseKb->isChecked();
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["mode"] = "compose";
     data["sys_msgs"] = QJsonArray::fromStringList(mComposeCodeSysMsgs);
 
@@ -2084,7 +2718,7 @@ void AiAssistWidget::onCustomGenerateClicked() {
     QJsonObject data;
     data["prompt"] = prompt;
     data["use_kb"] = mCustomUseKb->isChecked();
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["sys_msgs"] = QJsonArray::fromStringList(mCustomSelectedSysMsgs);
     data["mode"] = "custom";
 
@@ -2281,7 +2915,7 @@ void AiAssistWidget::onDesignPlanClicked() {
     QJsonObject data;
     data["prompt"] = prompt;
     data["use_kb"] = mDesignUseKb->isChecked();
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["mode"] = "design";
     data["sys_msgs"] = QJsonArray::fromStringList(mDesignPlanSysMsgs);
 
@@ -2298,7 +2932,7 @@ void AiAssistWidget::onDesignGenerateClicked() {
     data["plan"] = plan;
     data["prompt"] = mDesignPrompt->toPlainText().trimmed();
     data["use_kb"] = mDesignUseKb->isChecked();
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["mode"] = "design";
     data["sys_msgs"] = QJsonArray::fromStringList(mDesignCodeSysMsgs);
 
@@ -2349,6 +2983,11 @@ void AiAssistWidget::onDictateMuteToggled() {
 void AiAssistWidget::submitAppendForBlock(const QString& prompt, bool isAuto) {
     if (prompt.isEmpty()) return;
 
+    if (!hasApiKeyForCurrentModel()) {
+        QMessageBox::warning(this, tr("Missing API Key"), tr("No API key found for the selected model/provider. Please configure it in the API settings."));
+        return;
+    }
+
     qDebug() << "[AutoAppend] submitAppendForBlock called"
              << "| isAuto:" << isAuto
              << "| prompt:" << prompt.left(80)
@@ -2385,7 +3024,7 @@ void AiAssistWidget::submitAppendForBlock(const QString& prompt, bool isAuto) {
     data["prompt"] = prompt;
     data["composition_state"] = mCompositionState;
     data["use_kb"] = mAppendUseKb->isChecked();
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["sys_msgs"] = QJsonArray::fromStringList(mAppendSysMsgs);
 
     runBackendCommand("append", data, [this, isAuto](const QJsonObject& result) {
@@ -2513,6 +3152,14 @@ void AiAssistWidget::onDictateToggled() {
         return;
     }
 
+    if (!mDictating && !hasApiKeyForCurrentModel()) {
+        QMessageBox::warning(this, tr("Missing API Key"), tr("No API key found for the selected model/provider. Please configure it in the API settings before starting dictation."));
+        mDictateBtn->setChecked(false);
+        mDictateMuteBtn->setChecked(false);
+        mDictationMuted = false;
+        return;
+    }
+
     if (!mDictating) {
         // Start dictation
         mDictating = true;
@@ -2529,7 +3176,7 @@ void AiAssistWidget::onDictateToggled() {
         mAutoAppendLog->append("<span style='color:#5dade2;'>[DICTATION]</span> Started");
 
         if (!mDictationModelLoaded && !mDictationLoadingDialog) {
-            mDictationLoadingDialog = new QProgressDialog(tr("Loading dictation model... Please wait until you can begin speaking."), QString(), 0, 0, this);
+            mDictationLoadingDialog = new QProgressDialog(tr("Starting microphone... Please wait."), QString(), 0, 0, this);
             mDictationLoadingDialog->setWindowTitle(tr("Voice Dictation"));
             mDictationLoadingDialog->setWindowModality(Qt::WindowModal);
             mDictationLoadingDialog->setCancelButton(nullptr);
@@ -2565,6 +3212,480 @@ void AiAssistWidget::onDictateToggled() {
     }
 }
 
+// --- Cross-Append tab handlers ---
+
+void AiAssistWidget::onXAppendModeChanged() {
+    if (mXAppendRadio->isChecked()) {
+        mXAutoExecuteCheck->setEnabled(true);
+    } else {
+        mXAutoExecuteCheck->setEnabled(false);
+        mXAutoExecuteCheck->setChecked(false);
+    }
+}
+
+void AiAssistWidget::onXAppendClicked() {
+    QString prompt = mXPrompt->toPlainText().trimmed();
+    if (prompt.isEmpty()) return;
+    
+    QString mode = "append";
+    if (mXComposeRadio->isChecked()) mode = "compose";
+    else if (mXDesignRadio->isChecked()) mode = "design";
+    else if (mXGenerateRadio->isChecked()) mode = "generate";
+    
+    submitCrossAppendForBlock(prompt, mode);
+}
+
+void AiAssistWidget::submitCrossAppendForBlock(const QString& prompt, const QString& mode, bool isValidation) {
+    if (prompt.isEmpty()) return;
+
+    if (!hasApiKeyForCurrentModel()) {
+        QMessageBox::warning(this, tr("Missing API Key"), tr("No API key found for the selected model/provider. Please configure it in the API settings."));
+        return;
+    }
+
+    qDebug() << "[CrossAppend] submitCrossAppendForBlock called"
+             << "| mode:" << mode
+             << "| validation:" << isValidation
+             << "| prompt:" << prompt.left(80)
+             << "| mDaemonBusy:" << mDaemonBusy;
+
+    mFullStatusText = isValidation ? tr("Processing Cross-Append (validation)...") : tr("Processing Cross-Append...");
+    mStatusBtn->setText(mFullStatusText);
+
+    if (isValidation) {
+        mXAutoAppendLog->append(QString("<span style='color:#9b59b6;'>[VALIDATION - SENDING - %1]</span> <span style='color:#ddd;'>%2</span>")
+            .arg(mode.toUpper())
+            .arg(prompt.left(100).toHtmlEscaped()));
+    } else {
+        mXAutoAppendLog->append(QString("<span style='color:#f39c12;'>[SENDING - %1]</span> <span style='color:#ddd;'>%2</span>")
+            .arg(mode.toUpper())
+            .arg(prompt.left(100).toHtmlEscaped()));
+    }
+        
+    Document* doc = Main::instance()->documentManager()->activeDocument();
+    if (doc) {
+        QString docText = doc->textDocument()->toPlainText();
+        if (!docText.contains("History.clear.start;")) {
+            QTextCursor cursor(doc->textDocument());
+            cursor.movePosition(QTextCursor::Start);
+            QString startCode = "History.clear.start;";
+            cursor.insertText(startCode + "\n\n");
+            Main::evaluateCode(startCode);
+
+            cursor.movePosition(QTextCursor::End);
+            QString timestamp = QDateTime::currentDateTime().toString("yyyy-MM-dd_HH-mm-ss");
+            QString endCode = QString("\n\n//History.end;\n//History.saveStory(\"C:/Users/Bruno Gazoni/Desktop/supercollider-project/supercollider-AI-assist/sc-gen-rag/sc-files/session-recordings/%1.scd\");\n").arg(timestamp);
+            cursor.insertText(endCode);
+        }
+    }
+
+    QJsonObject data = basePayload();
+    data["prompt"] = prompt;
+    data["mode"] = mode;
+    data["composition_state"] = mCompositionState;
+    data["use_kb"] = mXUseKbCheck->isChecked();
+    data["model"] = currentModelKey();
+    
+    // Pass appropriate sys_msgs depending on the mode
+    if (mode == "append") {
+        data["sys_msgs"] = QJsonArray::fromStringList(mAppendSysMsgs);
+    } else if (mode == "compose") {
+        data["plan_sys_msgs"] = QJsonArray::fromStringList(mComposePlanSysMsgs);
+        data["code_sys_msgs"] = QJsonArray::fromStringList(mComposeCodeSysMsgs);
+        data["include_ending"] = true; // explicitly asked by user
+    } else if (mode == "design") {
+        data["plan_sys_msgs"] = QJsonArray::fromStringList(mDesignPlanSysMsgs);
+        data["code_sys_msgs"] = QJsonArray::fromStringList(mDesignCodeSysMsgs);
+    } else if (mode == "generate") {
+        data["plan_sys_msgs"] = QJsonArray::fromStringList(mGenPlanSysMsgs);
+        data["code_sys_msgs"] = QJsonArray::fromStringList(mGenCodeSysMsgs);
+    }
+
+    const QString okTag = isValidation ? QStringLiteral("[VALIDATION OK]") : QStringLiteral("[OK]");
+    runBackendCommand("cross_append", data, [this, mode, prompt, okTag](const QJsonObject& result) {
+        QString code = result["code"].toString();
+        QString plan = result["plan"].toString(); // might be empty for append
+        
+        qDebug() << "[CrossAppend] cross_append callback received"
+                 << "| hasCode:" << !code.isEmpty()
+                 << "| mode:" << mode;
+                 
+        if (!plan.isEmpty()) {
+            mXAutoAppendLog->append(QString("<span style='color:#3498db;'>[PLAN]</span> Generated %1 chars").arg(plan.length()));
+            
+            // Mirror to original tabs for visualization
+            if (mode == "compose") {
+                mComposePrompt->setPlainText(prompt);
+                mComposePlanOutput->setPlainText(plan);
+            } else if (mode == "design") {
+                mDesignPrompt->setPlainText(prompt);
+                mDesignPlanOutput->setPlainText(plan);
+            } else if (mode == "generate") {
+                mGenPrompt->setPlainText(prompt);
+                mGenPlanOutput->setPlainText(plan);
+            }
+        } else if (mode == "append") {
+            // Mirror to Append tab
+            mAppendPrompt->setPlainText(prompt);
+        }
+
+        if (!code.isEmpty()) {
+            Document* doc = Main::instance()->documentManager()->activeDocument();
+            if (doc) {
+                QTextCursor cursor(doc->textDocument());
+                QString docText = doc->textDocument()->toPlainText();
+                int historyIdx = docText.lastIndexOf("//History.end;");
+                if (historyIdx != -1) {
+                    cursor.setPosition(historyIdx);
+                    cursor.insertText(code + "\n\n");
+                } else {
+                    cursor.movePosition(QTextCursor::End);
+                    cursor.insertText("\n\n" + code);
+                }
+
+                // Volume quiet lines injection
+                QRegularExpression ndefRx("Ndef\\(\\s*\\\\(\\w+)\\s*,");
+                QRegularExpressionMatchIterator it = ndefRx.globalMatch(code);
+                QStringList ndefNames;
+                while (it.hasNext()) {
+                    QRegularExpressionMatch match = it.next();
+                    QString name = match.captured(1);
+                    if (!ndefNames.contains(name))
+                        ndefNames.append(name);
+                }
+                if (!ndefNames.isEmpty()) {
+                    QString quietLines = "// --- Quiet new textures (uncomment to reduce volume to ~1/10) ---\n";
+                    for (const QString& name : ndefNames) {
+                        quietLines += QString("//Ndef(\\%1).set(\\amp, 0.03);\n").arg(name);
+                    }
+                    quietLines += "\n";
+                    
+                    QTextCursor endCursor(doc->textDocument());
+                    QString updatedText = doc->textDocument()->toPlainText();
+                    int quietIdx = updatedText.lastIndexOf("//History.end;");
+                    if (quietIdx != -1) {
+                        endCursor.setPosition(quietIdx);
+                        endCursor.insertText(quietLines);
+                    } else {
+                        endCursor.movePosition(QTextCursor::End);
+                        endCursor.insertText(quietLines);
+                    }
+                }
+
+                if (mode == "append" && mXAutoExecuteCheck->isChecked()) {
+                    evaluateCodeBlocks(code);
+                    mFullStatusText = tr("Cross-Append block auto-evaluated");
+                    mXAutoAppendLog->append(QString("<span style='color:#2ecc71;'>%1</span> Code inserted (%2 chars) + auto-evaluated").arg(okTag).arg(code.length()));
+                } else {
+                    mFullStatusText = tr("Cross-Append block generated");
+                    mXAutoAppendLog->append(QString("<span style='color:#2ecc71;'>%1</span> Code inserted (%2 chars)").arg(okTag).arg(code.length()));
+                }
+            } else {
+                mXAutoAppendLog->append("<span style='color:#e74c3c;'>[ERROR]</span> No active document");
+            }
+        } else {
+            mXAutoAppendLog->append("<span style='color:#e74c3c;'>[WARN]</span> LLM returned empty code");
+        }
+        
+        mStatusBtn->setText(mFullStatusText);
+        
+        mRagFallbackCode = result["rag_fallback"].toString();
+        if (mode == "append" && mXAutoExecuteCheck->isChecked() && !mRagFallbackCode.isEmpty()) {
+            mWaitingForErrorCheck = true;
+            mErrorCheckTimer->start(100);
+        } else {
+            processXAppendQueue();
+        }
+    });
+}
+
+void AiAssistWidget::processXAppendQueue() {
+    if (mXAppendQueue.isEmpty()) {
+        return;
+    }
+    if (mDaemonBusy) {
+        mXAutoAppendLog->append(QString("<span style='color:#888;'>[WAIT]</span> Daemon busy, %1 block(s) queued")
+            .arg(mXAppendQueue.size()));
+        return;
+    }
+    if (!mDaemonReady) {
+        return;
+    }
+
+    XAppendJob job = mXAppendQueue.dequeue();
+    if (job.kind == XJobKind::ValidationRag)
+        submitXRagValidation(job.prompt, job.mode);
+    else
+        submitCrossAppendForBlock(job.prompt, job.mode, job.kind == XJobKind::ValidationSend);
+}
+
+// --- Cross-Append validation buttons (Send / RAG / P presets) ---
+
+QString AiAssistWidget::xTestPromptsFilePath() const {
+    QDir scriptDir(QFileInfo(backendScriptPath()).absolutePath());
+    return scriptDir.filePath("xappend_test_prompts.json");
+}
+
+void AiAssistWidget::loadXTestPrompts() {
+    // Seed defaults so every button is usable out of the box
+    const QString defaultPrompt = QString::fromUtf8("Um oceano \xC3\xA9 um grande corpo de \xC3\xA1gua");
+    for (const QString& kind : { QStringLiteral("send"), QStringLiteral("rag") })
+        for (const QString& mode : { QStringLiteral("append"), QStringLiteral("compose"),
+                                     QStringLiteral("design"), QStringLiteral("generate") })
+            mXTestPrompts.insert(kind + "_" + mode, defaultPrompt);
+
+    QFile f(xTestPromptsFilePath());
+    if (!f.exists() || !f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return;
+    QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    if (!doc.isObject()) return;
+    QJsonObject obj = doc.object();
+    for (auto it = obj.begin(); it != obj.end(); ++it)
+        mXTestPrompts.insert(it.key(), it.value().toString());
+}
+
+void AiAssistWidget::saveXTestPrompts() {
+    QJsonObject obj;
+    for (auto it = mXTestPrompts.constBegin(); it != mXTestPrompts.constEnd(); ++it)
+        obj[it.key()] = it.value();
+    QFile f(xTestPromptsFilePath());
+    if (f.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        f.write(QJsonDocument(obj).toJson(QJsonDocument::Indented));
+    } else {
+        QMessageBox::warning(this, tr("Save Failed"),
+                             tr("Could not write preset prompts to:\n%1").arg(xTestPromptsFilePath()));
+    }
+}
+
+QWidget* AiAssistWidget::createXTestCell(const QString& kind, const QString& mode, const QString& label) {
+    QWidget* cell = new QWidget;
+    QHBoxLayout* h = new QHBoxLayout(cell);
+    h->setContentsMargins(0, 0, 0, 0);
+    h->setSpacing(2);
+
+    const QString key = kind + "_" + mode;
+
+    QPushButton* pBtn = new QPushButton(tr("P"));
+    pBtn->setFixedWidth(22);
+    pBtn->setToolTip(tr("Edit the preset validation prompt for \"%1\"").arg(label));
+    connect(pBtn, &QPushButton::clicked, this, [this, key]() { onXTestPresetClicked(key); });
+    h->addWidget(pBtn);
+
+    QPushButton* actBtn = new QPushButton(label);
+    if (kind == "send") {
+        actBtn->setToolTip(tr("Send the \"P\" preset through the %1 cross-append flow (as if dictated)")
+                               .arg(xModeLabel(mode)));
+        connect(actBtn, &QPushButton::clicked, this, [this, mode]() { onXTestSendClicked(mode); });
+    } else {
+        actBtn->setToolTip(tr("Run the \"P\" preset through the RAG failsafe only (no LLM call)"));
+        connect(actBtn, &QPushButton::clicked, this, [this, mode]() { onXTestRagClicked(mode); });
+    }
+    h->addWidget(actBtn, 1);
+    return cell;
+}
+
+void AiAssistWidget::onXTestPresetClicked(const QString& key) {
+    QString kind = key.section('_', 0, 0);
+    QString mode = key.section('_', 1);
+    QString title = QString("%1 %2").arg(kind == "rag" ? "RAG" : "Send", xModeLabel(mode));
+
+    QDialog dlg(this);
+    dlg.setWindowTitle(tr("Preset Prompt — %1").arg(title));
+    dlg.resize(460, 220);
+    QVBoxLayout* v = new QVBoxLayout(&dlg);
+    v->addWidget(new QLabel(tr("Validation prompt for \"%1\":").arg(title)));
+    QPlainTextEdit* edit = new QPlainTextEdit;
+    edit->setPlainText(mXTestPrompts.value(key));
+    v->addWidget(edit, 1);
+
+    QHBoxLayout* btns = new QHBoxLayout;
+    btns->addStretch();
+    QPushButton* cancelBtn = new QPushButton(tr("Cancel"));
+    QPushButton* saveBtn = new QPushButton(tr("Save"));
+    saveBtn->setDefault(true);
+    btns->addWidget(cancelBtn);
+    btns->addWidget(saveBtn);
+    v->addLayout(btns);
+    connect(cancelBtn, &QPushButton::clicked, &dlg, &QDialog::reject);
+    connect(saveBtn, &QPushButton::clicked, &dlg, &QDialog::accept);
+
+    if (dlg.exec() == QDialog::Accepted) {
+        mXTestPrompts.insert(key, edit->toPlainText().trimmed());
+        saveXTestPrompts();
+        mXAutoAppendLog->append(QString("<span style='color:#9b59b6;'>[VALIDATION]</span> Preset for %1 saved")
+                                    .arg(title.toHtmlEscaped()));
+    }
+}
+
+void AiAssistWidget::appendXHistoryBlock(const QString& block) {
+    // Same history formatting as a dictation_final block on the X-Append tab
+    ++mXDictationBlockIndex;
+    QString current = mXPrompt->toPlainText();
+    if (!current.isEmpty())
+        current += QString("\n%1) \u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\u2014\n").arg(mXDictationBlockIndex);
+    current += block;
+    mXPrompt->setPlainText(current);
+    QTextCursor cursor = mXPrompt->textCursor();
+    cursor.movePosition(QTextCursor::End);
+    mXPrompt->setTextCursor(cursor);
+}
+
+void AiAssistWidget::onXTestSendClicked(const QString& mode) {
+    if (!mDaemonReady) {
+        QMessageBox::warning(this, tr("Not Ready"), tr("The AI daemon is not ready yet. Please wait."));
+        return;
+    }
+    if (!hasApiKeyForCurrentModel()) {
+        QMessageBox::warning(this, tr("Missing API Key"), tr("No API key found for the selected model/provider. Please configure it in the API settings."));
+        return;
+    }
+    QString prompt = mXTestPrompts.value("send_" + mode).trimmed();
+    if (prompt.isEmpty()) {
+        QMessageBox::information(this, tr("Empty Preset"),
+                                 tr("The \"P\" preset for Send %1 is empty.").arg(xModeLabel(mode)));
+        return;
+    }
+    appendXHistoryBlock(prompt);
+    mXAutoAppendLog->append(QString("<span style='color:#9b59b6;'>[VALIDATION #%1] Send %2 enqueued:</span> <span style='color:#ddd;'>%3</span>")
+        .arg(mXDictationBlockIndex).arg(xModeLabel(mode)).arg(prompt.left(100).toHtmlEscaped()));
+    mXAppendQueue.enqueue({ prompt, mode, XJobKind::ValidationSend });
+    processXAppendQueue();
+}
+
+void AiAssistWidget::onXTestRagClicked(const QString& mode) {
+    if (!mDaemonReady) {
+        QMessageBox::warning(this, tr("Not Ready"), tr("The AI daemon is not ready yet. Please wait."));
+        return;
+    }
+    if (!hasApiKeyForCurrentModel()) {
+        QMessageBox::warning(this, tr("Missing API Key"), tr("No API key found for the selected model/provider. Please configure it in the API settings."));
+        return;
+    }
+    QString prompt = mXTestPrompts.value("rag_" + mode).trimmed();
+    if (prompt.isEmpty()) {
+        QMessageBox::information(this, tr("Empty Preset"),
+                                 tr("The \"P\" preset for RAG %1 is empty.").arg(xModeLabel(mode)));
+        return;
+    }
+    appendXHistoryBlock(prompt);
+    mXAutoAppendLog->append(QString("<span style='color:#9b59b6;'>[VALIDATION #%1] RAG %2 enqueued:</span> <span style='color:#ddd;'>%3</span>")
+        .arg(mXDictationBlockIndex).arg(xModeLabel(mode)).arg(prompt.left(100).toHtmlEscaped()));
+    mXAppendQueue.enqueue({ prompt, mode, XJobKind::ValidationRag });
+    processXAppendQueue();
+}
+
+void AiAssistWidget::submitXRagValidation(const QString& prompt, const QString& mode) {
+    mFullStatusText = tr("RAG validation lookup...");
+    mStatusBtn->setText(mFullStatusText);
+    mXAutoAppendLog->append(QString("<span style='color:#9b59b6;'>[VALIDATION - RAG %1]</span> <span style='color:#ddd;'>Looking up failsafe block for: %2</span>")
+        .arg(mode.toUpper()).arg(prompt.left(100).toHtmlEscaped()));
+
+    QJsonObject data;
+    data["prompt"] = prompt;
+    data["mode"] = mode;
+
+    runBackendCommand("rag_lookup", data, [this, mode](const QJsonObject& result) {
+        QString code = result["code"].toString();
+        if (code.trimmed().isEmpty()) {
+            mXAutoAppendLog->append(QString("<span style='color:#e74c3c;'>[VALIDATION - RAG %1]</span> No RAG block found for this prompt")
+                                        .arg(mode.toUpper()));
+            mFullStatusText = tr("RAG validation: no match");
+            mStatusBtn->setText(mFullStatusText);
+            processXAppendQueue();
+            return;
+        }
+        mXAutoAppendLog->append(QString("<span style='color:#e74c3c;'>[VALIDATION - RAG FAILSAFE %1]</span> Clearing layers and applying RAG block (%2 chars)...")
+                                    .arg(mode.toUpper()).arg(code.length()));
+        runRagFailsafeCode(code, [this, mode]() {
+            mXAutoAppendLog->append(QString("<span style='color:#2ecc71;'>[VALIDATION OK - RAG %1]</span> Failsafe block inserted + evaluated, composition state reset")
+                                        .arg(mode.toUpper()));
+            mFullStatusText = tr("RAG validation applied");
+            mStatusBtn->setText(mFullStatusText);
+            processXAppendQueue();
+        });
+    });
+}
+
+void AiAssistWidget::onXDictateToggled() {
+    if (!mDaemonProcess || !mDaemonReady) {
+        QMessageBox::warning(this, tr("Not Ready"), tr("The AI daemon is not ready yet. Please wait."));
+        mXDictateBtn->setChecked(false);
+        mXDictateMuteBtn->setChecked(false);
+        mDictationMuted = false;
+        return;
+    }
+    
+    if (!mDictating && !hasApiKeyForCurrentModel()) {
+        QMessageBox::warning(this, tr("Missing API Key"), tr("No API key found for the selected model/provider. Please configure it in the API settings before starting dictation."));
+        mXDictateBtn->setChecked(false);
+        mXDictateMuteBtn->setChecked(false);
+        mDictationMuted = false;
+        return;
+    }
+
+    if (!mDictating) {
+        mDictating = true;
+        mXDictLangCombo->setEnabled(false);
+        mXDictModelCombo->setEnabled(false);
+        mFullStatusText = tr("Starting cross-append dictation...");
+        mStatusBtn->setText(mFullStatusText);
+
+        mXAutoAppendLog->append("<span style='color:#5dade2;'>[DICTATION]</span> Started");
+
+        if (!mDictationModelLoaded && !mDictationLoadingDialog) {
+            mDictationLoadingDialog = new QProgressDialog(tr("Starting microphone... Please wait."), QString(), 0, 0, this);
+            mDictationLoadingDialog->setWindowTitle(tr("Voice Dictation"));
+            mDictationLoadingDialog->setWindowModality(Qt::WindowModal);
+            mDictationLoadingDialog->setCancelButton(nullptr);
+            mDictationLoadingDialog->show();
+        }
+
+        QJsonObject cmd;
+        cmd["command"] = QStringLiteral("start_dictation");
+        cmd["model"] = mXDictModelCombo->currentData().toString();
+        cmd["language"] = mXDictLangCombo->currentData().toString();
+        QJsonDocument jsonDoc(cmd);
+        mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+    } else {
+        mDictating = false;
+        mXDictLangCombo->setEnabled(true);
+        mXDictModelCombo->setEnabled(true);
+        mFullStatusText = tr("Stopping cross-append dictation...");
+        mStatusBtn->setText(mFullStatusText);
+        
+        mXAutoAppendLog->append("<span style='color:#5dade2;'>[DICTATION]</span> Stopped");
+
+        mXDictateMuteBtn->setChecked(false);
+        mDictationMuted = false;
+        mXAppendQueue.clear();
+
+        QJsonObject cmd;
+        cmd["command"] = QStringLiteral("stop_dictation");
+        QJsonDocument jsonDoc(cmd);
+        mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+    }
+}
+
+void AiAssistWidget::onXDictateMuteToggled() {
+    if (!mDaemonProcess || !mDaemonReady) {
+        mXDictateMuteBtn->setChecked(false);
+        return;
+    }
+    mDictationMuted = mXDictateMuteBtn->isChecked();
+
+    QJsonObject cmd;
+    cmd["command"] = QStringLiteral("mute_dictation");
+    cmd["muted"] = mDictationMuted;
+    QJsonDocument jsonDoc(cmd);
+    mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
+    
+    if (mDictationMuted) {
+        mXAutoAppendLog->append("<span style='color:#f39c12;'>[DICTATION]</span> Muted");
+    } else {
+        mXAutoAppendLog->append("<span style='color:#f39c12;'>[DICTATION]</span> Unmuted");
+    }
+}
+
 // --- Fix tab handler ---
 
 void AiAssistWidget::onFixClicked() {
@@ -2575,7 +3696,7 @@ void AiAssistWidget::onFixClicked() {
     QJsonObject data;
     data["block"] = block;
     data["error"] = error;
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["sys_msgs"] = QJsonArray::fromStringList(mFixSysMsgs);
 
     runBackendCommand("fix", data, [this, block](const QJsonObject& result) {
@@ -2608,7 +3729,7 @@ void AiAssistWidget::onRemakeClicked() {
     QJsonObject data;
     data["block"] = block;
     data["prompt"] = prompt;
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["sys_msgs"] = QJsonArray::fromStringList(mRemakeSysMsgs);
 
     runBackendCommand("remake", data, [this, block](const QJsonObject& result) {
@@ -2645,7 +3766,7 @@ void AiAssistWidget::onLearnSendClicked() {
     QJsonObject data;
     data["prompt"] = prompt;
     data["history"] = mLearnChatHistory;
-    data["model"] = mModelCombo->currentText();
+    data["model"] = currentModelKey();
     data["sys_msgs"] = QJsonArray::fromStringList(mLearnSysMsgs);
 
     mLearnPrompt->clear();
@@ -3004,26 +4125,34 @@ void AiAssistWidget::applyRagFallback() {
     qDebug() << "[AutoAppend] applyRagFallback triggered!";
     mAutoAppendLog->append("<span style='color:#e74c3c;'>[RAG FAILSAFE]</span> LLM code errored! Clearing layers and applying fallback...");
     
+    QString code = mRagFallbackCode;
+    runRagFailsafeCode(code, [this]() {
+        mRagFallbackCode.clear();
+        processAppendQueue(); // Continue processing any pending dictates
+    });
+}
+
+void AiAssistWidget::runRagFailsafeCode(const QString& code, std::function<void()> onDone) {
     // 1. Clear all active proxies gracefully (fade out over 1s)
     Main::evaluateCode("Ndef.clear(1); Pdef.removeAll;");
     
     // 2. Wait 200ms to allow the clear to be processed, then execute fallback
-    QTimer::singleShot(200, this, [this]() {
+    QTimer::singleShot(200, this, [this, code, onDone]() {
         // 3. Insert into active document
         Document* doc = Main::instance()->documentManager()->activeDocument();
         if (doc) {
             QTextCursor cursor(doc->textDocument());
             cursor.movePosition(QTextCursor::End);
-            cursor.insertText("\n\n// [RAG FAILSAFE APPLIED]\n" + mRagFallbackCode);
+            cursor.insertText("\n\n// [RAG FAILSAFE APPLIED]\n" + code);
         }
         
         // 4. Auto-execute the fallback block
-        evaluateCodeBlocks(mRagFallbackCode);
+        evaluateCodeBlocks(code);
         
         // 5. Send reset_composition_state to the daemon
         QJsonObject cmd;
         cmd["command"] = "reset_composition_state";
-        cmd["code"] = mRagFallbackCode;
+        cmd["code"] = code;
         if (doc) {
             cmd["active_file"] = doc->filePath();
         }
@@ -3033,8 +4162,7 @@ void AiAssistWidget::applyRagFallback() {
             mDaemonProcess->write(jsonDoc.toJson(QJsonDocument::Compact) + "\n");
         }
         
-        mRagFallbackCode.clear();
-        processAppendQueue(); // Continue processing any pending dictates
+        if (onDone) onDone();
     });
 }
 
@@ -3093,3 +4221,7 @@ void AiAssistWidget::evaluateCodeBlocks(const QString& evalCode) {
 }
 
 } // namespace ScIDE
+
+
+
+

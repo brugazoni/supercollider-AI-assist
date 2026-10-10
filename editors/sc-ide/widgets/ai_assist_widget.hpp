@@ -11,6 +11,8 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QCheckBox>
+#include <QRadioButton>
+#include <QButtonGroup>
 #include <QComboBox>
 #include <QLabel>
 #include <QProgressBar>
@@ -81,6 +83,20 @@ private slots:
     void submitAppendForBlock(const QString& prompt, bool isAuto = false);
     void processAppendQueue();
 
+    // Cross-Append tab
+    void onXAppendModeChanged();
+    void onXAppendClicked();
+    void onXDictateToggled();
+    void onXDictateMuteToggled();
+    void submitCrossAppendForBlock(const QString& prompt, const QString& mode, bool isValidation = false);
+    void processXAppendQueue();
+
+    // Cross-Append validation buttons (Send / RAG / P presets)
+    void onXTestPresetClicked(const QString& key);
+    void onXTestSendClicked(const QString& mode);
+    void onXTestRagClicked(const QString& mode);
+    void submitXRagValidation(const QString& prompt, const QString& mode);
+
     // Fix tab
     void onFixClicked();
 
@@ -123,6 +139,11 @@ private slots:
     void onApiKeysClicked();
     void onStatusClicked();
     void onModelChanged(const QString& modelName);
+    void onOpenRouterModelChanged(int index);
+    void onOpenRouterBrowseClicked();
+    void fetchOpenRouterModels();
+    void populateOpenRouterCombo(const QJsonArray& models);
+    QString currentModelKey() const;
     void onTemperatureSliderChanged(int value);
 
 private:
@@ -132,6 +153,7 @@ private:
     QWidget* createComposeTab();
     QWidget* createCustomTab();
     QWidget* createAppendTab();
+    QWidget* createCrossAppendTab();
     QWidget* createFixTab();
     QWidget* createRemakeTab();
     QWidget* createLearnTab();
@@ -155,6 +177,7 @@ private:
     void saveSessionFor(Document* doc);
     void restoreSessionFor(const QString& filePath);
     bool hasSessionContent() const;
+    bool hasApiKeyForCurrentModel();
     QString sessionFilePath(Document* doc) const;
     void clearSessionFields();
 
@@ -172,6 +195,14 @@ private:
     QTabWidget* mTabWidget;
     PostWindow* mPostWindow;
     QComboBox* mModelCombo;
+    QRadioButton* mProviderDirectRadio;
+    QRadioButton* mProviderOpenRouterRadio;
+    QComboBox* mOpenRouterCombo;
+    QPushButton* mOpenRouterBrowseBtn;
+    QJsonArray mOpenRouterModels;
+    // OpenRouter model ID restored from a session before the (async) model list
+    // was fetched. Re-applied once populateOpenRouterCombo() runs.
+    QString mPendingOpenRouterModel;
     QPushButton* mPromptHistoryBtn;
     QPushButton* mSessionStatsBtn;
     QPushButton* mImportSessionBtn;
@@ -255,6 +286,43 @@ private:
     bool mWaitingForErrorCheck = false;
     QTimer* mErrorCheckTimer = nullptr;
 
+    // Cross-Append tab widgets
+    QPlainTextEdit* mXPrompt;
+    QPushButton* mXAppendBtn;
+    QRadioButton* mXAppendRadio;
+    QRadioButton* mXComposeRadio;
+    QRadioButton* mXDesignRadio;
+    QRadioButton* mXGenerateRadio;
+    QCheckBox* mXAutoExecuteCheck;
+    QCheckBox* mXAutoAppendCheck;
+    QCheckBox* mXUseKbCheck;
+    QPushButton* mXDictateBtn;
+    QPushButton* mXDictateMuteBtn;
+    QComboBox* mXDictLangCombo;
+    QComboBox* mXDictModelCombo;
+    QTextEdit* mXAutoAppendLog;
+    int mXDictationBlockIndex = 0;
+
+    // Cross-Append job queue. Dictation and validation jobs share this queue so
+    // they are serialized through the single daemon exactly like voice blocks.
+    enum class XJobKind { Dictation, ValidationSend, ValidationRag };
+    struct XAppendJob {
+        QString prompt;
+        QString mode;
+        XJobKind kind = XJobKind::Dictation;
+    };
+    QQueue<XAppendJob> mXAppendQueue;
+
+    // Validation preset prompts ("P" buttons), keyed "send_append", "rag_design", ...
+    // Persisted in sc-gen-rag/xappend_test_prompts.json across sessions.
+    QMap<QString, QString> mXTestPrompts;
+    QString xTestPromptsFilePath() const;
+    void loadXTestPrompts();
+    void saveXTestPrompts();
+    QWidget* createXTestCell(const QString& kind, const QString& mode, const QString& label);
+    void appendXHistoryBlock(const QString& block);
+    void runRagFailsafeCode(const QString& code, std::function<void()> onDone);
+
     // Fix tab widgets
     QPlainTextEdit* mFixBlock;
     QPlainTextEdit* mFixStackTrace;
@@ -314,3 +382,4 @@ private:
 };
 
 } // namespace ScIDE
+
