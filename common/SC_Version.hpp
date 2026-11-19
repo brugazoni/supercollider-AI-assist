@@ -18,29 +18,51 @@
  *    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301  USA
  */
 
+#pragma once
+
 #include <string>
 #include <sstream>
+#include <cstdint>
+#include <tuple>
 
-static const int SC_VersionMajor = 3;
-static const int SC_VersionMinor = 15;
-static const int SC_VersionPatch = 0;
-static const char SC_VersionTweak[] = "-dev";
-static const char SC_RefType[] = "branch";
-static const char SC_BranchOrTag[] = "develop";
-static const char SC_CommitHash[] = "bce7a9645";
+// Does not support tweaks.
+// Useful for branches in the code as this inherits tuple's lexigraphical comparisons.
+// Initialise with {Major, Minor, Patch}.
+struct SemanticVersion : public std::tuple<uint32_t, uint32_t, uint32_t> {
+    using std::tuple<uint32_t, uint32_t, uint32_t>::tuple;
+
+    [[nodiscard]] constexpr uint32_t major() const { return std::get<0>(*this); } 
+    [[nodiscard]] constexpr uint32_t minor() const { return std::get<1>(*this); } 
+    [[nodiscard]] constexpr uint32_t patch() const { return std::get<2>(*this); } 
+
+    [[nodiscard]] std::string asString() const {
+        std::stringstream out;
+        out << major() << "." << minor() << "." << patch();
+        return out.str();
+    }
+ };
+
+static constexpr uint32_t SC_VersionMajor = 3;
+static constexpr uint32_t SC_VersionMinor = 15;
+static constexpr uint32_t SC_VersionPatch = 0;
+static constexpr char SC_VersionTweak[] = "-dev";
+static constexpr char SC_RefType[] = "branch";
+static constexpr char SC_BranchOrTag[] = "develop";
+static constexpr char SC_CommitHash[] = "84cbcb671";
+
+static constexpr SemanticVersion SC_Version {SC_VersionMajor, SC_VersionMinor, SC_VersionPatch};
+
 
 // For backward compatibility in scsynth and supernova only.
-static const char SC_VersionPostfix[] = ".0-dev";
+static constexpr char SC_VersionPostfix[] = ".0-dev";
 
-static inline std::string SC_VersionString()
-{
+static inline std::string SC_VersionString() {
 	std::stringstream out;
 	out << SC_VersionMajor << "." << SC_VersionMinor << "." << SC_VersionPatch << SC_VersionTweak;
 	return out.str();
 }
 
-static inline std::string SC_BuildString()
-{
+static inline std::string SC_BuildString() {
     std::stringstream out;
     out << "Built from " << SC_RefType << " '" << SC_BranchOrTag << "' [" << SC_CommitHash << "]";
     return out.str();

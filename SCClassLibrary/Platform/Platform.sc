@@ -123,9 +123,11 @@ Platform {
 		}
 	}
 
-	loadStartupFiles { this.startupFiles.do{|afile|
-		afile = afile.standardizePath;
-		if(File.exists(afile), {afile.load})
+	loadStartupFiles {
+		if(this.ideName == "scval") { ^this };
+		this.startupFiles.do{|afile|
+			afile = afile.standardizePath;
+			if(File.exists(afile), {afile.load})
 		}
 	}
 

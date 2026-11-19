@@ -41,6 +41,75 @@ except ImportError:
 # Module-level flag to avoid re-initializing EcoLogits on every LLMClient instantiation
 _ecologits_initialized = False
 _logfire_configured = False
+_cached_service_version = None
+
+
+def _get_service_version() -> str:
+    """Resolve the repository's git HEAD commit hash purely via filesystem reads
+    (never spawning `git rev-parse HEAD` via subprocess).
+
+    CRITICAL on Windows: When running inside the persistent daemon (`gui_backend.py serve`),
+    stdin/stdout/stderr are inherited pipes (fd 0/1/2 marked inheritable for torch.multiprocessing).
+    Calling `logfire.configure()` without an explicit `service_version` causes Logfire to invoke
+    `subprocess.check_output(['git', 'rev-parse', 'HEAD'])`, which on Windows inherits stdin or
+    deadlocks on git pack/index locks and hangs the first LLM request indefinitely.
+    """
+    global _cached_service_version
+    if _cached_service_version is not None:
+        return _cached_service_version
+
+    import os
+    from pathlib import Path
+
+    try:
+        cur = Path(__file__).resolve().parent
+        for parent in (cur, *cur.parents):
+            git_dir = parent / ".git"
+            if git_dir.is_file():
+                raw = git_dir.read_text(encoding="utf-8", errors="ignore").strip()
+                if raw.startswith("gitdir:"):
+                    rel = raw.split(":", 1)[1].strip()
+                    git_dir = (parent / rel).resolve()
+            head_file = git_dir / "HEAD"
+            if head_file.is_file():
+                head = head_file.read_text(encoding="utf-8", errors="ignore").strip()
+                if head.startswith("ref:"):
+                    ref_rel = head.split(":", 1)[1].strip()
+                    ref_file = git_dir / ref_rel
+                    if ref_file.is_file():
+                        _cached_service_version = ref_file.read_text(encoding="utf-8", errors="ignore").strip()
+                        return _cached_service_version
+                    packed = git_dir / "packed-refs"
+                    if packed.is_file():
+                        for line in packed.read_text(encoding="utf-8", errors="ignore").splitlines():
+                            if not line or line.startswith("#") or line.startswith("^"):
+                                continue
+                            parts = line.split()
+                            if len(parts) >= 2 and parts[1] == ref_rel:
+                                _cached_service_version = parts[0]
+                                return _cached_service_version
+                elif len(head) >= 7:
+                    _cached_service_version = head
+                    return _cached_service_version
+    except Exception:
+        pass
+
+    _cached_service_version = os.environ.get("LOGFIRE_SERVICE_VERSION", "dev")
+    return _cached_service_version
+
+
+# Ensure LANGCHAIN_REVISION_ID is pre-populated in os.environ and patch langsmith's
+# git subprocess helper so `@traceable` NEVER spawns `git describe --tags --always --dirty`
+# via `subprocess.check_output` (which deadlocks on Windows inside the persistent daemon
+# because fd 0/1/2 are marked inheritable for torch.multiprocessing).
+try:
+    import os as _os
+    _rev = _get_service_version()
+    _os.environ.setdefault("LANGCHAIN_REVISION_ID", _rev)
+    import langsmith.env._git as _ls_git
+    _ls_git.exec_git = lambda command: _rev
+except Exception:
+    pass
 
 
 def _extract_impact_value(impact_field):
@@ -85,16 +154,29 @@ def strip_code_fences(raw_text):
     return text
 
 
+class RequestCancelledError(Exception):
+    """Raised when an active LLM request is cancelled by the user."""
+
+
 class LLMClient:
-    def __init__(self, provider=None, model_name=None):
+    def __init__(self, provider=None, model_name=None, cancel_event=None):
         global _ecologits_initialized, _logfire_configured
 
         self.provider = provider or config.CURRENT_LLM_PROVIDER
         self.model_name = model_name or config.CURRENT_MODEL_NAME
+        self.cancel_event = cancel_event
 
-        # Initialize Logfire (once)
+        # Initialize Logfire (once) — pass explicit service_version so Logfire never spawns
+        # a blocking `git rev-parse HEAD` subprocess inside the persistent daemon.
         if logfire and not _logfire_configured:
-            logfire.configure(project_name="sc-ai-assist")
+            try:
+                logfire.configure(
+                    service_name="sc-ai-assist",
+                    service_version=_get_service_version(),
+                    send_to_logfire="if-token-present",
+                )
+            except Exception as e:
+                print(f"  ⚠ Logfire init skipped ({e}).", flush=True)
             _logfire_configured = True
         
         # Initialize EcoLogits with explicit provider list (once)
@@ -127,6 +209,8 @@ class LLMClient:
             self.openai_client = OpenAI(
                 api_key=config.OPENROUTER_API_KEY,
                 base_url="https://openrouter.ai/api/v1",
+                timeout=120.0,
+                max_retries=0,
                 default_headers={
                     "HTTP-Referer": "https://github.com/brugazoni/supercollider-AI-assist",
                     "X-Title": "SuperCollider AI Assist",
@@ -140,9 +224,25 @@ class LLMClient:
                 raise ValueError("The 'anthropic' python package is required. pip install anthropic")
             self.anthropic_client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
 
+    def cancel(self):
+        """Abort any in-flight HTTP request for this client."""
+        if self.cancel_event is not None:
+            self.cancel_event.set()
+        for attr in ("openai_client", "gemini_client", "anthropic_client"):
+            sdk_client = getattr(self, attr, None)
+            if sdk_client is not None and hasattr(sdk_client, "close"):
+                try:
+                    sdk_client.close()
+                except Exception:
+                    pass
+
     @traceable(name="LLM_Generate", run_type="llm")
-    def generate(self, prompt, system_instruction=None, temperature=0.7, thinking_budget=0):
+    def generate(self, prompt, system_instruction=None, temperature=0.7, thinking_budget=0, cancel_event=None):
         import time
+        active_cancel = cancel_event if cancel_event is not None else self.cancel_event
+        if active_cancel is not None and active_cancel.is_set():
+            raise RequestCancelledError("Request cancelled")
+
         start_time = time.time()
         
         # Logfire span for deep tracing
@@ -158,6 +258,9 @@ class LLMClient:
                     text, in_tok, out_tok, response_obj = self._generate_with_provider(prompt, system_instruction, temperature, thinking_budget)
             else:
                 text, in_tok, out_tok, response_obj = self._generate_with_provider(prompt, system_instruction, temperature, thinking_budget)
+
+            if active_cancel is not None and active_cancel.is_set():
+                raise RequestCancelledError("Request cancelled")
             
             # Extract EcoLogits impact if available
             impacts = getattr(response_obj, 'impacts', None)
@@ -192,7 +295,11 @@ class LLMClient:
                     "wcf_m3": 0.0
                 }
 
+        except RequestCancelledError:
+            raise
         except Exception as e:
+            if active_cancel is not None and active_cancel.is_set():
+                raise RequestCancelledError("Request cancelled") from e
             text = f"// API error: {str(e)}"
             in_tok = 0
             out_tok = 0
@@ -200,12 +307,29 @@ class LLMClient:
 
         latency = time.time() - start_time
         
-        # Cost calculation - Always FB (Fallback) as we use local config pricing
-        pricing = config.PRICING_PER_1M_TOKENS.get(self.model_name, {"in": 0.0, "out": 0.0})
-        cost = (in_tok / 1_000_000.0) * pricing["in"] + (out_tok / 1_000_000.0) * pricing["out"]
+        # Cost calculation - Fallback to local config pricing (supporting vendor/model or bare model keys)
+        bare_model = self.model_name.split("/")[-1] if "/" in self.model_name else self.model_name
+        pricing = (
+            config.PRICING_PER_1M_TOKENS.get(self.model_name)
+            or config.PRICING_PER_1M_TOKENS.get(bare_model)
+            or {"in": 0.0, "out": 0.0}
+        )
+        cost = (in_tok / 1_000_000.0) * max(0.0, pricing["in"]) + (out_tok / 1_000_000.0) * max(0.0, pricing["out"])
+        if cost == 0.0 and response_obj is not None:
+            usage_obj = getattr(response_obj, "usage", None)
+            native_cost = getattr(usage_obj, "cost", None) if usage_obj is not None else None
+            if native_cost is not None:
+                try:
+                    cost = float(native_cost)
+                except (TypeError, ValueError):
+                    pass
 
-        # Context Window metrics - Always FB as we pull from config.py
-        ctx_limit = config.CONTEXT_WINDOW_SIZES.get(self.model_name, 32000)
+        # Context Window metrics - Pull from config.py (supporting vendor/model or bare model keys)
+        ctx_limit = (
+            config.CONTEXT_WINDOW_SIZES.get(self.model_name)
+            or config.CONTEXT_WINDOW_SIZES.get(bare_model)
+            or 32000
+        )
         ctx_usage_pct = ((in_tok + out_tok) / ctx_limit) * 100.0 if ctx_limit > 0 else 0
 
         stats_dict = {
@@ -242,22 +366,29 @@ class LLMClient:
     def _generate_with_provider(self, prompt, system_instruction, temperature=0.7, thinking_budget=0):
         """Internal router that also returns the raw response object for impact metadata extraction."""
         if self.provider == "gemini":
-            return self._generate_gemini(prompt, system_instruction, temperature)
+            return self._generate_gemini(prompt, system_instruction, temperature, thinking_budget)
         elif self.provider == "openai":
-            return self._generate_openai(prompt, system_instruction, temperature)
+            return self._generate_openai(prompt, system_instruction, temperature, thinking_budget)
         elif self.provider == "anthropic":
             return self._generate_anthropic(prompt, system_instruction, temperature, thinking_budget)
         elif self.provider == "openrouter":
-            return self._generate_openai(prompt, system_instruction, temperature)
+            return self._generate_openai(prompt, system_instruction, temperature, thinking_budget)
         else:
             raise ValueError(f"unknown provider: {self.provider}")
 
-    def _generate_gemini(self, prompt, system_instruction, temperature=0.7):
+    def _generate_gemini(self, prompt, system_instruction, temperature=0.7, thinking_budget=0):
         config_obj = genai_types.GenerateContentConfig(
             temperature=temperature,
         )
         if system_instruction:
             config_obj.system_instruction = system_instruction
+        if hasattr(genai_types, "ThinkingConfig"):
+            try:
+                config_obj.thinking_config = genai_types.ThinkingConfig(
+                    thinking_budget=max(0, int(thinking_budget))
+                )
+            except Exception:
+                pass
 
         response = self.gemini_client.models.generate_content(
             model=self.model_name,
@@ -285,17 +416,33 @@ class LLMClient:
         text = strip_code_fences(raw_text)
         return text, usage.prompt_token_count, usage.candidates_token_count, response
 
-    def _generate_openai(self, prompt, system_instruction, temperature=0.7):
+    def _generate_openai(self, prompt, system_instruction, temperature=0.7, thinking_budget=0):
         messages = []
         if system_instruction:
             messages.append({'role': 'system', 'content': system_instruction})
         messages.append({'role': 'user', 'content': prompt})
 
-        response = self.openai_client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            temperature=temperature
-        )
+        kwargs = {
+            "model": self.model_name,
+            "messages": messages,
+            "temperature": temperature,
+            "timeout": 120.0,
+        }
+        if self.provider == "openrouter":
+            if thinking_budget and int(thinking_budget) > 0:
+                kwargs["extra_body"] = {"reasoning": {"max_tokens": int(thinking_budget)}}
+            else:
+                kwargs["extra_body"] = {"reasoning": {"effort": "low"}}
+
+        try:
+            response = self.openai_client.chat.completions.create(**kwargs)
+        except Exception as exc:
+            status_code = getattr(exc, "status_code", None)
+            if "extra_body" in kwargs and status_code == 400:
+                kwargs.pop("extra_body", None)
+                response = self.openai_client.chat.completions.create(**kwargs)
+            else:
+                raise
         text = strip_code_fences(response.choices[0].message.content)
         return text, response.usage.prompt_tokens, response.usage.completion_tokens, response
 

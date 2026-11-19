@@ -198,7 +198,7 @@ Window {
 	isClosed { ^view.isClosed; }
 	visible { ^view.visible; }
 	visible_ { arg boolean; view.visible_(boolean); }
-	front { view.front; }
+	front { if(Platform.ideName != "scval") { view.front; }; }
 	fullScreen { view.fullScreen; }
 	endFullScreen { view.endFullScreen; }
 	minimize { view.minimize; }

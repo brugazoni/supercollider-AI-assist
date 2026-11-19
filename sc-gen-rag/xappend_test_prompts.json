@@ -1,0 +1,10 @@
+{
+    "rag_append": "Um oceano é um grande corpo de água",
+    "rag_compose": "Um oceano é um grande corpo de água",
+    "rag_design": "Um oceano é um grande corpo de água",
+    "rag_generate": "Um oceano é um grande corpo de água",
+    "send_append": "em são luís do maranhão / a cidade de pedra e telha de bica / onde o mar bate nos muros escuros da praia grande / e o cheiro de maresia entra pelas frestas das venezianas coloniais. os homens passam suados carregando fardos de farinha d'água / e o sino da matriz toca as seis horas no poente roxo / enquanto a noite engole devagar os sobradões e os mastros dos saveiros.",
+    "send_compose": "Resumo: Entre 14h15 e 15h00 de 05/06/2026, 15% das requisições de autenticação falharam com HTTP 503. Causa raiz: nova consulta liberada sem fechamento de conexões no pool do Redis. Ação preventiva: adicionar gerenciador de contexto obrigatório e alerta quando o uso do pool ultrapassar 80%.",
+    "send_design": "ESTE MARCO DE GRANITO ASSINALA A INAUGURAÇÃO DA ESTAÇÃO FERROVIÁRIA DA SERRA EM 16 DE FEVEREIRO DE 1867, OBRA ERGUIDA PELO SUOR DE OPERÁRIOS E ENGENHEIROS PARA UNIR O PLANALTO AO PORTO DE SANTOS.",
+    "send_generate": "O Monotrilho de Poços de Caldas foi um sistema de monotrilho que servia a cidade de Poços de Caldas, no estado de Minas Gerais. A linha elevada interligava o terminal rodoviário da cidade até a área central, totalizando 6 km de extensão e 11 estações. Foi o primeiro sistema de monotrilho a operar no Brasil."
+}

@@ -10,7 +10,7 @@ SuperCollider code is structurally sound.
 Usage:
   python tests/test_auto_append_e2e.py --model gemini/gemini-3.5-flash
   python tests/test_auto_append_e2e.py --model anthropic/claude-3-7-sonnet --scenario B
-  python tests/test_auto_append_e2e.py --model gemini/gemini-2.5-flash --all
+  python tests/test_auto_append_e2e.py --model gemini/gemini-3.8-flash --all
 
 Arguments:
   --model    Required. The LLM model key (e.g. gemini/gemini-3.5-flash).
@@ -459,7 +459,7 @@ def main():
             Examples:
               python tests/test_auto_append_e2e.py --model gemini/gemini-3.5-flash
               python tests/test_auto_append_e2e.py --model anthropic/claude-3-7-sonnet --scenario A
-              python tests/test_auto_append_e2e.py --model gemini/gemini-2.5-flash --all --temp 0.5
+              python tests/test_auto_append_e2e.py --model gemini/gemini-3.8-flash --all --temp 0.5
         """)
     )
     parser.add_argument("--model", required=True,

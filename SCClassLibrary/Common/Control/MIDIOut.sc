@@ -15,6 +15,12 @@ MIDIClient {
 	classvar <initialized=false;
 	*init { arg inports, outports, verbose=true; // by default initialize all available ports
 								// you still must connect to them using MIDIIn.connect
+		if(Platform.ideName == "scval") {
+			sources = [];
+			destinations = [];
+			initialized = true;
+			^this
+		};
 		this.disposeClient; // remove old sources and destinations, in case init is called repeatedly
 		this.prInitClient;
 		this.list;
@@ -294,6 +300,7 @@ MIDIIn {
 
 	*connect { arg inport=0, device=0;
 		var uid,source;
+		if(Platform.ideName == "scval") { ^this };
 		if(MIDIClient.initialized.not,{ MIDIClient.init });
 		if(device.isNumber, {
 			if(device >= 0, {

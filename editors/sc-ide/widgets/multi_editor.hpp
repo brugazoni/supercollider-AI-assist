@@ -42,6 +42,7 @@ class DocumentManager;
 class GenericCodeEditor;
 class Main;
 class MultiSplitter;
+class PromptNavBar;
 struct Session;
 class SignalMultiplexer;
 
@@ -138,6 +139,7 @@ public:
 
     GenericCodeEditor* currentEditor();
     CodeEditorBox* currentBox() { return mCurrentEditorBox; }
+    PromptNavBar* promptNavBar() const { return mPromptNavBar; }
     void split(Qt::Orientation direction);
 
     QAction* action(ActionRole role) { return mActions[role]; }
@@ -216,6 +218,7 @@ private:
     QTabBar* mTabs;
     CodeEditorBox* mCurrentEditorBox;
     MultiSplitter* mSplitter;
+    PromptNavBar* mPromptNavBar;
     QIcon mDocModifiedIcon;
     QVBoxLayout* multiEditorLayout;
 };

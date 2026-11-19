@@ -770,3 +770,175 @@ class TestFailsafeFlow:
 
         # State should be updated even though the event wasn't set
         assert "\\safe" in gui_backend._composition_states["test.scd"]
+
+
+# ===========================================================================
+# Tests: Design Subtractive Fallback & Cross-Append Mode Fallbacks
+# ===========================================================================
+
+class TestDesignSubtractiveFallbackAndCrossAppend:
+    """Test the randomized subtractive synthesizer fallback for Design mode
+    and the RAG fallbacks for Compose and Generate in cmd_cross_append."""
+
+    def test_generate_design_subtractive_fallback_structure(self):
+        from code_validator import validate_and_fix
+        code = gui_backend._generate_design_subtractive_fallback("warm analog bass")
+        assert code.startswith("(")
+        assert code.endswith(")")
+        assert "Ndef(\\subtractiveDesign" in code
+        assert "RLPF.ar" in code
+        assert "HPF.ar" in code
+        assert "Pbindef(\\subtractiveDesignSeq" in code
+        _, fixes = validate_and_fix(code)
+        assert "WARNING: brackets are unbalanced" not in fixes
+
+    def test_generate_design_subtractive_fallback_is_randomized(self):
+        samples = {gui_backend._generate_design_subtractive_fallback("synth") for _ in range(5)}
+        assert len(samples) > 1, "Multiple invocations should produce randomized parameters"
+
+    def test_cmd_rag_lookup_design_returns_subtractive_synth(self, tmp_path, monkeypatch):
+        # When failsafe-design.scd exists, returns a valid design failsafe block;
+        # when absent, falls back to the randomized subtractive synthesizer.
+        res_live = gui_backend.cmd_rag_lookup({"prompt": "test synth", "mode": "design"})
+        assert "code" in res_live
+        assert res_live["code"].strip().startswith("(") and res_live["code"].strip().endswith(")")
+
+        monkeypatch.setattr(gui_backend.config, "CONTEXT_FOLDER", str(tmp_path))
+        result = gui_backend.cmd_rag_lookup({"prompt": "test synth", "mode": "design"})
+        assert "code" in result
+        assert "Ndef(\\subtractiveDesign" in result["code"]
+
+    def test_cmd_cross_append_returns_mode_specific_fallbacks(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(gui_backend, "_rag_failsafe_lookup", lambda p: "(Ndef(\\ragFallback, { SinOsc.ar(220) }).play;)")
+        monkeypatch.setattr(gui_backend, "cmd_generate_plan", lambda d: {"plan": "Mock plan", "last_stats": {}})
+        monkeypatch.setattr(
+            gui_backend,
+            "cmd_generate_code",
+            lambda d: {"code": "(\ns.waitForBoot({\n    Ndef(\\genTest, { SinOsc.ar(330) * 0.1 }).play;\n});\n)", "last_stats": {}},
+        )
+
+        # Compose mode -> uses RAG fallback
+        res_compose = gui_backend.cmd_cross_append({
+            "prompt": "ambient pad",
+            "mode": "compose",
+            "model": "gemini-3.8-flash",
+        })
+        assert res_compose["rag_fallback"] == "(Ndef(\\ragFallback, { SinOsc.ar(220) }).play;)"
+        assert res_compose["code"].startswith("(") and res_compose["code"].endswith(")")
+
+        # Generate mode -> uses RAG fallback
+        res_generate = gui_backend.cmd_cross_append({
+            "prompt": "rhythmic pulse",
+            "mode": "generate",
+            "model": "gemini-3.8-flash",
+        })
+        assert res_generate["rag_fallback"] == "(Ndef(\\ragFallback, { SinOsc.ar(220) }).play;)"
+        assert res_generate["code"].startswith("(") and res_generate["code"].endswith(")")
+
+        # Design mode -> uses failsafe-design.scd if available, or randomized subtractive synth when absent
+        monkeypatch.setattr(gui_backend.config, "CONTEXT_FOLDER", str(tmp_path))
+        res_design = gui_backend.cmd_cross_append({
+            "prompt": "acid lead",
+            "mode": "design",
+            "model": "gemini-3.8-flash",
+        })
+        assert "Ndef(\\subtractiveDesign" in res_design["rag_fallback"]
+        assert res_design["code"].startswith("(") and res_design["code"].endswith(")")
+
+    def test_cmd_cross_append_logs_complete_prompts_sys_msgs_and_observability_stats(self, monkeypatch):
+        """Verify that two-stage Cross-Append writes complete System Guidance,
+        complete User Prompt & Subtext, RAG context, and full observability
+        stats to the session log without duplicate GENERATE_PLAN/GENERATE_CODE entries."""
+        import llm_engine
+        import rag_engine
+
+        calls = []
+
+        class FakeLLMClient:
+            def __init__(self, provider, model_name):
+                self.provider = provider
+                self.model_name = model_name
+
+            def generate(self, user_prompt, system_prompt, temperature=0.7, thinking_budget=0):
+                calls.append((user_prompt, system_prompt))
+                if len(calls) == 1:
+                    return (
+                        "1. Sub bass foundation\n2. Rhythmic pulse layer",
+                        {
+                            "in_tokens": 1200,
+                            "out_tokens": 450,
+                            "cost": 0.00051,
+                            "time_s": 3.42,
+                            "temperature": temperature,
+                            "context_limit": 1000000,
+                            "context_usage_pct": 0.17,
+                            "energy_kwh": 0.001650,
+                            "gwp_kg": 0.000825,
+                            "adpe_kg": 0.0,
+                            "pe_mj": 0.0,
+                            "wcf_m3": 0.0,
+                            "environmental_estimated_flag": "Estimated",
+                        },
+                    )
+                return (
+                    "(\nNdef(\\pulse, { SinOsc.ar(110) * 0.1 }).play;\n)",
+                    {
+                        "in_tokens": 3400,
+                        "out_tokens": 820,
+                        "cost": 0.00118,
+                        "time_s": 5.18,
+                        "temperature": temperature,
+                        "context_limit": 1000000,
+                        "context_usage_pct": 0.42,
+                        "energy_kwh": 0.004220,
+                        "gwp_kg": 0.002110,
+                        "adpe_kg": 0.0,
+                        "pe_mj": 0.0,
+                        "wcf_m3": 0.0,
+                        "environmental_estimated_flag": "Estimated",
+                    },
+                )
+
+        monkeypatch.setattr(llm_engine, "LLMClient", FakeLLMClient)
+        monkeypatch.setattr(gui_backend, "_rag_failsafe_lookup", lambda p: "(Ndef(\\ragFallback, { SinOsc.ar(220) }).play;)")
+        monkeypatch.setattr(rag_engine, "query_index", lambda prompt, sources=None: "// RAG snippet: Ndef(\\ragExample)")
+        monkeypatch.setattr(sc_state_parser, "update_composition_state", lambda prev, code: "Active: \\pulse")
+
+        res = gui_backend.cmd_cross_append({
+            "prompt": "rhythmic pulse",
+            "mode": "generate",
+            "model": "gemini-3.8-flash",
+            "use_kb": True,
+        })
+
+        # Merged stats returned to UI
+        assert res["last_stats"]["in_tokens"] == 1200 + 3400
+        assert res["last_stats"]["out_tokens"] == 450 + 820
+
+        # Read the session log written to the isolated test log directory
+        log_path = gui_backend.utils._get_active_session_log_path("")
+        with open(log_path, "r", encoding="utf-8") as f:
+            log_content = f.read()
+
+        # Must contain CROSS_APPEND_GENERATE_PLAN and CROSS_APPEND_GENERATE (and NOT duplicate GENERATE_PLAN / GENERATE_CODE)
+        assert "USE CASE: CROSS_APPEND_GENERATE_PLAN" in log_content
+        assert "USE CASE: CROSS_APPEND_GENERATE |" in log_content
+        assert "USE CASE: GENERATE_PLAN" not in log_content
+        assert "USE CASE: GENERATE_CODE" not in log_content
+
+        # Observability stats must be non-zero and include Environmental Impact
+        assert "In 1200 / Out 450 | $0.00051 | 3.42s" in log_content
+        assert "In 3400 / Out 820 | $0.00118 | 5.18s" in log_content
+        assert "**Environmental Impact:**" in log_content
+        assert "Energy: 0.004220 kWh" in log_content
+
+        # System guidance must NOT be empty and must include RAG section
+        assert "**Knowledge Base RAG Used:**" in log_content
+        assert "// RAG snippet: Ndef(\\ragExample)" in log_content
+
+        # Complete prompts & subtexts must be logged (not just raw prompt or bare "Plan: ...")
+        assert "User Request: rhythmic pulse\n\nTask: Generate a composition plan proportional to the request's length." in log_content
+        assert "=== APPROVED COMPOSITION PLAN ===\n1. Sub bass foundation\n2. Rhythmic pulse layer" in log_content
+        assert "CRITICAL: Do not clear or free the Ndefs at the end." in log_content
+
+

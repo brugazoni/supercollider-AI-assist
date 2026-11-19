@@ -106,7 +106,7 @@ def load_system_instruction():
         except Exception: pass
     return sys_instr
 
-LOGS_DIR = "use-logs"
+LOGS_DIR = os.environ.get("SC_LOGS_DIR", "use-logs")
 SESSION_MAP_FILE = ".session_map.json"
 ACTIVE_SESSION_POINTER = ".active_session.txt"
 # Prefix for file-specific stats: .stats_<log_filename_no_ext>.json
@@ -195,13 +195,28 @@ def _get_active_session_log_path(active_file=None):
                 pass
 
         pointer_path = os.path.join(LOGS_DIR, ACTIVE_SESSION_POINTER)
-        if not session_map and os.path.exists(pointer_path):
+        if os.path.exists(pointer_path):
             with open(pointer_path, 'r', encoding='utf-8') as f:
                 name = f.read().strip()
-                if name:
-                    # Claim the bootstrap session for this first file
+                if name and name not in session_map.values():
+                    # Claim the current unclaimed/bootstrap session for this newly saved file
                     _update_session_map(active_file, name)
-                    return os.path.join(LOGS_DIR, name)
+                    log_path = os.path.join(LOGS_DIR, name)
+                    if os.path.exists(log_path):
+                        try:
+                            with open(log_path, 'r', encoding='utf-8') as lf:
+                                content = lf.read()
+                            if "*Target File:" not in content and content.startswith("# SuperCollider AI Session Log\n"):
+                                content = content.replace(
+                                    "# SuperCollider AI Session Log\n",
+                                    f"# SuperCollider AI Session Log\n*Target File: {active_file}*\n",
+                                    1,
+                                )
+                                with open(log_path, 'w', encoding='utf-8') as lf:
+                                    lf.write(content)
+                        except Exception:
+                            pass
+                    return log_path
         
         # Create a brand-new session log for this file
         return os.path.join(LOGS_DIR, init_session_log(active_file))
@@ -218,14 +233,20 @@ def _get_active_session_log_path(active_file=None):
     return os.path.join(LOGS_DIR, init_session_log())
 
 
-def sync_pending_logs_to_google_docs(allow_interactive=True):
+def sync_pending_logs_to_google_docs(allow_interactive=True, only_filename=None, max_seconds=None):
     """Sync any finalized (non-active) session log files to Google Docs.
-    
+
     Args:
         allow_interactive: If True, may open a browser for OAuth if needed.
             Set False during shutdown to avoid orphaned browser tabs.
+        only_filename: Optional log filename (e.g. '2026-11-18_12-42.md'). When set,
+            ONLY that specific session log is synced (used during IDE shutdown so we
+            never block on a backlog of historical benchmark logs).
+        max_seconds: Optional time budget in seconds for the sync loop.
     """
     import os
+    import time
+    t0 = time.monotonic()
     service = get_docs_service(allow_interactive=allow_interactive)
     if not service:
         return False
@@ -243,20 +264,27 @@ def sync_pending_logs_to_google_docs(allow_interactive=True):
         with open(pointer_path, 'r', encoding='utf-8') as f:
             active_filename = f.read().strip()
 
-    all_logs = sorted([f for f in os.listdir(LOGS_DIR)
-                       if f.endswith(".md") and not f.startswith(".")])
+    if only_filename:
+        all_logs = [only_filename] if os.path.exists(os.path.join(LOGS_DIR, only_filename)) else []
+    else:
+        all_logs = sorted([f for f in os.listdir(LOGS_DIR)
+                           if f.endswith(".md") and not f.startswith(".")])
     synced_count = 0
     for log_file in all_logs:
+        if max_seconds is not None and (time.monotonic() - t0) >= max_seconds:
+            print(f"Google Docs sync time budget ({max_seconds}s) reached; deferring remaining logs to next startup.", flush=True)
+            break
+
         # Don't sync the currently open live session log
         if log_file == active_filename:
             continue
-            
+
         if log_file not in synced_set:
             log_path = os.path.join(LOGS_DIR, log_file)
             try:
                 with open(log_path, 'r', encoding='utf-8') as f:
                     content = f.read()
-                
+
                 if "USE CASE:" not in content:
                     print(f"Skipping empty session log ({log_file}).", flush=True)
                     synced_set.add(log_file)
@@ -277,7 +305,7 @@ def sync_pending_logs_to_google_docs(allow_interactive=True):
                     synced_count += 1
             except Exception as e:
                 print(f"Failed to sync {log_file}: {e}", flush=True)
-    
+
     if synced_count:
         print(f"Synced {synced_count} session log(s) to Google Docs.", flush=True)
     return True
@@ -289,6 +317,7 @@ def append_to_session_log(command, system_prompt, user_prompt, response, stats_d
     import os
     import json
     
+    stats_dict = stats_dict or {}
     log_path = _get_active_session_log_path(active_file)
     log_filename = os.path.basename(log_path)
     
@@ -430,12 +459,13 @@ def get_session_stats_summary(active_file=None):
         return {"total_cost": 0.0, "total_time": 0.0, "total_energy": 0.0, "total_gwp": 0.0, "total_adpe": 0.0, "total_pe": 0.0, "total_wcf": 0.0, "providers": {}}
 
 
-def finalize_session_log(process_fixes):
+def finalize_session_log(process_fixes, sync_to_docs=True):
     """Teardown phase explicitly called when closing SC IDE.
-    Syncs completed logs to Google Drive.
+    Closes the active session pointer and optionally syncs only the active session log
+    with a short 3s budget (full background sync happens asynchronously on IDE startup).
     """
     import os
-    
+
     active_filename = None
     pointer_path = os.path.join(LOGS_DIR, ACTIVE_SESSION_POINTER)
     if os.path.exists(pointer_path):
@@ -443,18 +473,19 @@ def finalize_session_log(process_fixes):
             active_filename = f.read().strip()
         # The session has ended, destroy the pointer
         os.remove(pointer_path)
-        
+
     print(f"Closed session log {active_filename}", flush=True)
 
-    # Best-effort sync of any completed logs to Google Docs.
-    # Non-interactive: if credentials need browser re-auth, skip gracefully.
-    # The primary sync happens at session START (init_session_log) where
-    # interactive auth is allowed.
-    try:
-        sync_pending_logs_to_google_docs(allow_interactive=False)
-    except Exception as e:
-        print(f"Google Docs shutdown sync failed: {e}", flush=True)
-    
+    if sync_to_docs and active_filename:
+        try:
+            sync_pending_logs_to_google_docs(
+                allow_interactive=False,
+                only_filename=active_filename,
+                max_seconds=3.0,
+            )
+        except Exception as e:
+            print(f"Google Docs shutdown sync failed: {e}", flush=True)
+
     return active_filename
 
 

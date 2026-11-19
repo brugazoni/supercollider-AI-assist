@@ -1,0 +1,1156 @@
+{
+  "evaluated_at_utc": "2026-11-13 13:49:16 UTC",
+  "source_benchmark_report": "C:\\Users\\Bruno Gazoni\\Desktop\\supercollider-project\\supercollider-AI-assist\\sc-gen-rag\\tests\\multi_provider_benchmark_output\\kb_ab_next_20261113_100344\\benchmark_with_kb.json",
+  "judge_model": "anthropic/claude-opus-5.5",
+  "judge_tokens": {
+    "in": 64862,
+    "out": 7977,
+    "est_cost_usd": 0.41899
+  },
+  "models": [
+    {
+      "model_name": "OpenAI GPT-6.1 Sol",
+      "model_id": "openrouter:openai/gpt-6.1-sol",
+      "initial_pass_rate": 75.0,
+      "mean_scores_all_rounds": {
+        "variety": 6.0,
+        "technical_depth": 7.0,
+        "compositional_audacity": 5.5,
+        "coherence_with_prompt": 7.5,
+        "compositional_arcs": 5.62,
+        "creativity": 6.75
+      },
+      "mean_scores_completed_only": {
+        "variety": 6.0,
+        "technical_depth": 7.0,
+        "compositional_audacity": 5.5,
+        "coherence_with_prompt": 7.5,
+        "compositional_arcs": 5.62,
+        "creativity": 6.75
+      },
+      "overall_mean_all": 6.39,
+      "overall_mean_completed": 6.39,
+      "portfolio_variety_score": 4.5,
+      "artistic_signature": "A texture-and-gesture composer drawn to noise-band filtering, resonant modal banks (DynKlank/Ringz) and conceptually precise events, such as counted strikes and phasing impulse swarms. It favors concept-driven micro-structures over broad timbral exploration.",
+      "key_strengths": [
+        "Strong conceptual framing with precise, countable gestures (e.g., 27 FM strikes followed by silence) that give pieces clear dramaturgy",
+        "Effective use of modal resonators (DynKlank, Ringz) with Dust/Decay2 excitation for convincing inharmonic, percussive and metallic timbres",
+        "Solid rhythmic-process thinking, such as detuned, phase-staggered Impulse clocks producing emergent phasing textures"
+      ],
+      "blind_spots": [
+        "Narrow synthesis palette across rounds: 16 unique UGens, heavily reliant on SinOsc plus filtered noise, with generic FreeVerb tails and little granular, wavetable, physical-model or spectral work",
+        "Weak long-form evolution and code hygiene: static loops lacking Tdef/Pattern-driven arcs, abrupt parameter jumps, and sclang-only constructs (an `if` on a Collection) misused inside a SynthDef"
+      ],
+      "unique_ugens_total": 16,
+      "top_ugens": [
+        [
+          "SinOsc",
+          4
+        ],
+        [
+          "BPF",
+          3
+        ],
+        [
+          "PinkNoise",
+          3
+        ],
+        [
+          "WhiteNoise",
+          3
+        ],
+        [
+          "HPF",
+          3
+        ],
+        [
+          "LPF",
+          2
+        ],
+        [
+          "Decay2",
+          2
+        ],
+        [
+          "DynKlank",
+          2
+        ],
+        [
+          "LFNoise2",
+          1
+        ],
+        [
+          "Ndef",
+          1
+        ],
+        [
+          "Ringz",
+          1
+        ],
+        [
+          "RLPF",
+          1
+        ]
+      ],
+      "arch_constructs": {
+        "Ndef": 3,
+        "Pbindef": 3,
+        "SynthDef": 2,
+        "Tdef": 1,
+        "Bus": 2,
+        "Routine": 1,
+        "MIDIdef": 1,
+        "GUI": 1
+      },
+      "mean_loc": 140.0,
+      "by_mode": {
+        "append": {
+          "variety": 5.5,
+          "technical_depth": 7.0,
+          "compositional_audacity": 6.0,
+          "coherence_with_prompt": 8.0,
+          "compositional_arcs": 7.0,
+          "creativity": 7.5,
+          "overall": 6.83
+        },
+        "compose": {
+          "variety": 7.0,
+          "technical_depth": 7.0,
+          "compositional_audacity": 6.5,
+          "coherence_with_prompt": 8.5,
+          "compositional_arcs": 8.0,
+          "creativity": 7.5,
+          "overall": 7.42
+        },
+        "design": {
+          "variety": 5.0,
+          "technical_depth": 7.0,
+          "compositional_audacity": 4.5,
+          "coherence_with_prompt": 6.0,
+          "compositional_arcs": 3.5,
+          "creativity": 5.5,
+          "overall": 5.25
+        },
+        "generate": {
+          "variety": 6.5,
+          "technical_depth": 7.0,
+          "compositional_audacity": 5.0,
+          "coherence_with_prompt": 7.5,
+          "compositional_arcs": 4.0,
+          "creativity": 6.5,
+          "overall": 6.08
+        }
+      },
+      "rounds": [
+        {
+          "round_index": 1,
+          "mode": "append",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 58,
+            "comment_lines": 8,
+            "unique_ugens": [
+              "BPF",
+              "LFNoise2",
+              "LPF",
+              "PinkNoise",
+              "SinOsc",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 6,
+            "arch_constructs": [
+              "Ndef",
+              "Pbindef"
+            ]
+          },
+          "scores": {
+            "variety": 5.5,
+            "technical_depth": 7.0,
+            "compositional_audacity": 6.0,
+            "coherence_with_prompt": 8.0,
+            "compositional_arcs": 7.0,
+            "creativity": 7.5
+          },
+          "overall_score": 6.83,
+          "standout_technique": "Exactly 27 FM paper-fold strikes, then suspended silence",
+          "weakness": "Limited synthesis palette; the storm drone is mostly sine and noise",
+          "rationale": "The FM-plus-bandpassed-noise 'fold' instrument plays exactly 27 events and then falls silent, a clever numeric metaphor for the 27 years and the halted explanation. The Pseg-driven Antarctic drone builds tension that never breaks, which fits the frozen waiter and the storm 'prestes a desabar'. Architecture is clean: \\set slots, LeakDC, tanh, and rollback notes are all present. The timbres, however, stay conventional: sine partials, pink noise and simple FM."
+        },
+        {
+          "round_index": 2,
+          "mode": "compose",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 176,
+            "comment_lines": 2,
+            "unique_ugens": [
+              "BPF",
+              "Decay2",
+              "DynKlank",
+              "HPF",
+              "LPF",
+              "Ndef",
+              "PinkNoise",
+              "Ringz",
+              "SinOsc",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 10,
+            "arch_constructs": [
+              "SynthDef",
+              "Ndef",
+              "Pbindef",
+              "Tdef",
+              "Bus"
+            ]
+          },
+          "scores": {
+            "variety": 7.0,
+            "technical_depth": 7.0,
+            "compositional_audacity": 6.5,
+            "coherence_with_prompt": 8.5,
+            "compositional_arcs": 8.0,
+            "creativity": 7.5
+          },
+          "overall_score": 7.42,
+          "standout_technique": "Twelve detuned Impulse clocks with staggered phases creating phasing swarm",
+          "weakness": "Only twelve clocks; mid-section drift jumps break microscopic-dephasing subtlety",
+          "rationale": "The piece builds its percussion from noise-excited Ringz escapements, DynKlank carillons with inharmonic French-bell partials, FM spring windings, and a breathing BPF-noise layer. The core metaphor works: detuned pendulum rates make the dephasing the instrument, which captures the prompt's idea well. The Tdef shapes a clear arc from a single pendulum, through the swarm and chimes, to the breath and a final strike. On the technical side, the in-Ndef Ringz clocks never fade with xset envelopes but simply drop to amp 0. The 0.13 drift steps also become coarse detunings rather than microscopic phase shifts, and the reverb and allpass effects slots are fairly conventional."
+        },
+        {
+          "round_index": 3,
+          "mode": "design",
+          "timed_out": false,
+          "initial_valid": false,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 217,
+            "comment_lines": 0,
+            "unique_ugens": [
+              "HPF",
+              "RLPF",
+              "SinOsc",
+              "VarSaw"
+            ],
+            "unique_ugen_count": 4,
+            "arch_constructs": [
+              "SynthDef",
+              "Routine",
+              "MIDIdef",
+              "GUI",
+              "Bus"
+            ]
+          },
+          "scores": {
+            "variety": 5.0,
+            "technical_depth": 7.0,
+            "compositional_audacity": 4.5,
+            "coherence_with_prompt": 6.0,
+            "compositional_arcs": 3.5,
+            "creativity": 5.5
+          },
+          "overall_score": 5.25,
+          "standout_technique": "Phase-rotating stereo SinOsc pair evoking Lissajous orbits",
+          "weakness": "Dead sclang `if` on Collection inside SynthDef; generic FreeVerb tail",
+          "rationale": "Solid MIDI/GUI architecture with bus-mapped parameters, grouped routing, LeakDC and a limiter on the master, though the language-side `isKindOf` check inside the SynthDef is fragile, dead logic. The synthesis is modest: wavefolding VarSaw plus a stereo phase-modulated sine pair whose slow orbit nods to rotating Lissajous figures, but the palette is thin and FreeVerb-clichéd. As a design instrument it has no autonomous temporal arc, and the phosphor/modular imagery is only lightly translated into DSP."
+        },
+        {
+          "round_index": 4,
+          "mode": "generate",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 109,
+            "comment_lines": 12,
+            "unique_ugens": [
+              "BPF",
+              "Decay2",
+              "Dust",
+              "DynKlank",
+              "HPF",
+              "PinkNoise",
+              "Saw",
+              "SelectX",
+              "SinOsc",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 10,
+            "arch_constructs": [
+              "Ndef",
+              "Pbindef"
+            ]
+          },
+          "scores": {
+            "variety": 6.5,
+            "technical_depth": 7.0,
+            "compositional_audacity": 5.0,
+            "coherence_with_prompt": 7.5,
+            "compositional_arcs": 4.0,
+            "creativity": 6.5
+          },
+          "overall_score": 6.08,
+          "standout_technique": "DynKlank inharmonic tin modes with Dust scatter for gungas",
+          "weakness": "Static loops; no Tdef-driven arc or cortejo evolution",
+          "rationale": "The code uses clean Ndef design with \\set pattern slots, \\filter reverb and comb slots, LeakDC, and tanh saturation. Its three-layer texture maps well onto the prompt: pitch-bent skins for the caixas, inharmonic DynKlank metal with jittered Dust for the ankle gungas, and a formant call-and-response voice. Weaknesses include possible t_trig/K2A trigger fragility in \\set contexts and the FreeVerb2 cliché. The rhythms are simple and the piece runs as an unchanging loop apart from commented manual tweaks, so it never builds the processional development of a desfile."
+        }
+      ]
+    },
+    {
+      "model_name": "Gemini 4 Carbon",
+      "model_id": "openrouter:google/gemini-4-carbon",
+      "initial_pass_rate": 50.0,
+      "mean_scores_all_rounds": {
+        "variety": 5.62,
+        "technical_depth": 5.12,
+        "compositional_audacity": 4.88,
+        "coherence_with_prompt": 6.25,
+        "compositional_arcs": 4.62,
+        "creativity": 5.75
+      },
+      "mean_scores_completed_only": {
+        "variety": 5.62,
+        "technical_depth": 5.12,
+        "compositional_audacity": 4.88,
+        "coherence_with_prompt": 6.25,
+        "compositional_arcs": 4.62,
+        "creativity": 5.75
+      },
+      "overall_mean_all": 5.37,
+      "overall_mean_completed": 5.37,
+      "portfolio_variety_score": 4.5,
+      "artistic_signature": "A noise-and-resonator texturalist that favors filtered noise, Dust-excited DynKlank modal bodies, and subtractive Saw/RLPF voices, often with witty conceptual programmatic hooks such as map-folding creases and tin-can pellets. Its work is organized as Ndef/Pbindef live-coding loops rather than shaped compositions.",
+      "key_strengths": [
+        "Convincing physical-modeling-style textures built from impulsive excitation (Dust, Decay2) driving modal resonators (DynKlank, Ringz).",
+        "Inventive rhythmic ideas, notably the phase-drifting Pbindef pendulums at slightly detuned durations (0.487/0.5/0.519) that produce Reich-like process music.",
+        "Imaginative mapping of programmatic concepts onto DSP, such as using Fold wavefolding on noise bursts to suggest paper creases, layered over a solid filter-chain vocabulary (BPF, HPF, RLPF, MoogFF)."
+      ],
+      "blind_spots": [
+        "Weak macro-form: pieces loop statically without climaxes, collapses, or long-range evolution, and it lacks Tdef/Routine-driven structural arcs.",
+        "Reliability problems: the design round collapsed into a single-SinOsc placeholder that ignored the modular and Lissajous requirements, and other rounds contained code bugs (duplicate \\dur keys, a DynKlank frequency-scale bug, stray scene references)."
+      ],
+      "unique_ugens_total": 20,
+      "top_ugens": [
+        [
+          "SinOsc",
+          4
+        ],
+        [
+          "BPF",
+          3
+        ],
+        [
+          "DynKlank",
+          3
+        ],
+        [
+          "HPF",
+          3
+        ],
+        [
+          "RLPF",
+          3
+        ],
+        [
+          "WhiteNoise",
+          3
+        ],
+        [
+          "PinkNoise",
+          2
+        ],
+        [
+          "Saw",
+          2
+        ],
+        [
+          "Decay2",
+          2
+        ],
+        [
+          "Dust",
+          2
+        ],
+        [
+          "LFNoise1",
+          2
+        ],
+        [
+          "Fold",
+          1
+        ]
+      ],
+      "arch_constructs": {
+        "Ndef": 4,
+        "Pbindef": 3,
+        "SynthDef": 1,
+        "Tdef": 1,
+        "Bus": 1
+      },
+      "mean_loc": 120.8,
+      "by_mode": {
+        "append": {
+          "variety": 7.0,
+          "technical_depth": 6.5,
+          "compositional_audacity": 6.0,
+          "coherence_with_prompt": 8.0,
+          "compositional_arcs": 5.0,
+          "creativity": 7.5,
+          "overall": 6.67
+        },
+        "compose": {
+          "variety": 7.5,
+          "technical_depth": 6.5,
+          "compositional_audacity": 6.5,
+          "coherence_with_prompt": 8.5,
+          "compositional_arcs": 8.0,
+          "creativity": 7.5,
+          "overall": 7.42
+        },
+        "design": {
+          "variety": 1.0,
+          "technical_depth": 1.0,
+          "compositional_audacity": 1.0,
+          "coherence_with_prompt": 1.0,
+          "compositional_arcs": 1.0,
+          "creativity": 1.0,
+          "overall": 1.0
+        },
+        "generate": {
+          "variety": 7.0,
+          "technical_depth": 6.5,
+          "compositional_audacity": 6.0,
+          "coherence_with_prompt": 7.5,
+          "compositional_arcs": 4.5,
+          "creativity": 7.0,
+          "overall": 6.42
+        }
+      },
+      "rounds": [
+        {
+          "round_index": 1,
+          "mode": "append",
+          "timed_out": false,
+          "initial_valid": false,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 102,
+            "comment_lines": 25,
+            "unique_ugens": [
+              "BPF",
+              "DynKlank",
+              "Fold",
+              "HPF",
+              "LFNoise2",
+              "MoogFF",
+              "PinkNoise",
+              "RLPF",
+              "Saw",
+              "SinOsc",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 11,
+            "arch_constructs": [
+              "Ndef",
+              "Pbindef"
+            ]
+          },
+          "scores": {
+            "variety": 7.0,
+            "technical_depth": 6.5,
+            "compositional_audacity": 6.0,
+            "coherence_with_prompt": 8.0,
+            "compositional_arcs": 5.0,
+            "creativity": 7.5
+          },
+          "overall_score": 6.67,
+          "standout_technique": "Wavefolded noise bursts emulating pedantic map-folding paper creases",
+          "weakness": "Static looping sequences; storm never actually collapses or climaxes",
+          "rationale": "The piece combines folded and bandpassed noise, DynKlank glass resonance, and a MoogFF sub cluster with GVerb. The Ndef slot routing via \\set and \\filter is idiomatic, but the GVerb filter sums to mono, there is a fragile isKindOf branch, and the \\set Pbindef ignores the SynthDef envelope semantics. The prompt mapping is evocative: methodical folding rhythms, a frozen bottle shimmer, and 8+8+11=27-beat barometric drops. Form stays as three independent loops without a macro arc toward the promised storm."
+        },
+        {
+          "round_index": 2,
+          "mode": "compose",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 246,
+            "comment_lines": 20,
+            "unique_ugens": [
+              "BPF",
+              "Decay2",
+              "Dust",
+              "DynKlank",
+              "HPF",
+              "LFNoise1",
+              "LPF",
+              "Ndef",
+              "PinkNoise",
+              "RLPF",
+              "Ringz",
+              "SinOsc",
+              "TExpRand",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 14,
+            "arch_constructs": [
+              "SynthDef",
+              "Ndef",
+              "Pbindef",
+              "Tdef",
+              "Bus"
+            ]
+          },
+          "scores": {
+            "variety": 7.5,
+            "technical_depth": 6.5,
+            "compositional_audacity": 6.5,
+            "coherence_with_prompt": 8.5,
+            "compositional_arcs": 8.0,
+            "creativity": 7.5
+          },
+          "overall_score": 7.42,
+          "standout_technique": "Phase-drifting Pbindef pendulums at 0.487/0.5/0.519 durations",
+          "weakness": "Duplicate \\dur keys, a DynKlank frequency-scale bug, and stray references to other scenes",
+          "rationale": "The piece maps the prompt well. Three pendulums with slightly mismatched periods give Reich-like drift. A Dust/CombL swarm stands in for the two hundred clocks, and a breathing additive/noise pad blooms when the watchmaker closes his eyes. The timbres are varied: DynKlank brass escapements, FM pocket watches, FM-plus-modal carillons, and a ratcheting spring. There are several technical flaws. The carillon Pbindef has two \\dur keys, so the later one silently overrides the first. The escapamento passes freq/1000 to DynKlank as its frequency scale. The score also stops and resets Pbindefs and Ndefs from other scenes, and the master bus is summed without much gain management. The four-cue arc builds toward saturation and then settles into breath, which gives convincing narrative pacing."
+        },
+        {
+          "round_index": 3,
+          "mode": "design",
+          "timed_out": false,
+          "initial_valid": false,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 4,
+            "comment_lines": 1,
+            "unique_ugens": [
+              "SinOsc"
+            ],
+            "unique_ugen_count": 1,
+            "arch_constructs": [
+              "Ndef"
+            ]
+          },
+          "scores": {
+            "variety": 1.0,
+            "technical_depth": 1.0,
+            "compositional_audacity": 1.0,
+            "coherence_with_prompt": 1.0,
+            "compositional_arcs": 1.0,
+            "creativity": 1.0
+          },
+          "overall_score": 1.0,
+          "standout_technique": "None; a single fallback sine tone",
+          "weakness": "Trivial placeholder ignores modular, Lissajous, and design requirements",
+          "rationale": "The code is a safe-fallback 440 Hz sine at low amplitude, produced after the initial compilation failed. It has no modulation, patching metaphor, stereo phase play for Lissajous figures, GUI, or MIDI architecture as design mode expects. It also has no temporal evolution and no connection to the prompt's imagery of the modular cabinet and oscilloscope."
+        },
+        {
+          "round_index": 4,
+          "mode": "generate",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 131,
+            "comment_lines": 11,
+            "unique_ugens": [
+              "BPF",
+              "Decay2",
+              "Dust",
+              "DynKlank",
+              "HPF",
+              "LFNoise1",
+              "RLPF",
+              "Saw",
+              "SelectX",
+              "SinOsc",
+              "TRand",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 12,
+            "arch_constructs": [
+              "Ndef",
+              "Pbindef"
+            ]
+          },
+          "scores": {
+            "variety": 7.0,
+            "technical_depth": 6.5,
+            "compositional_audacity": 6.0,
+            "coherence_with_prompt": 7.5,
+            "compositional_arcs": 4.5,
+            "creativity": 7.0
+          },
+          "overall_score": 6.42,
+          "standout_technique": "DynKlank tin-can modes excited by Dust pellet grains",
+          "weakness": "No macro form evolution; static looping patterns throughout",
+          "rationale": "The code layers three instruments. The first is a pitch-enveloped caixa with a tanh drive. The second is a convincing gunga rattle built from Dust-excited DynKlank inharmonic modes. The third is a formant-morphing Mixolydian 'canto' with an FM bell accent, which maps well onto the procession and devotional imagery. Technically it is mostly sound. However, the GVerb filter is fed a summed signal, which collapses the stereo image. The `if isKindOf` branches are odd boilerplate. The `\\set` patterns rely on `t_trig` behaving correctly. Structurally the piece is a static loop. There is no Tdef or macro arc to stage the parade's arrival, climax, or departure beyond the commented live tweaks."
+        }
+      ]
+    },
+    {
+      "model_name": "Claude Sonnet 5.5",
+      "model_id": "openrouter:anthropic/claude-sonnet-5.5",
+      "initial_pass_rate": 75.0,
+      "mean_scores_all_rounds": {
+        "variety": 4.88,
+        "technical_depth": 4.62,
+        "compositional_audacity": 4.0,
+        "coherence_with_prompt": 5.5,
+        "compositional_arcs": 4.12,
+        "creativity": 4.88
+      },
+      "mean_scores_completed_only": {
+        "variety": 4.88,
+        "technical_depth": 4.62,
+        "compositional_audacity": 4.0,
+        "coherence_with_prompt": 5.5,
+        "compositional_arcs": 4.12,
+        "creativity": 4.88
+      },
+      "overall_mean_all": 4.67,
+      "overall_mean_completed": 4.67,
+      "portfolio_variety_score": 4.0,
+      "artistic_signature": "A resonator-centric noise sculptor that favors filtered noise excitations fed through DynKlank and Ringz banks to evoke glassy, metallic, or ritual-percussive timbres, organized via Ndef/Pbindef loops rather than through-composed form. When it lands, it shows a sensitivity to texture and polyrhythmic drift, but its structural thinking is static and its output is erratic.",
+      "key_strengths": [
+        "Idiomatic use of modal resonators (DynKlank, Ringz) excited by Pink/White noise and Dust to create convincing inharmonic, physical-model-like timbres such as glass tones and tin shakers",
+        "Rhythmic ingenuity in pattern space, notably detuned Pbindef durations that produce phasing clock drift",
+        "Comfortable with JITLib live-coding architecture (Ndef, Pbindef, Tdef) for layered, modular sound design"
+      ],
+      "blind_spots": [
+        "Weak macro-form: pieces cycle, reset, or loop statically instead of building arcs, climaxes, or collapses, and Tdef-driven processional structure is rarely exploited",
+        "Unreliable under design-mode demands, including a trivial SinOsc fallback that ignored the prompt, plus a narrow UGen palette (16 total) with no FM, granular, spectral, or spatial processing and occasional API misuse such as xset on Ndef"
+      ],
+      "unique_ugens_total": 16,
+      "top_ugens": [
+        [
+          "SinOsc",
+          4
+        ],
+        [
+          "BPF",
+          3
+        ],
+        [
+          "LFNoise1",
+          3
+        ],
+        [
+          "PinkNoise",
+          3
+        ],
+        [
+          "WhiteNoise",
+          3
+        ],
+        [
+          "DynKlank",
+          2
+        ],
+        [
+          "LPF",
+          2
+        ],
+        [
+          "Saw",
+          2
+        ],
+        [
+          "Ringz",
+          2
+        ],
+        [
+          "RLPF",
+          1
+        ],
+        [
+          "Dust",
+          1
+        ],
+        [
+          "Ndef",
+          1
+        ]
+      ],
+      "arch_constructs": {
+        "Ndef": 4,
+        "Pbindef": 3,
+        "SynthDef": 1,
+        "Tdef": 1,
+        "Bus": 1
+      },
+      "mean_loc": 72.2,
+      "by_mode": {
+        "append": {
+          "variety": 6.0,
+          "technical_depth": 5.5,
+          "compositional_audacity": 4.5,
+          "coherence_with_prompt": 6.5,
+          "compositional_arcs": 4.5,
+          "creativity": 6.0,
+          "overall": 5.5
+        },
+        "compose": {
+          "variety": 6.5,
+          "technical_depth": 6.0,
+          "compositional_audacity": 6.0,
+          "coherence_with_prompt": 8.0,
+          "compositional_arcs": 7.5,
+          "creativity": 7.0,
+          "overall": 6.83
+        },
+        "design": {
+          "variety": 1.0,
+          "technical_depth": 1.0,
+          "compositional_audacity": 1.0,
+          "coherence_with_prompt": 1.0,
+          "compositional_arcs": 1.0,
+          "creativity": 1.0,
+          "overall": 1.0
+        },
+        "generate": {
+          "variety": 6.0,
+          "technical_depth": 6.0,
+          "compositional_audacity": 4.5,
+          "coherence_with_prompt": 6.5,
+          "compositional_arcs": 3.5,
+          "creativity": 5.5,
+          "overall": 5.33
+        }
+      },
+      "rounds": [
+        {
+          "round_index": 1,
+          "mode": "append",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 79,
+            "comment_lines": 13,
+            "unique_ugens": [
+              "BPF",
+              "DynKlank",
+              "LFNoise1",
+              "LPF",
+              "PinkNoise",
+              "RLPF",
+              "Saw",
+              "SinOsc",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 9,
+            "arch_constructs": [
+              "Ndef",
+              "Pbindef"
+            ]
+          },
+          "scores": {
+            "variety": 6.0,
+            "technical_depth": 5.5,
+            "compositional_audacity": 4.5,
+            "coherence_with_prompt": 6.5,
+            "compositional_arcs": 4.5,
+            "creativity": 6.0
+          },
+          "overall_score": 5.5,
+          "standout_technique": "DynKlank glassy waiter tone with long-attack suspended excitation",
+          "weakness": "Storm cycles and resets instead of building to collapse",
+          "rationale": "The palette is reasonably varied. It includes FM plucks with a noise-burst 'paper fold', BPF-pink-noise room tone, detuned saw drone with tanh saturation, and DynKlank resonators. Weaknesses include wet10 set to 0 on the comb effect, which makes it dead code, the unused t_trig in mesaHum, and an absent master gain stage. The storm Pseq loops back to low tension every 32 seconds rather than escalating to the 'about to collapse' climax. The waiter's glass tone works as a clever image of suspension, and the pedantic arpeggio captures the map lecture. Overall the form stays static and loop-based, with no true silence contrast or rupture."
+        },
+        {
+          "round_index": 2,
+          "mode": "compose",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 112,
+            "comment_lines": 3,
+            "unique_ugens": [
+              "BPF",
+              "Dust",
+              "DynKlank",
+              "LFNoise1",
+              "LPF",
+              "Ndef",
+              "PinkNoise",
+              "Ringz",
+              "SinOsc",
+              "TExpRand",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 11,
+            "arch_constructs": [
+              "SynthDef",
+              "Ndef",
+              "Pbindef",
+              "Tdef",
+              "Bus"
+            ]
+          },
+          "scores": {
+            "variety": 6.5,
+            "technical_depth": 6.0,
+            "compositional_audacity": 6.0,
+            "coherence_with_prompt": 8.0,
+            "compositional_arcs": 7.5,
+            "creativity": 7.0
+          },
+          "overall_score": 6.83,
+          "standout_technique": "Detuned Pbindef durations creating phasing clock drift",
+          "weakness": "Short piece; bell partials generic, xset misuse on Ndef",
+          "rationale": "The phasing between near-identical durations (0.5, 0.503, 0.497) maps directly onto the prompt's microscopic gear offsets. DynKlank escapement ticks, FM carillon, and a Ringz Dust swarm give a reasonable palette. There is a clear arc from a lone clock through the swarm and the chime to the breath and a return to one tick. Several technical problems undercut it. Ndef xset crossfades the whole proxy rather than modulating smoothly. The Pgeom dur gets reassigned every loop iteration. Pbindef \\clockA is re-played after stop, and since clear wipes it, the earlier keys persist only by chance. The \"breath\" is a fairly generic filtered-noise pad, and the whole piece lasts under a minute."
+        },
+        {
+          "round_index": 3,
+          "mode": "design",
+          "timed_out": false,
+          "initial_valid": false,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 4,
+            "comment_lines": 1,
+            "unique_ugens": [
+              "SinOsc"
+            ],
+            "unique_ugen_count": 1,
+            "arch_constructs": [
+              "Ndef"
+            ]
+          },
+          "scores": {
+            "variety": 1.0,
+            "technical_depth": 1.0,
+            "compositional_audacity": 1.0,
+            "coherence_with_prompt": 1.0,
+            "compositional_arcs": 1.0,
+            "creativity": 1.0
+          },
+          "overall_score": 1.0,
+          "standout_technique": "Compiles cleanly as a minimal fallback Ndef",
+          "weakness": "Trivial sine fallback ignores the prompt and design-mode requirements",
+          "rationale": "The code is a single 440 Hz SinOsc fallback with no modulation, routing, GUI, MIDI or scope architecture, so design mode is entirely unmet. It never touches the modular cabinet, pin matrices or rotating Lissajous imagery, which invites quadrature oscillators, phase-drifting ratios or a scope view. There is no form, evolution or creative mapping; it is placeholder boilerplate."
+        },
+        {
+          "round_index": 4,
+          "mode": "generate",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 94,
+            "comment_lines": 13,
+            "unique_ugens": [
+              "BPF",
+              "Decay2",
+              "HPF",
+              "LFNoise1",
+              "PinkNoise",
+              "Ringz",
+              "Saw",
+              "SelectX",
+              "SinOsc",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 10,
+            "arch_constructs": [
+              "Ndef",
+              "Pbindef"
+            ]
+          },
+          "scores": {
+            "variety": 6.0,
+            "technical_depth": 6.0,
+            "compositional_audacity": 4.5,
+            "coherence_with_prompt": 6.5,
+            "compositional_arcs": 3.5,
+            "creativity": 5.5
+          },
+          "overall_score": 5.33,
+          "standout_technique": "Ringz-tuned inharmonic noise bursts emulating gunga tin shakers",
+          "weakness": "Static loops with no Tdef-driven processional arc",
+          "rationale": "The code uses sound Ndef architecture: \\set slot Pbindef sequencing, \\filter FX slots, LeakDC and tanh drum saturation, and formant vowel morphing via SelectX. One fragility is that the Gunga CombL runs on raw stereo without a gain trim, so its output could build up. The gungas are rendered convincingly as metallic Ringz noise, and the chant formants nod to the ternos de congo. However, the rhythm is a generic syncopated loop rather than a congo or moçambique cadence, and nothing evolves over time to suggest procession or coronation."
+        }
+      ]
+    },
+    {
+      "model_name": "DeepSeek V4 Pro",
+      "model_id": "openrouter:deepseek/deepseek-v4-pro",
+      "initial_pass_rate": 25.0,
+      "mean_scores_all_rounds": {
+        "variety": 3.0,
+        "technical_depth": 3.0,
+        "compositional_audacity": 2.62,
+        "coherence_with_prompt": 3.5,
+        "compositional_arcs": 2.75,
+        "creativity": 3.12
+      },
+      "mean_scores_completed_only": {
+        "variety": 3.0,
+        "technical_depth": 3.0,
+        "compositional_audacity": 2.62,
+        "coherence_with_prompt": 3.5,
+        "compositional_arcs": 2.75,
+        "creativity": 3.12
+      },
+      "overall_mean_all": 3.0,
+      "overall_mean_completed": 3.0,
+      "portfolio_variety_score": 2.5,
+      "artistic_signature": "When it engages, this model leans toward resonator-based textures (Ringz, DynKlank) and spread-based swarm ideas built in an Ndef/Pbindef live-coding style. Half its rounds collapse into a lone SinOsc fallback, so its personality is inconsistent and mostly undeveloped.",
+      "key_strengths": [
+        "Conceptual sound-design ideas such as the 30-voice detuned LFPulse swarm that maps phase drift through spread",
+        "Use of resonant filtering (Ringz, DynKlank, BPF with Decay2) to turn noise bursts into evocative physical-object timbres",
+        "Familiarity with JITLib constructs (Ndef, Pbindef, Tdef) for modular, live-patchable architectures"
+      ],
+      "blind_spots": [
+        "Frequent total failure modes: design and generate rounds produced trivial single-sine placeholders that ignored the prompt entirely, including the Congada percussion brief",
+        "Shallow musical development and generic defaults: static loops, C major harmony at odds with the expressive intent, stock FreeVerb2, plain sine ticks, and fragile bus/limiter routing"
+      ],
+      "unique_ugens_total": 14,
+      "top_ugens": [
+        [
+          "SinOsc",
+          4
+        ],
+        [
+          "LFTri",
+          2
+        ],
+        [
+          "WhiteNoise",
+          2
+        ],
+        [
+          "PinkNoise",
+          1
+        ],
+        [
+          "Pluck",
+          1
+        ],
+        [
+          "RLPF",
+          1
+        ],
+        [
+          "Ringz",
+          1
+        ],
+        [
+          "BPF",
+          1
+        ],
+        [
+          "Decay2",
+          1
+        ],
+        [
+          "DynKlank",
+          1
+        ],
+        [
+          "LFNoise2",
+          1
+        ],
+        [
+          "LFPulse",
+          1
+        ]
+      ],
+      "arch_constructs": {
+        "Ndef": 4,
+        "Pbindef": 2,
+        "SynthDef": 1,
+        "Tdef": 1,
+        "Bus": 1
+      },
+      "mean_loc": 52.2,
+      "by_mode": {
+        "append": {
+          "variety": 4.5,
+          "technical_depth": 5.0,
+          "compositional_audacity": 3.5,
+          "coherence_with_prompt": 5.0,
+          "compositional_arcs": 2.5,
+          "creativity": 4.5,
+          "overall": 4.17
+        },
+        "compose": {
+          "variety": 5.5,
+          "technical_depth": 5.0,
+          "compositional_audacity": 5.0,
+          "coherence_with_prompt": 7.0,
+          "compositional_arcs": 6.5,
+          "creativity": 6.0,
+          "overall": 5.83
+        },
+        "design": {
+          "variety": 1.0,
+          "technical_depth": 1.0,
+          "compositional_audacity": 1.0,
+          "coherence_with_prompt": 1.0,
+          "compositional_arcs": 1.0,
+          "creativity": 1.0,
+          "overall": 1.0
+        },
+        "generate": {
+          "variety": 1.0,
+          "technical_depth": 1.0,
+          "compositional_audacity": 1.0,
+          "coherence_with_prompt": 1.0,
+          "compositional_arcs": 1.0,
+          "creativity": 1.0,
+          "overall": 1.0
+        }
+      },
+      "rounds": [
+        {
+          "round_index": 1,
+          "mode": "append",
+          "timed_out": false,
+          "initial_valid": true,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 66,
+            "comment_lines": 16,
+            "unique_ugens": [
+              "LFTri",
+              "PinkNoise",
+              "Pluck",
+              "RLPF",
+              "Ringz",
+              "SinOsc",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 7,
+            "arch_constructs": [
+              "Ndef",
+              "Pbindef"
+            ]
+          },
+          "scores": {
+            "variety": 4.5,
+            "technical_depth": 5.0,
+            "compositional_audacity": 3.5,
+            "coherence_with_prompt": 5.0,
+            "compositional_arcs": 2.5,
+            "creativity": 4.5
+          },
+          "overall_score": 4.17,
+          "standout_technique": "Ringz-resonated noise burst as suspended wine bottle glint",
+          "weakness": "Static loops; C major scale trivializes the domestic tension",
+          "rationale": "The code is functional and uses NodeProxy slot routing correctly, with \\filter and \\set sources. Several flaws weaken it: the Ringz exciter is multiplied by a redundant outer envelope, the GVerb in.sum produces a mono-to-stereo mismatch, and the CombC and tanh effects sit at wet 0, so they never sound. Musically, the C-major Pluck sequence and sine-plus-pink-noise drone illustrate the scene literally, but there is no Tdef or macro evolution toward the 'storm about to break' that the prompt builds up."
+        },
+        {
+          "round_index": 2,
+          "mode": "compose",
+          "timed_out": false,
+          "initial_valid": false,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 135,
+            "comment_lines": 4,
+            "unique_ugens": [
+              "BPF",
+              "Decay2",
+              "DynKlank",
+              "LFNoise2",
+              "LFPulse",
+              "LFTri",
+              "LPF",
+              "Ndef",
+              "SinOsc",
+              "WhiteNoise"
+            ],
+            "unique_ugen_count": 10,
+            "arch_constructs": [
+              "SynthDef",
+              "Ndef",
+              "Pbindef",
+              "Tdef",
+              "Bus"
+            ]
+          },
+          "scores": {
+            "variety": 5.5,
+            "technical_depth": 5.0,
+            "compositional_audacity": 5.0,
+            "coherence_with_prompt": 7.0,
+            "compositional_arcs": 6.5,
+            "creativity": 6.0
+          },
+          "overall_score": 5.83,
+          "standout_technique": "30-voice detuned LFPulse swarm mapping phase drift via spread",
+          "weakness": "Plain sine ticks, generic FreeVerb2, and fragile bus/limiter handling",
+          "rationale": "The 30-voice swarm with incrementally detuned rates is a direct and effective metaphor for desynchronized clocks, and the Tdef score has clear cues from awakening through peak drift to settling. DSP craft is modest: ticks are bare SinOsc/Decay2 rather than brassy metallic resonators. The carillon DynKlank uses non-French partials with a redundant env gate, the Synth.tail limiter can be duplicated, and the intermediate bus is never cleared. The 'breath of time' is a simple LFTri-modulated sine drone, so the poetic core of the piece remains underdeveloped."
+        },
+        {
+          "round_index": 3,
+          "mode": "design",
+          "timed_out": false,
+          "initial_valid": false,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 4,
+            "comment_lines": 1,
+            "unique_ugens": [
+              "SinOsc"
+            ],
+            "unique_ugen_count": 1,
+            "arch_constructs": [
+              "Ndef"
+            ]
+          },
+          "scores": {
+            "variety": 1.0,
+            "technical_depth": 1.0,
+            "compositional_audacity": 1.0,
+            "coherence_with_prompt": 1.0,
+            "compositional_arcs": 1.0,
+            "creativity": 1.0
+          },
+          "overall_score": 1.0,
+          "standout_technique": "None; only a fallback sine tone",
+          "weakness": "Trivial fallback ignores prompt, design mode, and synthesis entirely",
+          "rationale": "The code is a single 440 Hz sine fallback at low amplitude. It has no modular patching metaphor, no Lissajous or harmonic folding, and no GUI or MIDI architecture despite DESIGN mode. It compiles, but the output is boilerplate with no musical form or connection to the prompt."
+        },
+        {
+          "round_index": 4,
+          "mode": "generate",
+          "timed_out": false,
+          "initial_valid": false,
+          "final_valid": true,
+          "telemetry": {
+            "loc": 4,
+            "comment_lines": 1,
+            "unique_ugens": [
+              "SinOsc"
+            ],
+            "unique_ugen_count": 1,
+            "arch_constructs": [
+              "Ndef"
+            ]
+          },
+          "scores": {
+            "variety": 1.0,
+            "technical_depth": 1.0,
+            "compositional_audacity": 1.0,
+            "coherence_with_prompt": 1.0,
+            "compositional_arcs": 1.0,
+            "creativity": 1.0
+          },
+          "overall_score": 1.0,
+          "standout_technique": "None; a single static sine fallback tone",
+          "weakness": "Fallback placeholder ignores the Congada percussion prompt entirely",
+          "rationale": "The code is a 440 Hz sine fallback, produced after the initial compilation failed, with no synthesis design, rhythm, or form. It never attempts the metallic gunga ankle-rattle percussion, the processional cadence, or the moçambique ensemble textures the prompt calls for. It compiles, but artistically it is trivial boilerplate."
+        }
+      ]
+    }
+  ]
+}

@@ -35,6 +35,7 @@ class ToolBox;
 class TextFindReplacePanel;
 class GoToLineTool;
 class PostDocklet;
+class PerfMixerDocklet;
 class DocumentsDocklet;
 class HelpBrowserDocklet;
 class CmdLine;
@@ -131,6 +132,7 @@ public:
     HelpBrowserDocklet* helpBrowserDocklet() { return mHelpBrowserDocklet; }
 #endif
     PostDocklet* postDocklet() { return mPostDocklet; }
+    MultiEditor* multiEditor() const { return mEditors; }
 
     static MainWindow* instance() { return mInstance; }
     Settings::Manager* setting();
@@ -246,6 +248,7 @@ private:
 
     // Docks
     PostDocklet* mPostDocklet;
+    PerfMixerDocklet* mPerfMixerDocklet;
     DocumentsDocklet* mDocumentsDocklet;
 #ifdef SC_USE_QTWEBENGINE
     HelpBrowserDocklet* mHelpBrowserDocklet;

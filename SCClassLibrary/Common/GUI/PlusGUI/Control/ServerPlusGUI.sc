@@ -25,6 +25,7 @@
 		var label, gui, font, volumeNum;
 		var buttonColor, faintGreen, faintRed;
 
+		if (Platform.ideName == "scval") { ^this };
 		if (window.notNil) { ^window.front };
 
 		gui = GUI.current;

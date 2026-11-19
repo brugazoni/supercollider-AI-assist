@@ -1,0 +1,2045 @@
+{
+  "metadata": {
+    "title": "Corpus de Teste de Estresse para Prompts Lean X-Append (200 Fragmentos em Português Brasileiro)",
+    "description": "Corpus diversificado de 200 fragmentos de parágrafo em português brasileiro distribuídos em 4 categorias legadas (Wikipédia, Poesia, Conto/Crônica e Descrição de Imagem/Cena Visual) e anotados por gênero textual individual (`textual_genre`, `genre_id`, `genre_domain`, `genre_collection`) conforme `textual_genres_index.json`.",
+    "language": "pt-BR",
+    "total_fragments": 200,
+    "domain_distribution": {
+      "wikipedia": 50,
+      "poema": 50,
+      "conto_cronica": 50,
+      "descricao_imagem": 50
+    },
+    "version": "2.1",
+    "genre_index_ref": "textual_genres_index.json",
+    "unique_genres_covered": 18,
+    "total_genres_in_index": 367,
+    "genre_distribution": {
+      "encyclopedia_entry": 50,
+      "visual_scene_description": 30,
+      "short_story": 21,
+      "image_description": 20,
+      "novel": 14,
+      "lyric_poem": 13,
+      "cronica": 12,
+      "sonnet": 10,
+      "free_verse": 9,
+      "prose_poem": 8,
+      "epic_poem": 4,
+      "ballad": 2,
+      "elegy": 2,
+      "literary_journalism": 1,
+      "ode": 1,
+      "auto_verse_drama": 1,
+      "satire": 1,
+      "fairy_tale": 1
+    },
+    "genre_domain_distribution": {
+      "Literature & Creative Writing": 100,
+      "Journalism, Media, Marketing & Reference": 50,
+      "Digital, Web, Interactive & Gaming": 50
+    }
+  },
+  "fragments": [
+    {
+      "id": 1,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Monotrilho de Poços de Caldas",
+      "text": "O Monotrilho de Poços de Caldas foi um sistema de transporte elevado que servia o município de Poços de Caldas, no sul de Minas Gerais. A linha suspensa sobre pilares de concreto interligava o terminal rodoviário até a área central da estância hidromineral, totalizando seis quilômetros de extensão e onze estações planejadas, tornando-se o primeiro monotrilho urbano a operar comercialmente no Brasil."
+    },
+    {
+      "id": 2,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Conclave",
+      "text": "Um conclave é a reunião solene e isolada do Colégio de Cardeais convocada na Capela Sistina para eleger o bispo de Roma, também conhecido como Papa. Durante as votações secretas, as cédulas são queimadas em uma estufa especial cuja chaminé emite fumaça preta quando não há consenso ou fumaça branca para anunciar ao mundo que um novo pontífice foi escolhido."
+    },
+    {
+      "id": 3,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Pororoca",
+      "text": "A pororoca é um fenômeno hidrográfico caracterizado pelo encontro violento das correntes fluviais com as águas oceânicas durante as marés equinociais na foz do rio Amazonas e afluentes adjacentes. O choque de massas d'água forma ondas contínuas de até quatro metros de altura que avançam rio acima com estrondo grave e prolongado, remodelando margens e arrancando árvores inteiras."
+    },
+    {
+      "id": 4,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Pulsar",
+      "text": "Um pulsar é uma estrela de nêutrons altamente magnetizada e em rápida rotação que emite feixes estreitos de radiação eletromagnética a partir de seus polos magnéticos. Essa radiação só pode ser observada quando o feixe de emissão aponta na direção da Terra, funcionando como um farol cósmico de precisão milimétrica cujos pulsos variam de milissegundos a poucos segundos."
+    },
+    {
+      "id": 5,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Encontro das Águas",
+      "text": "O Encontro das Águas é um fenômeno natural que ocorre na confluência entre o rio Negro, de águas escuras e ácidas, e o rio Solimões, de águas barrentas e carregadas de sedimentos andinos, em frente à cidade de Manaus. Devido às diferenças de temperatura, velocidade da correnteza e densidade, as duas massas líquidas correm lado a lado por mais de seis quilômetros sem se misturarem."
+    },
+    {
+      "id": 6,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Relâmpago do Catatumbo",
+      "text": "O Relâmpago do Catatumbo é um fenômeno meteorológico singular que ocorre na foz do rio Catatumbo, onde este deságua no lago de Maracaibo. Durante cerca de duzentas e sessenta noites por ano, nuvens de desenvolvimento vertical geram descargas elétricas quase ininterruptas por até dez horas seguidas, produzindo dezenas de clarões por minuto em um espetáculo silencioso à distância."
+    },
+    {
+      "id": 7,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Lençóis Maranhenses",
+      "text": "O Parque Nacional dos Lençóis Maranhenses abrange uma vasta extensão de dunas de areia branca esculpidas constantemente pelos ventos alísios no litoral oriental do Maranhão. Entre os meses de chuva, a água doce acumula-se sobre uma camada de rocha impermeável sob a areia, formando milhares de lagoas cristalinas de tons azuis e esmeraldas que se alternam em labirintos sinuosos."
+    },
+    {
+      "id": 8,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Estrada de Ferro Madeira-Mamoré",
+      "text": "A Estrada de Ferro Madeira-Mamoré foi uma ferrovia histórica construída no coração da floresta amazônica, em Rondônia, entre 1907 e 1912, para contornar as trezentas e sessenta e seis km de corredeiras dos rios Madeira e Mamoré. O apito metálico das locomotivas a vapor ecoava pela mata fechada, transportando látex de borracha em meio ao calor úmido e às chuvas torrenciais."
+    },
+    {
+      "id": 9,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Fonte Hidrotermal",
+      "text": "Uma fonte hidrotermal submarina é uma fissura na crosta oceânica profunda por onde jorra água geotermicamente aquecida a mais de trezentos graus Celsius. Ao entrar em contato com a água congelante do fundo abissal, os minerais dissolvidos precipitam-se instantaneamente, erguendo chaminés negras vulcânicas ao redor das quais prosperam ecossistemas quimiossintéticos sem qualquer luz solar."
+    },
+    {
+      "id": 10,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Catedral Metropolitana de Brasília",
+      "text": "A Catedral Metropolitana Nossa Senhora Aparecida, projetada pelo arquiteto Oscar Niemeyer com cálculo estrutural de Joaquim Cardoso, possui dezesseis colunas parabólicas de concreto armado que se curvam rumo ao céu em formato hiperboloide. O acesso ao interior faz-se por um túnel escuro e rebaixado que se abre subitamente para uma nave luminosa coberta por vitrais azuis, verdes e brancos."
+    },
+    {
+      "id": 11,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Bioluminescência Marinha",
+      "text": "A bioluminescência é a produção e emissão de luz fria por organismos vivos resultante de uma reação química na qual a enzima luciferase oxida o pigmento luciferina. Nos oceanos tropicais, milhões de dinoflagelados microscópicos iluminam a arrebentação noturna com lampejos azul-elétricos sempre que as ondas, os cardumes ou o casco de uma embarcação agitam a superfície da água."
+    },
+    {
+      "id": 12,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Aurora Polar",
+      "text": "A aurora polar é um fenômeno óptico luminoso observado nas regiões próximas aos polos magnéticos da Terra, provocado pelo impacto de partículas carregadas do vento solar contra átomos de oxigênio e nitrogênio na alta atmosfera. O céu noturno desdobra-se em cortinas móveis de luz verde, violeta e carmesim que ondulam silenciosamente ao longo das linhas invisíveis do campo geomagnético."
+    },
+    {
+      "id": 13,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Gruta do Maquiné",
+      "text": "A Gruta do Maquiné, localizada em Cordisburgo, Minas Gerais, e estudada no século XIX pelo naturalista dinamarquês Peter Lund, é composta por sete amplos salões subterrâneos esculpidos pela ação milenar das águas em rocha calcária. Suas abóbadas úmidas exibem cortinas minerais, estalactites e estalagmites onde o gotejamento lento cria ressonâncias acústicas profundas na escuridão."
+    },
+    {
+      "id": 14,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Ressonância de Schumann",
+      "text": "As ressonâncias de Schumann constituem um conjunto de picos espectrais na faixa de frequência extremamente baixa do campo eletromagnético terrestre, cuja frequência fundamental situa-se em aproximadamente sete vírgula oitenta e três hertz. A cavidade esférica formada entre a superfície condutora da Terra e a ionosfera atua como um guia de ondas fechado, excitado continuamente por milhares de relâmpagos globais."
+    },
+    {
+      "id": 15,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Uirapuru-verdadeiro",
+      "text": "O uirapuru-verdadeiro é uma pequena ave passeriforme da floresta amazônica célebre por seu canto extraordinariamente complexo, límpido e flauteado. Durante o período reprodutivo na madrugada úmida, o macho entoa longas frases melódicas com intervalos precisos que parecem suspender o ruído dos demais animais da mata ao redor, inspirando lendas indígenas e poemas sinfônicos brasileiros."
+    },
+    {
+      "id": 16,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Cristal Piezelétrico",
+      "text": "A piezeletricidade é a capacidade apresentada por certos cristais minerais, como o quartzo e a turmalina, de gerar uma tensão elétrica em resposta a uma pressão mecânica aplicada sobre sua rede cristalina. Pelo efeito inverso, quando submetido a uma corrente alternada de alta frequência, o cristal vibra com estabilidade extrema, servindo como oscilador de referência em relógios e transdutores acústicos."
+    },
+    {
+      "id": 17,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Teatro Amazonas",
+      "text": "Inaugurado em 1896 no auge do ciclo da borracha, o Teatro Amazonas ergue-se no centro de Manaus com sua cúpula revestida por trinta e seis mil escamas de cerâmica esmaltada nas cores da bandeira brasileira. Para amortecer o barulho das carruagens durante as óperas, a rua ao redor do edifício foi pavimentada com blocos de madeira emborrachada importados da Europa."
+    },
+    {
+      "id": 18,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Ondas Gravitacionais",
+      "text": "Ondas gravitacionais são perturbações na curvatura do espaço-tempo que se propagam à velocidade da luz a partir de eventos astrofísicos extremos, como a espiral e fusão de dois buracos negros binários. Quando convertidas em sinal sonoro pelos interferômetros a laser, essas colisões cósmicas produzem um glissando ascendente rápido, conhecido como gorjeio gravitacional, antes do silêncio final do horizonte de eventos."
+    },
+    {
+      "id": 19,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Paranapiacaba",
+      "text": "Paranapiacaba é uma vila ferroviária inglesa do século XIX situada no topo da Serra do Mar, em Santo André, onde os ventos úmidos vindos do oceano Atlântico encontram a escarpa montanhosa e formam uma neblina densa quase diária. No centro da vila, o grande relógio da estação e os cabos de aço do antigo sistema funicular emergem como silhuetas metálicas entre as brumas."
+    },
+    {
+      "id": 20,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Cigarra",
+      "text": "As cigarras são insetos hemípteros notáveis pelo som estridente emitido pelos machos por meio de órgãos especializados chamados tímbalos, situados na base do abdômen. Após viverem anos sob a terra sugando a seiva das raízes como ninfas silenciosas, emergem sincronizadamente no verão para a ecdise nas cascas das árvores, preenchendo as tardes quentes com zumbidos metálicos pulsantes."
+    },
+    {
+      "id": 21,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Cruz e Sousa — Antífona (Broquéis)",
+      "text": "Ó Formas alvas, brancas, Formas claras de luares, de neves, de neblinas! Ó Formas vagas, fluidas, cristalinas, incensos dos turíbulos de aras! Formas do Amor, constelarmemente puras, de Virgens e de Santas vaporosas... Brilhos errantes, mádidas frescuras e dolências de lírios e de rosas, indefinições músicas da lua, vozes veladas, veludosas vozes, volúpias dos violões."
+    },
+    {
+      "id": 22,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Olavo Bilac — Ouvir Estrelas (Via Láctea)",
+      "text": "Ora, direis, ouvir estrelas! Certo perdeste o senso! E eu vos direi, no entanto, que, para ouvi-las, muita vez desperto e abro as janelas, pálido de espanto. E conversamos toda a noite, enquanto a Via Láctea, como um pálio aberto, cintila. E, ao vir do sol, saudoso e em pranto, inda as procuro pelo céu deserto."
+    },
+    {
+      "id": 23,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Augusto dos Anjos — Psicologia de um Vencido (Eu)",
+      "text": "Eu, filho do carbono e do amoníaco, monstro de escuridão e rutilância, sofro, desde a epigênese da infância, a influência má dos signos do zodíaco. Profundissimamente hipocondríaco, este ambiente me causa repugnância... Sobe-me à boca uma ânsia análoga à ânsia que se escapa da boca de um cardíaco."
+    },
+    {
+      "id": 24,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Machado de Assis — Círculo Vicioso (Occidentais)",
+      "text": "Bailando no ar, gemia inquieto vaga-lume: quem me dera que fosse aquela loura estrela que arde no eterno azul, como uma eterna vela! Mas a estrela, fitando a lua, com ciúme, pudesse eu copiar o transparente lume, que, da grega coluna à gótica janela, contemplou, suspirosa, a fronte amada e bela! E a lua, fitando o sol, com azedume, sentia a própria luz fria e mortal."
+    },
+    {
+      "id": 25,
+      "category": "poema",
+      "textual_genre": "Ballad",
+      "genre_id": "ballad",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Alphonsus de Guimaraens — Ismália",
+      "text": "Quando Ismália enlouqueceu, pôs-se na torre a sonhar... Viu uma lua no céu, viu outra lua no mar. No sonho em que se perdeu, banhou-se toda em luar... Queria subir ao céu, queria descer ao mar... E, no desvario seu, na torre pôs-se a cantar... As asas que Deus lhe deu ruflaram de par em par, sua alma subiu ao céu, seu corpo desceu ao mar."
+    },
+    {
+      "id": 26,
+      "category": "poema",
+      "textual_genre": "Epic poem",
+      "genre_id": "epic_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Castro Alves — O Navio Negreiro",
+      "text": "Stamos em pleno mar... Doudo no espaço brinca o luar — dourada borboleta; e as vagas após ele correm... cansam como turba de infantes inquieta. Stamos em pleno mar... Do firmamento os astros saltam como espumas de ouro... O mar em troca acende as ardentias, constelações do líquido tesouro."
+    },
+    {
+      "id": 27,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Gonçalves Dias — Canção do Tamoyo",
+      "text": "Não chores, meu filho; não chores, que a vida é luta renhida: viver é lutar. A vida é combate, que os fracos abate, que os fortes, os bravos, só pode exaltar. Um dia vivemos! O homem que é forte não teme da morte; só teme fugir; no arco que entesa tem certa uma presa, quer seja tapuia, condor ou tapir."
+    },
+    {
+      "id": 28,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Raimundo Correia — As Pombas",
+      "text": "Vai-se a primeira pomba despertada... Vai-se outra mais... mais outra... enfim dezenas de pombas vão-se dos pombais, apenas raia sanguínea e fresca a madrugada. E à tarde, quando a rígida nortada sopra, aos pombais de novo elas, serenas, ruflando as asas, sacudindo as penas, voltam todas em bando e em revoada."
+    },
+    {
+      "id": 29,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Vicente de Carvalho — Sugestões do Crepúsculo",
+      "text": "Ao pôr do sol, pela tristeza da meia-luz crepuscular, tem a toada de uma reza a voz dormente, a voz do mar. A escuridão, que se levanta, no céu começa a despontar: e a voz do mar, que ao longe canta, é como um órgão a soluçar... Pelas areias da praia rasa a espuma alva vem murmurar."
+    },
+    {
+      "id": 30,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Cruz e Sousa — Violões que Choram",
+      "text": "Ah! plangentes violões dormentes, mornos, soluços ao luar, choros ao vento... Tristes perfis, os mais vagos contornos, bocas murmurejantes de lamento. Sutis palpitações à luz da lua, anseio dos momentos mais saudosos, quando lá choram na deserta rua as cordas vivas dos violões chorosos."
+    },
+    {
+      "id": 31,
+      "category": "poema",
+      "textual_genre": "Elegy",
+      "genre_id": "elegy",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Álvares de Azevedo — Noite na Taverna / Lira dos Vinte Anos",
+      "text": "Quando em meu peito rebentar-se a fibra que o espírito enlaça à dor vivente, não derramem por mim nem uma lágrima em pálpebra demente. E nem desfolhem na matéria impura a flor do vale que adormece ao vento: não quero que uma nota de alegria se cale por meu triste passamento."
+    },
+    {
+      "id": 32,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Auta de Souza — Horto (Noite de Maio)",
+      "text": "Cantam ao longe os sinos da capela na doçura da tarde cristalina; e uma estrela de prata se ilumina no azul sereno da amplidão tão bela. Passa cantando a brisa na colina, beijando a flor humilde e pequenina, enquanto a sombra trêmula se aninha nos ramos verdes da mangueira antiga."
+    },
+    {
+      "id": 33,
+      "category": "poema",
+      "textual_genre": "Elegy",
+      "genre_id": "elegy",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Fagundes Varela — Cântico do Calvário",
+      "text": "Eras na vida a pomba predileta que sobre um mar de angústias conduzia o ramo da esperança. Eras a estrela que entre as névoas do inverno cintilava apontando o caminho ao pegureiro. Eras a messe de um dourado estio. Eras o idílio de um amor sublime. Eras a glória, a inspiração, a pátria, o porvir de teu pai!"
+    },
+    {
+      "id": 34,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Florbela Espanca — Fanatismo (Livro de Mágoas)",
+      "text": "Minh'alma, de sonhar-te, anda perdida. Meus olhos andam cegos de te ver! Não és sequer razão do meu viver, pois que tu és já toda a minha vida! Não vejo nada assim enlouquecida... Passo no mundo, meu Amor, a ler no misterioso livro do teu ser a mesma história tantas vezes lida!"
+    },
+    {
+      "id": 35,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Fernando Pessoa — Mar Português",
+      "text": "Ó mar salgado, quanto do teu sal são lágrimas de Portugal! Por te cruzarmos, quantas mães choraram, quantos filhos em vão rezaram! Quantas noivas ficaram por casar para que fosses nosso, ó mar! Valeu a pena? Tudo vale a pena se a alma não é pequena. Quem quer passar além do Bojador tem que passar além da dor."
+    },
+    {
+      "id": 36,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Augusto dos Anjos — O Morcego",
+      "text": "Meia-noite. Ao meu quarto me recolho. Meu Deus! E este morcego! E, agora, vede: na bruta ardência orgânica da sede, morde-me a goela ígneo e escaldante molho. Vou mandar levantar outra parede... Mesmo assim, o pavoroso olho negro da ave da treva espreita na fresta onde a sombra fria da madrugada estremece."
+    },
+    {
+      "id": 37,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Olavo Bilac — Nel Mezzo del Cammin",
+      "text": "Cheguei. Chegaste. Vinhas fatigada e triste, e triste e fatigado eu vinha. Tinhas a alma de sonhos povoada, e a alma de sonhos povoada eu tinha. E paramos de súbito na estrada da vida: longos anos, presa à minha a tua mão, a vista deslumbrada tive da luz que teu olhar continha."
+    },
+    {
+      "id": 38,
+      "category": "poema",
+      "textual_genre": "Prose poem",
+      "genre_id": "prose_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Cruz e Sousa — Sinfonia de Cristal",
+      "text": "Nos cristais de gelo do horizonte místico ressoam carrilhões de prata e opala; cada floco que tomba é um harmônico translúcido que vibra na catedral do vento frio. As esferas de vidro cantam em quintas puras enquanto a aurora polar desenha arcos elétricos sobre o silêncio branco do abismo."
+    },
+    {
+      "id": 39,
+      "category": "poema",
+      "textual_genre": "Prose poem",
+      "genre_id": "prose_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Raul de Leoni — Luz Mediterrânea",
+      "text": "Sob a abóbada clara do meio-dia solar, as colunas de mármore branco refletem o zumbido dourado das abelhas entre os ramos de oliveira. O vento marinho traz o aroma de sal e mirto, fazendo vibrar nas águas da enseada mil lâminas de bronze líquido que se partem e se refazem ao ritmo das marés."
+    },
+    {
+      "id": 40,
+      "category": "poema",
+      "textual_genre": "Prose poem",
+      "genre_id": "prose_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Pedro Kilkerry — Horas Ígneas",
+      "text": "Bate o bronze na torre escura e o eco desce em espirais de ferro pelas ladeiras de pedra molhada. Lá embaixo, o porto dorme sob lanternas amarelas que oscilam na garoa fina, enquanto o mar mastiga nas muralhas do cais um velho cântico de conchas partidas e ferrugem."
+    },
+    {
+      "id": 41,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Machado de Assis — Memórias Póstumas de Brás Cubas (Delírio)",
+      "text": "Imaginei que era uma borboleta, depois um livro, finalmente uma ponta de cigarro; até que me vi montado no dorso de um hipopótamo invisível que galopava através de uma planície de gelo infinito. Ao longe, os séculos desfilavam como sombras apressadas sob um céu cor de chumbo, enquanto um vento glacial zunia nos meus ouvidos a monótona canção da eternidade."
+    },
+    {
+      "id": 42,
+      "category": "conto_cronica",
+      "textual_genre": "Literary journalism",
+      "genre_id": "literary_journalism",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Euclides da Cunha — Os Sertões",
+      "text": "O sol a pino calcina a terra gretada da caatinga, onde os galhos retorcidos dos mandacarus e xique-xiques parecem braços crispados em prece muda. Nenhum sopro de brisa move a folhagem seca; apenas a miragem trêmula do mormaço ondula sobre o cascalho fervente, até que, no horizonte distante, um trovão seco anuncia a chegada súbita da trovoada sertaneja."
+    },
+    {
+      "id": 43,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Lima Barreto — Triste Fim de Policarpo Quaresma",
+      "text": "No silêncio do sítio do Sossego, Policarpo dedilhava lentamente as cordas do violão enquanto lá fora os grilos e os sapos-martelo compunham uma orquestra rústica e incessante. O cheiro de mato molhado invadia a sala iluminada pelo lampião de querosene, e cada acorde parecia despertar uma saudade antiga adormecida nas paredes de taipa."
+    },
+    {
+      "id": 44,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Raul Pompeia — O Ateneu",
+      "text": "O sino do internato bateu seis badaladas metálicas e imperiosas que cortaram a névoa fria do pátio. Pelos corredores de assoalho escuro, o tropel de centenas de botinas infantis ressoou como uma enxurrada súbita, misturando murmúrios de latim, rangidos de carteiras de madeira e a voz grave do diretor que ecoava do alto da escadaria."
+    },
+    {
+      "id": 45,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Aluísio Azevedo — O Cortiço",
+      "text": "Acordava o cortiço ao som das primeiras bicas d'água jorrando nos tanques de pedra e do bater ritmado das roupas ensaboadas. Da pedreira vizinha vinha o estrondo surdo das cargas de dinamite e o tilintar agudo dos marrões de aço contra o granito vivo, enquanto um rumor quente de vozes, risadas e pregões subia no ar da manhã carioca."
+    },
+    {
+      "id": 46,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Júlia Lopes de Almeida — A Falência",
+      "text": "Pelos armazéns do porto do Rio de Janeiro, o aroma denso e torrado do café impregnava o ar úmido da manhã. Os carregadores passavam em fila cadenciada com sacas de sessenta quilos sobre os ombros, marcando o compasso com um canto grave e sincopado, enquanto ao fundo os guindastes a vapor chiavam e as correntes dos navios rangiam no cais."
+    },
+    {
+      "id": 47,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Graça Aranha — Canaã",
+      "text": "Na mata virgem do Espírito Santo, a noite caía com uma rapidez quase violenta, apagando o verde das copas e acendendo milhões de vagalumes fosforescentes entre as samambaias gigantes. De repente, um coro invisível de rãs, bacuraus e insetos noturnos ergueu-se do chão úmido de folhas decompostas, transformando a floresta inteira em uma catedral vibrante."
+    },
+    {
+      "id": 48,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Simões Lopes Neto — Contos Gauchescos (O Boi Velho)",
+      "text": "Pela coxilha aberta dos pampas do sul, o vento minuano soprava fino e cortante como lâmina de faca, curvando o capim-flecha prateado pela geada. Ao redor do fogo de chão, a chaleira de ferro chiava sobre as brasas vermelhas de espinilho, e o trote compassado de um cavalo solitário aproximava-se devagar na imensidão da campanha."
+    },
+    {
+      "id": 49,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Crônica Urbana — Último Trem da Central",
+      "text": "À meia-noite e quarenta, a plataforma vazia da estação cheirava a ozônio e freio queimado. Quando a composição de aço inoxidável surgiu na curva, os trilhos começaram a cantar num zumbido agudo que subia pelos pés antes mesmo de o farol varrer os pilares pichados; as portas pneumáticas abriram-se com um suspiro longo, engolindo os últimos passageiros insones."
+    },
+    {
+      "id": 50,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Conto Fantástico — O Relojoeiro de Ouro Preto",
+      "text": "Na oficina estreita da Ladeira de Santa Efigênia, duzentos relógios de pêndulo, carrilhões franceses e cronômetros de bolso trabalhavam em tempos ligeiramente desencontrados. O velho relojoeiro fechava os olhos no centro daquele enxame de tique-taques de latão e jurava ouvir, nas defasagens microscópicas entre as engrenagens, o próprio respirar do tempo."
+    },
+    {
+      "id": 51,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Ficção Científica — Estação Orbital Atlântico Sul",
+      "text": "Ao atravessar a Anomalia Magnética do Atlântico Sul, os painéis solares da estação começaram a crepitar com microdescargas estáticas nos monitores da cabine. Lá embaixo, a quatrocentos quilômetros de altitude, a costa brasileira desenhava uma linha dourada de cidades interligadas por estradas luminosas, enquanto o giroscópio central mantinha um bordão harmônico perfeitamente estável."
+    },
+    {
+      "id": 52,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Conto Amazônico — Aprocisso do Rio Tapajós",
+      "text": "O barco-motor desligou as hélices no meio do igapó alagado e deixou-se levar pela correnteza silenciosa entre os troncos submersos. Só se ouvia o marulhar suave da água batendo no casco de madeira, o salto repentino de um tucunaré quebrando o espelho negro do rio e, muito longe, o ronco grave dos bugios anunciando chuva."
+    },
+    {
+      "id": 53,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Crônica de Tempestade — Verão em São Paulo",
+      "text": "Às quatro da tarde o céu da Avenida Paulista virou noite de breu e o vento quente começou a redemoinhar folhas secas e sacolas plásticas entre os arranha-céus de vidro. Os primeiros pingos grossos estalaram no asfalto quente com cheiro de terra molhada e, segundos depois, uma muralha branca de chuva e granizo apagou os edifícios vizinhos."
+    },
+    {
+      "id": 54,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Conto de Mistério — O Farol de Santa Marta",
+      "text": "O faroleiro subiu os cento e quarenta degraus em espiral de ferro fundido segurando a lanterna a óleo enquanto a ressaca de inverno golpeava os rochedos de granito lá fora. No topo da torre de vidro, a grande lente de Fresnel girava sobre um banho de mercúrio líquido, projetando três feixes brancos e um vermelho sobre a espuma furiosa do mar."
+    },
+    {
+      "id": 55,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Crônica Interiorana — Procissão das Almas em Mariana",
+      "text": "Passava da meia-noite quando as matracas de madeira começaram a bater compassadas no calçamento de pé-de-moleque de Mariana. Vestidos de túnicas brancas e segurando tochas de cera que estalavam ao vento frio da serra, os penitentes caminhavam em silêncio entre os casarões coloniais de janelas fechadas, seguidos pelo dobre lento do sino da Sé."
+    },
+    {
+      "id": 56,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Conto Cyberpunk — Subsolo da Liberdade",
+      "text": "Sob as lanternas vermelhas do bairro da Liberdade, a oficina clandestina de sintetizadores analógicos funcionava atrás de uma lavanderia automática. Cabos coloridos pendiam do teto como cipós de cobre, osciladores de válvula aqueciam o ar com cheiro de solda de estanho e um sequenciador modular disparava arpejos hipnóticos que atravessavam as paredes de concreto."
+    },
+    {
+      "id": 57,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Conto Rural — Moenda de Cana no Recôncavo",
+      "text": "Desde o romper da aurora, a grande roda d'água do engenho girava pesada e musgosa sob a levada do riacho, fazendo ranger os eixos de maçaranduba da moenda. O caldo verde da cana escorria em bicas de madeira para as tachas de cobre fervente, onde o melado borbulhava denso e perfumado sob o canto cadenciado dos trabalhadores."
+    },
+    {
+      "id": 58,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Crônica Marítima — Travessia da Baía de Todos-os-Santos",
+      "text": "O saveiro de vela içada cortava as águas verdes da Baía de Todos-os-Santos sob uma brisa firme de leste que fazia estalar o pano grosso e cantar os cabos do mastro. Ao longe, o perfil da Cidade Alta de Salvador subia sobre a escarpa com seus campanários barrocos brilhando ao sol da tarde e o som distante de atabaques trazido pelo vento."
+    },
+    {
+      "id": 59,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Conto Mineral — A Mina da Passagem",
+      "text": "O vagonete de ferro desceu pelos trilhos inclinados rumo às galerias alagadas da antiga mina de ouro, onde a luz das lâmpadas de carbureto refletia em um lago subterrâneo de água imóvel e esverdeada. No silêncio absoluto a cento e vinte metros abaixo da superfície, cada gota que se desprendia da abóbada de quartzo soava como um pequeno sino de vidro."
+    },
+    {
+      "id": 60,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Crônica Noturna — Feira de Caruaru ao Amanhecer",
+      "text": "Antes mesmo de o sol clarear o agreste pernambucano, os caminhões e carroças já descarregavam pilhas de cerâmica de barro, cestos de palha, queijos de coalho e cordéis impressos. O som agudo dos pífanos de taboca misturava-se ao zabumba sincopado e ao pregão cantado dos feirantes, transformando o pátio de terra batida em uma colmeia sonora."
+    },
+    {
+      "id": 61,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Fotografia de Longa Exposição na Serra do Rio do Rastro",
+      "text": "Fotografia noturna de longa exposição mostrando as dezenas de curvas em cotovelo da rodovia na Serra do Rio do Rastro, em Santa Catarina, recortadas na parede vertical da montanha. Os faróis e lanternas dos veículos desenham fitas contínuas de luz branca e vermelha que serpenteiam entre a neblina azulada do cânion sob um céu estrelado."
+    },
+    {
+      "id": 62,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Pintura a Óleo de Tempestade Tropical na Baía de Guanabara",
+      "text": "Pintura a óleo em grande formato retratando uma tempestade marítima sobre a entrada da Baía de Guanabara, com o Pão de Açúcar envolto em nuvens cor de chumbo e violeta. Ondas esverdeadas com cristas de espuma branca erguem-se em primeiro plano contra um veleiro inclinado pelo vendaval, enquanto um raio dourado rasga o horizonte."
+    },
+    {
+      "id": 63,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Macro-Fotografia de Orquídea com Orvalho na Mata Atlântica",
+      "text": "Fotografia macro de altíssima definição de uma orquídea lilás silvestre presa ao tronco musgoso de uma árvore na Mata Atlântica. Dezenas de gotículas esféricas de orvalho matinal repousam sobre as pétalas aveludadas, funcionando como minúsculas lentes de cristal que refratam os primeiros raios dourados do sol entre a folhagem úmida."
+    },
+    {
+      "id": 64,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Interior de Usina Siderúrgica em Volta Redonda",
+      "text": "Imagem industrial dramática do interior de um alto-forno siderúrgico, onde uma torrente incandescente de aço líquido alaranjado é despejada de um cadinho gigante em meio a uma chuva explosiva de fagulhas douradas. O contraste extremo entre o brilho branco-amarelo do metal fundido a mil e quinhentos graus e as vigas negras da fábrica cria uma atmosfera vulcânica."
+    },
+    {
+      "id": 65,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Telescópio Espacial James Webb: Nebulosa de Carina",
+      "text": "Imagem infravermelha profunda dos Penhascos Cósmicos na Nebulosa de Carina, revelando muralhas colossais de gás e poeira interestelar em tons de cobre, âmbar e azul-cobalto. Jatos supersônicos de radiação ultravioleta emitidos por estrelas recém-nascidas esculpem cavernas translúcidas e filamentos brilhantes contra o fundo infinito de galáxias distantes."
+    },
+    {
+      "id": 66,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Instalação Cinética de Tubos Sonoros no Inhotim",
+      "text": "Fotografia arquitetônica de um pavilhão circular de vidro e aço corten no Instituto Inhotim, cercado por palmeiras imperiais e lagos espelhados. No centro da galeria, centenas de tubos cilíndricos de latão polido pendem do teto em espiral geométrica, oscilando levemente com a corrente de ar e refletindo feixes de luz natural no piso de pedra escura."
+    },
+    {
+      "id": 67,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Cardume de Águas-Vivas Abissais no Oceano Atlântico",
+      "text": "Fotografia submarina em águas profundas mostrando um cardume de águas-vivas translúcidas flutuando na escuridão absoluta do oceano abissal. Seus chapéus gelatinosos pulsam em tons neon de ciano, magenta e laranja fosforescente, enquanto longos tentáculos filamentosos desenham caligrafias luminosas na água negra."
+    },
+    {
+      "id": 68,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Interior Barroco da Igreja de São Francisco de Assis em Ouro Preto",
+      "text": "Vista em perspectiva ascendente do teto em abóbada da Igreja de São Francisco de Assis em Ouro Preto, pintado por Mestre Ataíde e entalhado por Aleijadinho. Anjos músicos tocando alaúdes, harpas e violoncelos flutuam entre colunas retorcidas folheadas a ouro e nuvens barrocas que se abrem para um céu azul-celeste tropical."
+    },
+    {
+      "id": 69,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Sala de Controle da Usina Hidrelétrica de Itaipu",
+      "text": "Fotografia panorâmica da galeria dos vinte geradores gigantescos da Usina Hidrelétrica de Itaipu, alinhados em um salão monumental de concreto iluminado por lâmpadas frias. Do lado de fora, através das janelas de observação, os três calhas do vertedouro lançam milhões de litros de água por segundo em uma nuvem branca de espuma e arco-íris."
+    },
+    {
+      "id": 70,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Geodo de Ametista Gigante de Ametista do Sul",
+      "text": "Fotografia detalhada do interior aberto de um geodo basáltico de dois metros de altura extraído no Rio Grande do Sul. Milhares de prismas hexagonais de quartzo ametista em tons de violeta profundo revestem a cavidade côncava da rocha vulcânica escura, faiscando com reflexos cristalinos sob iluminação lateral direcionada."
+    },
+    {
+      "id": 71,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Mercado Ver-o-Peso em Belém sob Chuva da Tarde",
+      "text": "Cena vibrante do Mercado Ver-o-Peso em Belém do Pará, com suas torres de ferro em estilo art nouveau pintadas de azul-turquesa refletidas nas poças d'água do cais após a chuva da tarde. Dezenas de barcos pesqueiros de madeira colorida balançam lado a lado na baía do Guajará sob um céu alaranjado de fim de dia."
+    },
+    {
+      "id": 72,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Microscopia Eletrônica de Grãos de Pólen e Diatomáceas",
+      "text": "Imagem de microscopia eletrônica de varredura colorida artificialmente exibindo carapaças de sílica de diatomáceas marinhas e grãos de pólen espinhosos. As estruturas microscópicas revelam simetrias fractais perfeitas, favos geométricos perfurados e esferas cravejadas de pontas cristalinas que parecem catedrais alienígenas suspensas no vácuo."
+    },
+    {
+      "id": 73,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Cânion Itaimbezinho Envolto em Bruma Matinal",
+      "text": "Fotografia aérea do Cânion Itaimbezinho nos Aparados da Serra, onde paredões verticais de basalto de setecentos metros de profundidade cobertos por mata de araucárias mergulham em uma fenda estreita. Duas cachoeiras finas despencam das bordas rochosas e se dissolvem em névoa branca antes de tocar o rio lá no fundo."
+    },
+    {
+      "id": 74,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Sintetizador Modular Buchla e Osciloscópio em Estúdio Escuro",
+      "text": "Close-up fotográfico de um gabinete de sintetizador modular em um estúdio penumbroso, repleto de potenciômetros prateados, matrizes de pinos luminosos e cabos entrelaçados. Ao lado, a tela verde de fósforo de um osciloscópio analógico desenha figuras de Lissajous em rotação contínua que se dobram e se desdobram em harmônicos complexos."
+    },
+    {
+      "id": 75,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Salar e Lagoa Vermelha nos Andes ao Entardecer",
+      "text": "Paisagem surrealista de uma lagoa altiplânica de águas cor de carmim espelhando vulcões nevados sob o vento gelado do entardecer. Crostas brancas de bórax e cristais de sal formam ilhas geométricas nas margens rasas, enquanto dezenas de flamingos rosados caminham lentamente quebrando o reflexo perfeito do céu violeta."
+    },
+    {
+      "id": 76,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Vitral Gótico Rosácea ao Sol Poente",
+      "text": "Fotografia tirada do interior escuro de uma catedral de pedra apontando para uma imensa rosácea gótica circular no momento em que o sol poente a atravessa diretamente. Centenas de fragmentos de vidro rubi, safira, esmeralda e ouro projetam feixes luminosos visíveis na poeira e no incenso suspensos no ar."
+    },
+    {
+      "id": 77,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Pantanal Mato-Grossense na Época da Cheia",
+      "text": "Vista aérea da planície alagada do Pantanal ao amanhecer, onde corixos sinuosos e lagoas cobertas de vitórias-régias gigantes refletem o céu cor de pêssego e ouro. Bandos de tuiuiús e garças brancas levantam voo sobre os capões de buritis, deixando círculos concêntricos que se expandem lentamente no espelho d'água."
+    },
+    {
+      "id": 78,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Órgão de Tubos Monumental em Sala de Concerto",
+      "text": "Fotografia simétrica da fachada de um órgão de tubos sinfônico com mais de cinco mil tubos cilíndricos de estanho e madeira dispostos em torres escalonadas do menor apito agudo até os bordões de trinta e dois pés. A iluminação quente realça o brilho acetinado do metal e os quatro teclados manuais de marfim na console central."
+    },
+    {
+      "id": 79,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Erupção Noturna de Vulcão Estromboliano",
+      "text": "Fotografia de exposição de cinco segundos capturando uma erupção estromboliana noturna, na qual jatos de lava incandescente são lançados a duzentos metros acima da cratera. Bombas vulcânicas traçam arcos parabólicos luminosos pelo ar escuro e rolam pelas encostas de cinza negra até encontrar a neblina fria da madrugada."
+    },
+    {
+      "id": 80,
+      "category": "descricao_imagem",
+      "textual_genre": "Alt-text / image description",
+      "genre_id": "image_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Descrição de Imagem — Floresta de Araucárias Coberta por Geada na Serra Catarinense",
+      "text": "Fotografia ao amanhecer em Urupema, na serra catarinense, mostrando um bosque de araucárias centenárias inteiramente recoberto por uma camada espessa de geada branca e sincelo cristalizado. O sol nascente atravessa a bruma congelada em feixes diagonais, fazendo cintilar milhões de agulhas de gelo nos galhos em forma de cálice."
+    },
+    {
+      "id": 81,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Parque Nacional do Jaú",
+      "text": "O Parque Nacional do Jaú é uma unidade de conservação brasileira de proteção integral da natureza localizada no estado do Amazonas, abrangendo os municípios de Novo Airão e Barcelos. Com mais de dois milhões de hectares de florestas tropicais densas preservadas, protege integralmente a bacia hidrográfica do rio Jaú, exibindo rica biodiversidade de peixes elétricos, ariranhas e orquídeas raras de copa alta."
+    },
+    {
+      "id": 82,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Estilo Barroco Joanino",
+      "text": "O barroco joanino foi a fase áurea do barroco luso-brasileiro durante o reinado de Dom João V, marcado pela opulência da talha dourada e curvas teatrais financiadas pelo ouro extraído de Minas Gerais. Nas capelas coloniais de Ouro Preto e Mariana, altares esculpidos em cedro ganharam anjos atlantes, volutas dinâmicas e dosséis suntuosos que transformavam os templos em espetáculos visuais de luz e sombra."
+    },
+    {
+      "id": 83,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Pororoca",
+      "text": "A pororoca é um fenômeno fluvial natural caracterizado pela formação de grandes ondas geradas quando a maré oceânica atlântica invade com violência a foz de rios de planície rasa, especialmente na região amazônica do Amapá e do Pará. O estrondo das águas pode ser ouvido quilômetros antes de sua passagem, arrancando troncos seculares e remodelando margens com sua crista espumante ininterrupta."
+    },
+    {
+      "id": 84,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Observatório Nacional (Brasil)",
+      "text": "O Observatório Nacional, localizado no Morro de São Cristóvão na cidade do Rio de Janeiro, é uma das mais antigas instituições científicas do Brasil, fundada por decreto imperial de Dom Pedro I em 1827. Além de pesquisas pioneiras em astrofísica, geofísica e geomagnetismo, o instituto é encarregado oficial pela geração, custódia e disseminação da Hora Legal Brasileira via sinais de frequência padronizados."
+    },
+    {
+      "id": 85,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Viaduto Santa Ifigênia",
+      "text": "O Viaduto Santa Ifigênia é um viaduto metálico exclusivo para pedestres situado no Centro Histórico de São Paulo, ligando o Largo de São Bento ao bairro de Santa Ifigênia. Projetado com treliças de ferro fundido fabricadas na Bélgica e inaugurado em 1913, o monumento ergue-se sobre o Vale do Anhangabaú exibindo iluminação em luminárias de ferro ornamentado e ladrilhos hidráulicos policromáticos."
+    },
+    {
+      "id": 86,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Berimbau",
+      "text": "O berimbau de barriga é um instrumento de percussão cordofone originário da África e profundamente enraizado na tradição cultural afro-brasileira da capoeira. Composto por uma verga de madeira de biriba curva esticada por arame de pneu de aço e uma cabaça ressonadora seca, é percutido por uma baqueta enquanto o dobrão de metal e o caxixi modulam timbres secos, ressonantes e hipnóticos."
+    },
+    {
+      "id": 87,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Gruta do Lago Azul",
+      "text": "A Gruta do Lago Azul é um monumento natural e sítio espeleológico de destaque situado no município de Bonito, em Mato Grosso do Sul. Descrita por suas imensas estalagmites e estalactites calcárias gotejantes, a caverna abriga em seu fundo um lago subterrâneo de águas límpidas que adquirem tonalidade azul-turquesa radiante sob a refração do sol da manhã, guardando fósseis pleistocênicos de preguiças-gigantes."
+    },
+    {
+      "id": 88,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Maracatu Nação",
+      "text": "O Maracatu Nação, também conhecido como Maracatu de Baque Virado, é um cortejo performático carnavalesco de herança afrodescendente nascido nos canaviais e irmandades religiosas de Pernambuco. Centrado na corte real de reis e rainhas negros e guiado pela boneca sagrada calunga, o cortejo explode ao som grave e trovejante de alfaias de corda, taróis, agogôs metálicos duplos e ganzás ritmados."
+    },
+    {
+      "id": 89,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Ilha de Marajó",
+      "text": "A Ilha de Marajó é a maior ilha fluviomarinha do mundo, encravada na foz do rio Amazonas e banhada pelas águas do rio Pará e do Oceano Atlântico. Conhecida pela milenar cerâmica marajoara decorada com intrincados padrões geométricos em relevo, a ilha caracteriza-se por extensos campos alagáveis onde pastam manadas domesticadas de búfalos asiáticos entre mangues densos e garças-brancas."
+    },
+    {
+      "id": 90,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Rádio Nacional do Rio de Janeiro",
+      "text": "A Rádio Nacional do Rio de Janeiro foi a emissora pública mais emblemática da chamada Era de Ouro do Rádio brasileiro nas décadas de 1940 e 1950. Irradiando suas ondas médias e curtas pelo transmissor potente da Praça Mauá até os confins mais distantes do território nacional, transmitia célebres radionovelas, programas de auditório e apresentações ao vivo com orquestras e cantores populares."
+    },
+    {
+      "id": 91,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Dunas de Genipabu",
+      "text": "As Dunas de Genipabu constituem um complexo de lagoas límpidas e dunas móveis de areia branca localizadas no litoral do Rio Grande do Norte, próximas a Natal. Moldadas constantemente pelos ventos alísios constantes vindos do oceano, as dunas oferecem um relevo dinâmico de areias finas que encontram o azul do mar, integrando uma área de proteção ambiental de restinga e coqueirais nativos."
+    },
+    {
+      "id": 92,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Congada",
+      "text": "A Congada é uma manifestação folclórica e religiosa sincrética brasileira que celebra a coroação de reis do Congo em louvor a Nossa Senhora do Rosário e a São Benedito. Encontrada em Minas Gerais, Goiás e São Paulo, envolve desfiles ritmados de ternos de congo e moçambiques, onde gungas de lata amarradas aos tornozelos produzem percussões metálicas e passos cadenciados."
+    },
+    {
+      "id": 93,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Teatro de Santa Isabel",
+      "text": "O Teatro de Santa Isabel, inaugurado em 1850 na cidade do Recife, é um dos mais nobres teatros monumentais do neoclassicismo brasileiro, idealizado pelo engenheiro francês Louis Léger Vauthier. Com fachada simétrica de pilastras coríntias, fosso orquestral abobadado e uma das primeiras estruturas em ferro fundido do país, serviu de palco para óperas imperiais e inflamados discursos abolicionistas."
+    },
+    {
+      "id": 94,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Bumba Meu Boi do Maranhão",
+      "text": "O Bumba Meu Boi do Maranhão é uma celebração dramático-musical que combina elementos indígenas, negros e ibéricos, reconhecida como Patrimônio Cultural Imaterial da Humanidade pela UNESCO. Ao longo do ciclo junino, grupos divididos em sotaques de matraca, zabumba e orquestra narram a lenda do boi ressuscitado através de toadas poéticas, couros bordados de veludo e guizos tinindo."
+    },
+    {
+      "id": 95,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Serra da Capivara",
+      "text": "O Parque Nacional Serra da Capivara, situado no sudeste do Piauí, guarda a maior concentração de sítios arqueológicos com pinturas rupestres pré-históricas de todas as Américas. Em paredões abruptos de arenito cercados pela vegetação espinhosa da caatinga, milhares de painéis pictóricos em pigmento ocre retratam cenas de caça, rituais de dança e animais extintos da megafauna sul-americana."
+    },
+    {
+      "id": 96,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Estrada de Ferro Vitória a Minas",
+      "text": "A Estrada de Ferro Vitória a Minas é uma ferrovia brasileira de bitola métrica que conecta as minas de minério de ferro da região central de Minas Gerais ao Porto de Tubarão em Vitória, Espírito Santo. É uma das poucas ferrovias do país que opera serviços diários ininterruptos de transporte de passageiros em longas distâncias, atravessando vales recortados do Rio Doce entre matas e pontes pênseis."
+    },
+    {
+      "id": 97,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Pau-brasil",
+      "text": "O pau-brasil é uma árvore leguminosa nativa da Mata Atlântica brasileira cuja madeira de densidade excepcional e miolo avermelhado fornecia uma resina corante rubra muito cobiçada pelas manufaturas têxteis europeias do século XVI. Por sua alta ressonância acústica e elasticidade quando envelhecida, a madeira tornou-se padrão mundial inigualável na confecção de arcos para violinos e violoncelos."
+    },
+    {
+      "id": 98,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Círio de Nazaré",
+      "text": "O Círio de Nazaré é uma das maiores procissões religiosas do mundo, realizada anualmente na cidade de Belém do Pará desde o final do século XVIII em honra a Nossa Senhora de Nazaré. Reúne mais de dois milhões de devotos pelas ruas sombreadas por mangueiras seculares, onde a Berlinda com a imagem sagrada é puxada por uma longa corda de sisal carregada por promesseiros sob cheiro de patchouli."
+    },
+    {
+      "id": 99,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Farol da Barra (Salvador)",
+      "text": "O Farol da Barra, oficialmente denominado Farol de Santo Antônio, localiza-se na ponta do antigo Forte de Santo Antônio da Barra, marcando a entrada geográfica da Baía de Todos os Santos em Salvador. Construído em 1698 após o naufrágio do galeão Sacramento, ostenta uma torre troncônica alvinegra de alvenaria com lanterna reflexiva que orienta navegantes há mais de três séculos."
+    },
+    {
+      "id": 100,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Vale dos Vinhedos",
+      "text": "O Vale dos Vinhedos é uma região vinícola encravada nas colinas recortadas da Serra Gaúcha, no Rio Grande do Sul, colonizada por imigrantes do norte da Itália no final do século XIX. Caracterizado por parreirais em socalcos, cantinas de cantaria de basalto e adegas subterrâneas para envelhecimento em carvalho, representa a primeira área com indicação de procedência e denominação de origem vitivinícola do país."
+    },
+    {
+      "id": 101,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Choro (música)",
+      "text": "O choro é um dos gêneros instrumentais urbanos mais genuínos da música brasileira, surgido no Rio de Janeiro na segunda metade do século XIX a partir da fusão de danças de salão europeias como a polca e a valsa com ritmos sincopados de matriz africana como o lundu. A instrumentação tradicional combina o violão de sete cordas que desenha as baixarias com o cavaquinho de centro rítmico e a flauta solista."
+    },
+    {
+      "id": 102,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Pico das Agulhas Negras",
+      "text": "O Pico das Agulhas Negras é o ponto culminante do estado do Rio de Janeiro e o quinto mais alto do Brasil, erguendo-se a quase 2.800 metros de altitude no maciço de Itatiaia, na Serra da Mantiqueira. Seu cume granítico imponente é composto por gigantescos prismas e canaletes escarpados esculpidos pelo intemperismo glacial e geadas severas, cercado por vegetação rupestre alpina e campos de altitude."
+    },
+    {
+      "id": 103,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Mercado Ver-o-Peso",
+      "text": "O Mercado Ver-o-Peso é um complexo arquitetônico e mercado público histórico situado às margens da Baía do Guajará, em Belém do Pará, fundado em 1625 como entreposto alfandegário de aferição de peso de mercadorias da Amazônia. Abriga pavilhões de ferro pré-fabricados de estilo Belle Époque repletos de ervas aromáticas medicinais, frutos frescos de açaí descarregados de canoas e peixes amazônicos graúdos."
+    },
+    {
+      "id": 104,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Catimbó-Jurema",
+      "text": "O Catimbó-Jurema é uma tradição mágico-religiosa e xamânica originária do Nordeste brasileiro, estruturada no culto sagrado à árvore da jurema-preta pelas populações indígenas e caboclas. Por meio de cânticos rituais chamados de linhas, fumaçadas de cachimbos de tauari e infusões de casca fervida, mestres juremeiros invocam encantados das cidades espirituais do sertão para trabalhos de cura e consulta."
+    },
+    {
+      "id": 105,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Estação da Luz",
+      "text": "A Estação da Luz é um terminal ferroviário monumental erguido na virada do século XIX para o XX no centro de São Paulo pela antiga São Paulo Railway Company. Com arquitetura em alvenaria e ferro inspirada no Big Ben londrino e na abóbada envidraçada de Flinders Street, simbolizou a pujança da economia cafeeira paulista, escoando grãos das fazendas do interior até os cais de Santos."
+    },
+    {
+      "id": 106,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Caatinga",
+      "text": "A caatinga é o único bioma exclusivamente brasileiro, estendendo-se por quase todo o semiárido nordestino e partes do norte mineiro sob regime pluvial intermitente e solo raso e pedregoso. Suas árvores xerófitas de galhos retorcidos, como o juazeiro e o mandacaru, perdem folhas na estiagem severa para preservar umidade, renascendo com vigor verde imediato às primeiras chuvas torrenciais de verão."
+    },
+    {
+      "id": 107,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Igreja de São Francisco de Assis (Ouro Preto)",
+      "text": "A Igreja da Ordem Terceira de São Francisco de Assis em Ouro Preto é considerada uma das obras-primas da arquitetura religiosa rococó no mundo, projetada e decorada pelo mestre Aleijadinho com pinturas de Mestre Ataíde. Destaca-se pelas duas torres cilíndricas recuadas, portada de pedra-sabão lavrada com arabescos delicados e a ilusão de ótica da pintura do teto da nave central representando a Assunção."
+    },
+    {
+      "id": 108,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Trem das Onze (canção)",
+      "text": "\"Trem das Onze\" é um célebre samba composto pelo cantor paulistano Adoniran Barbosa em 1964, imortalizado pela interpretação bem-humorada e melancólica do conjunto Os Demônios da Garoa. A canção narra a despedida apressada do protagonista que precisa pegar o último trem noturno da ferrovia Cantareira rumo ao modesto bairro do Jaçanã para não deixar sua mãe desvelada na madrugada."
+    },
+    {
+      "id": 109,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Tamanduá-bandeira",
+      "text": "O tamanduá-bandeira é um grande mamífero insetívoro neotropical da ordem Pilosa, habitante característico dos campos abertos e cerrados do Brasil central. Dotado de focinho tubular alongado sem dentes e garras dianteiras possantes para escavar cupinzeiros endurecidos, possui uma cauda densa de pelos compridos que assemelha-se a uma bandeira ondulante com a qual se cobre para descansar."
+    },
+    {
+      "id": 110,
+      "category": "wikipedia",
+      "textual_genre": "Wikipedia article (encyclopedia entry)",
+      "genre_id": "encyclopedia_entry",
+      "genre_domain": "Journalism, Media, Marketing & Reference",
+      "genre_collection": "Reference & Cataloging",
+      "source": "Wikipédia — Rota do Chá no Vale do Ribeira",
+      "text": "A Rota do Chá no Vale do Ribeira, no sul do estado de São Paulo, congrega antigas plantações e fábricas de chá-preto e chá-verde introduzidas por famílias da imigração japonesa no início do século XX, especialmente em Registro. As folhas cultivadas em meio ao ar úmido da serra atlântica são colhidas e oxidadas em tambores de cobre aquecidos que preservam aromas tostados e florais únicos."
+    },
+    {
+      "id": 111,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Carlos Drummond de Andrade — A Flor e a Náusea",
+      "text": "Preso à minha classe e a algumas roupas, vou de branco pela rua cinzenta. Melancolias, mercadorias espreitam-me. Devo continuar até a náusea? Posso, sem armas, revoltar-me? Uma flor nasceu na rua! Passem de longe, bondes, ônibus, rio de aço do tráfego. Uma flor ainda desbotada ilude a polícia, rompe o asfalto. Façam completo silêncio, paralisem os negócios: garanto que uma flor nasceu."
+    },
+    {
+      "id": 112,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Cecília Meireles — Reinvenção",
+      "text": "A vida só é possível reinventada. Anda o sol pelas campinas e passeia a mão dourada pelas águas, pelas folhas... Ah! tudo que se move é feito de tanta luz que até a dor parece um barco navegando. Se caio, levanto-me com asas transparentes que recolhi das sombras, e do silêncio que sobrou teço mais uma manhã sem relógios."
+    },
+    {
+      "id": 113,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Manuel Bandeira — O Último Poema",
+      "text": "Assim eu quereria o meu último poema. Que fosse terno dizendo as coisas mais simples e menos intencionais. Que fosse ardente como um soluço sem lágrimas, que tivesse a beleza das flores quase sem perfume, a pureza da chama em que se consomem os diamantes mais límpidos, e o desespero daqueles amantes que se beijam sabendo que jamais voltarão a se ver."
+    },
+    {
+      "id": 114,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Cruz e Sousa — Antífona",
+      "text": "Ó Formas alvas, brancas, Formas claras de luares, de neves, de neblinas!... Ó Formas vagas, fluidas, cristalinas... Incensos dos turíbulos das aras... Formas do Amor, constelarmente puras, de virgens e de santas vaporosas... Brilhos d'alvura e pétalas de rosas, sonâmbulas volúpias e amarguras que erram no éter em ondas vagabundas!"
+    },
+    {
+      "id": 115,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Augusto dos Anjos — Versos Íntimos",
+      "text": "Vês?! Ninguém assistiu ao formidável enterro de tua última quimera. Somente a Ingratidão — esta pantera — foi tua companheira inseparável! Acostuma-te à lama que te espera! O Homem, que, nesta terra miserável, mora entre feras, sente inevitável necessidade de também ser fera. Toma um fósforo. Acende teu cigarro! O beijo, amigo, é a véspera do escarro, a mão que afaga é a mesma que apedreja."
+    },
+    {
+      "id": 116,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Mario de Andrade — O Poeta Come Amendoim",
+      "text": "Noites do Norte, cheias de estrelas e de calafrios de igarapés sonolentos. Aqui na varanda eu como amendoim torrado e escuto o choro do vento nos coqueirais distantes. O Brasil é grande como o meu coração com fome de tudo, caboclo sonhando com violões de corda de tripa que cantam modinhas antigas enquanto o orvalho molha os telhados de barro vermelho."
+    },
+    {
+      "id": 117,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Vinicius de Moraes — Soneto de Fidelidade",
+      "text": "De tudo, ao meu amor serei atento antes, e com tal zelo, e sempre, e tanto, que mesmo em face do maior encanto dele se encante mais meu pensamento. Quero vivê-lo em cada vão momento e em seu louvor hei de espalhar meu canto e rir meu riso e derramar meu pranto ao seu pesar ou seu contentamento. E assim, quando mais tarde me procure quem sabe a morte, eu possa me dizer do amor: que não seja imortal, posto que é chama, mas que seja infinito enquanto dure."
+    },
+    {
+      "id": 118,
+      "category": "poema",
+      "textual_genre": "Ode",
+      "genre_id": "ode",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Hilda Hilst — Da Morte. Odes Mínimas",
+      "text": "Porque há o direito ao grito, então eu grito. Porque há o direito à sede, então caminho para o poço escuro das pedras altas. Se te chamo pelo nome secreto das árvores sem seiva, é para que me ouças antes que a noite feche o anel do mundo sobre a minha garganta de cinzas. Vem com teus passos de pássaro ferido e deita tua mão fria sobre a lâmpada que ainda teima em queimar."
+    },
+    {
+      "id": 119,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Paulo Leminski — Caprichos e Relaxos",
+      "text": "um dia vai dar certo / no outro vai dar errado / no meio do caminho / um poema desavisado / atravessa a pista molhada / não pede licença a ninguém / e some na curva da estrada / levando o brilho do trem. Apague a luz da sala, deixe a chuva bater no vidro; quem sabe da vida é a água que corre sem destino."
+    },
+    {
+      "id": 120,
+      "category": "poema",
+      "textual_genre": "Epic poem",
+      "genre_id": "epic_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Castro Alves — O Navio Negreiro (fragmento)",
+      "text": "Era um sonho dantesco... o tombadilho que das luzernas avermelha o brilho, em sangue a se banhar. Tinir de ferros... estalar de açoite... Legiões de homens negros como a noite, horrendos a dançar... Mulheres com crianças suspensas ao peito descarnado, homens gemendo sob a aragem salgada, pedindo a Deus um raio que quebre os elos da corrente maldita!"
+    },
+    {
+      "id": 121,
+      "category": "poema",
+      "textual_genre": "Dramatic verse / auto",
+      "genre_id": "auto_verse_drama",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Dramatic Literature & Scripts",
+      "source": "João Cabral de Melo Neto — Morte e Vida Severina (fragmento)",
+      "text": "— O meu nome é Severino, como não tenho outro de pia. Como há muitos Severinos, que é santo de romaria, deram então de me chamar Severino de Maria; como há muitos Severinos com mães chamadas Maria, fiquei sendo o da Maria do finado Zacarias. Mas isso ainda diz pouco: há muitos na mesma praça, por causa de um coronel que se chamava Zacarias e que foi o mais antigo senhor desta sesmaria."
+    },
+    {
+      "id": 122,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Adélia Prado — Bagagem",
+      "text": "Quando nasci, um anjo torto desses que vivem na sombra disse: Vai, Carlos! ser gauche na vida. Eu nasci mulher, com dever de chorar e lavar as louças da casa, mas olho para as panelas de ferro e vejo nelas a glória de Deus refletida no vapor da sopa de legumes. Não tenho ambições de filósofo; meu espanto diante do mundo cabe inteirinho na casca amarela de um maracujá."
+    },
+    {
+      "id": 123,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Cora Coralina — Todas as Vidas",
+      "text": "Vive dentro de mim a mulher do campo, a mulher dos arrozais e das broas assadas em folhas de bananeira. Vive a cozinheira de doces de figo verde, tacho de cobre no fogão de lenha crepitante. Não morri nas enchentes do Rio Vermelho nem me perdi nas vielas antigas de Goiás: renasço toda vez que uma criança bate a enxada na terra molhada e espera que brote o primeiro grão de milho."
+    },
+    {
+      "id": 124,
+      "category": "poema",
+      "textual_genre": "Sonnet",
+      "genre_id": "sonnet",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Olavo Bilac — Via Láctea (Soneto XIII)",
+      "text": "\"Ora (direis) ouvir estrelas! Certo perdeste o senso!\" E eu vos direi, no entanto, que, para ouvi-las, muita vez desperto e abro as janelas, pálido de espanto... E conversamos toda a noite, enquanto a Via Láctea, como um pálio aberto, cintila. E, ao vir do sol, ouvindo o pranto das folhas matinais, ainda as procuro pelo céu deserto. Direis agora: \"Tresloucado amigo! Que conversas com elas? Que sentido tem o que dizem?\" E eu vos direi: \"Amai para entendê-las!\""
+    },
+    {
+      "id": 125,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Torquato Neto — Cogito",
+      "text": "eu sou como eu sou / pronome / pessoa / coisa / bicho / e não tenho medo de cara feia nem de noite comprida / meu coração bate no compasso torto da cidade grande / se o vento me empurra para a beira do abismo / eu abro os braços e faço do vento a minha própria asa. amanhece sempre, queira a terra ou não."
+    },
+    {
+      "id": 126,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Gonçalves Dias — Canção do Exílio",
+      "text": "Minha terra tem palmeiras, onde canta o Sabiá; as aves, que aqui gorjeiam, não gorjeiam como lá. Nosso céu tem mais estrelas, nossas várzeas têm mais flores, nossos bosques têm mais vida, nossa vida mais amores. Em cismar, sozinho, à noite, mais prazer encontro eu lá; minha terra tem palmeiras, onde canta o Sabiá. Não permita Deus que eu morra sem que volte para lá."
+    },
+    {
+      "id": 127,
+      "category": "poema",
+      "textual_genre": "Ballad",
+      "genre_id": "ballad",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Alphonsus de Guimaraens — Ismália",
+      "text": "Quando Ismália enlouqueceu, pôs-se na torre a sonhar... Viu uma lua no céu, viu outra lua no mar. No sonho em que se perdeu, banhou-se toda em luar... Queria subir ao céu, queria descer ao mar... E, no desvario seu, na torre pôs-se a cantar... Estava longe do céu... Estava longe do mar... E como um anjo pendeu as asas para voar... Queria a alma ir ao céu, queria o corpo ir ao mar!"
+    },
+    {
+      "id": 128,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Ferreira Gullar — Poema Sujo (fragmento)",
+      "text": "em são luís do maranhão / a cidade de pedra e telha de bica / onde o mar bate nos muros escuros da praia grande / e o cheiro de maresia entra pelas frestas das venezianas coloniais. os homens passam suados carregando fardos de farinha d'água / e o sino da matriz toca as seis horas no poente roxo / enquanto a noite engole devagar os sobradões e os mastros dos saveiros."
+    },
+    {
+      "id": 129,
+      "category": "poema",
+      "textual_genre": "Prose poem",
+      "genre_id": "prose_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Manoel de Barros — Livro sobre Nada",
+      "text": "O que não tem utilidade nenhuma é o que sustenta o mundo. Aprendi com os passarinhos a arte de desaprender as medidas do mundo: o rio não corre para lugar nenhum, ele só quer deitar suas águas nas pedras lisas. Se uma rã salta no lodo, o universo inteiro estremece em volta daquela gota. As coisas que não têm nome são as que melhor sabem cantar no silêncio da tarde."
+    },
+    {
+      "id": 130,
+      "category": "poema",
+      "textual_genre": "Prose poem",
+      "genre_id": "prose_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Waly Salomão — Me Segura Qu'Eu Vou Dar um Troço",
+      "text": "Trombetas de prata no meio do asfalto quente da Bahia. Quem tem medo de navegar em mar revolto não embarca em canoa furada de poeta. O ritmo bate no calcanhar, a lâmina do sol corta a carne macia da melancia no meio da praça. Não me peça calma nem medidas prudentes: o mundo gira na velocidade dos meus olhos e não tem estação de parada."
+    },
+    {
+      "id": 131,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Casimiro de Abreu — Meus Oito Anos",
+      "text": "Oh! que saudades que tenho da aurora da minha vida, da minha infância querida que os anos não trazem mais! Que amor, que sonhos, que flores, naquelas tardes fagueiras à sombra das bananeiras, debaixo dos laranjais! Como são belos os dias do despontar da existência! Respira a alma inocência como perfumes a flor. O mar é lago sereno, o céu um manto azulado, o mundo um sonho dourado, a vida um hino de amor!"
+    },
+    {
+      "id": 132,
+      "category": "poema",
+      "textual_genre": "Prose poem",
+      "genre_id": "prose_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Murilo Mendes — O Visionário",
+      "text": "Vejo cidades submersas subirem pelas raízes das montanhas. O tempo não é uma linha que foge para a frente, mas um poço fundo de onde os mortos tiram água cristalina para lavar os olhos dos vivos. As sirenes das fábricas cantam o hino da madrugada, e sobre as torres de transmissão de energia os anjos descansam suas espadas de relâmpago puro."
+    },
+    {
+      "id": 133,
+      "category": "poema",
+      "textual_genre": "Epic poem",
+      "genre_id": "epic_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Jorge de Lima — Invenção de Orfeu (fragmento)",
+      "text": "Canto o mar que não cabe nos mapas antigos, as naus que perderam as bússolas e navegam por constelações de fogo invisível. Onde a espuma toca o rochedo de salitre, uma lira de osso ressoa sem dedos humanos, acordando os monstros que dormem no fundo do abismo oceânico sob tempestades de algas e corais fosforescentes."
+    },
+    {
+      "id": 134,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Guilherme de Almeida — Raça",
+      "text": "Sangue de três povos que se abraçaram na terra virgem: a flecha certeira do guarani na mata escura, o canto de saudade do marinheiro português no balanço da caravela, e o batuque sagrado do banto retumbando na noite das senzalas. Desse encontro de dores e esperanças nasceu o clarão deste povo que sorri mesmo quando o horizonte fecha em tempestade."
+    },
+    {
+      "id": 135,
+      "category": "poema",
+      "textual_genre": "Prose poem",
+      "genre_id": "prose_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Raul de Leoni — Luz Subterrânea",
+      "text": "Sob o silêncio de mármore das sepulturas esquecidas, há um murmúrio constante de sementes que se rompem na treva fértil. Nada morre verdadeiramente na terra: tudo se transmuta em seiva nova, em perfume que há de subir pelas hastes dos lírios selvagens quando a próxima primavera incendiar os vales com sua luz imprevista."
+    },
+    {
+      "id": 136,
+      "category": "poema",
+      "textual_genre": "Epic poem",
+      "genre_id": "epic_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Cassiano Ricardo — Martim Cererê",
+      "text": "Bate o pilão na fazenda velha de café: tim-tom, tim-tom! A fumaça azul sobe dos telhados de telha-vã, o tropeiro assobia para a mula madrinha na encruzilhada poeirenta do caminho. O Brasil vai marchando pelos sertões afora, derrubando o mato com machado de aço e acendendo fogueiras de ipê para espantar a onça-pintada e o frio da serra."
+    },
+    {
+      "id": 137,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Augusto Meyer — O Vento Norte",
+      "text": "Vem dos campos rasos do sul o vento minuano, uivando pelas frestas das taipas de pedra e vergando os capins secos da coxilha. O cavalo baio fareja a tempestade na borda do horizonte cinzento, enquanto o fogo de chão crepita no galpão de madeira aromática, espalhando cheiro de fumo crioulo e chimarrão amargo."
+    },
+    {
+      "id": 138,
+      "category": "poema",
+      "textual_genre": "Prose poem",
+      "genre_id": "prose_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Ana Cristina Cesar — A Teus Pés",
+      "text": "Não me mandes cartas prudentes com notícias do tempo. Escreve-me na margem rápida do bilhete com tinta azul que borra ao menor contato dos dedos: diz se ainda chove nos teus pensamentos como chovia no terraço de Ipanema naquelas noites de quinta-feira em que o mar parecia invadir a sala e carregar nossos livros abertos."
+    },
+    {
+      "id": 139,
+      "category": "poema",
+      "textual_genre": "Free verse",
+      "genre_id": "free_verse",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Chacal — Belvedere",
+      "text": "olho do alto do morro e vejo a cidade estendida como um couro de boi secando ao sol do meio-dia. carros pequenos como formigas mecânicas, ônibus azuis roncando nas subidas íngremes. lá embaixo o mar bate com espuma branca nas pedras pretas, e eu aqui em cima com vento no cabelo e uma caneta bic sem tampa desenhando caminhos imaginários."
+    },
+    {
+      "id": 140,
+      "category": "poema",
+      "textual_genre": "Lyric poem",
+      "genre_id": "lyric_poem",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Poetry",
+      "source": "Henriqueta Lisboa — O Alvo Sonho",
+      "text": "Por caminhos de orvalho e névoa matutina caminha o silêncio sem pressa de chegar. Se as campânulas azuis dos sinos de vidro tocarem na torre invisível, recolhe teus passos de terra e contempla o voo da garça solitária sobre as águas paradas da lagoa: tudo o que é puro precisa apenas de um instante para ser eterno."
+    },
+    {
+      "id": 141,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Machado de Assis — Dom Casmurro (Capítulo LV)",
+      "text": "Capitu olhou para mim com uns olhos tão profundos e serenos que pareciam duas vagas de ressaca recolhendo a espuma da praia. Não disse nada durante minutos; apenas ajeitou a mecha rebelde de cabelo sobre a testa clara, enquanto o relógio de parede da sala de jantar batia lentamente as horas da tarde num compasso que parecia medir o tamanho das nossas desconfianças."
+    },
+    {
+      "id": 142,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Clarice Lispector — Felicidade Clandestina",
+      "text": "Ela era gorda, baixa, sardenta e de cabelos excessivamente crespos, meio arruivados. Tinha um busto enorme, enquanto nós todas éramos ainda achatadas. Como se não bastasse, enchia os dois bolsos da blusa de balas. Mas possuía o que qualquer menina devoradora de histórias gostaria de ter: um pai dono de livraria. E prometia me emprestar \"As Reinações de Narizinho\" com a crueldade refinada de quem adia um milagre."
+    },
+    {
+      "id": 143,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Rubem Braga — A Borboleta Amarela",
+      "text": "No meio do trânsito ensurdecedor da Avenida Rio Branco, entre buzinas histéricas de táxis e fumaça de ônibus em disparada, entrou voando pela janela aberta do escritório uma borboleta amarela. Hesitou sobre a pilha de processos empoeirados, pousou por três segundos sobre o tinteiro de vidro e partiu de volta para o céu de verão, deixando os advogados atônitos a olhar para as próprias mãos paradas."
+    },
+    {
+      "id": 144,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Guimarães Rosa — Primeiras Estórias (A Terceira Margem do Rio)",
+      "text": "Nosso pai não voltou. Ele não tinha ido a nenhuma parte. Só executava a invenção de se conservar naqueles espaços do rio, de meio a meio, sempre dentro da canoa, para dela não saltar nunca mais. A canoa era estreita, de vinhático, feita para durar mais que homem. A gente ia lá na beira, deixava o prato de comida amarrado na taquara e chamava baixinho, com medo de quebrar o silêncio daquela água funda."
+    },
+    {
+      "id": 145,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Lima Barreto — Triste Fim de Policarpo Quaresma",
+      "text": "Policarpo Quaresma, homem de hábitos metódicos e rigorosa pontualidade, dedicava suas noites ao estudo apaixonado das tradições da pátria. Sentado à secretária de jacarandá com um dicionário de tupi-guarani aberto e um violão de pinho descansando ao lado, redigia memorandos oficiais exigindo que o governo republicano adotasse a língua indígena como idioma nacional dos brasileiros."
+    },
+    {
+      "id": 146,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Nelson Rodrigues — A Vida Como Ela É...",
+      "text": "Chovia a cântaros no cemitério do Caju. A viúva, sob o guarda-chuva preto de seda rasgada, chorava lágrimas de alívio e pavor diante da cova recém-aberta. O cunhado aproximou-se devagar, pisando no barro vermelho das alamedas estreitas, e sussurrou ao seu ouvido uma frase curta que mudaria o destino da família pelos próximos quarenta anos: \"Ele me contou tudo antes de morrer\"."
+    },
+    {
+      "id": 147,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Lygia Fagundes Telles — Venha Ver o Pôr do Sol",
+      "text": "O velho cemitério abandonado ficava no alto de uma colina coberta de mato alto e cruzes caídas de granito. Ele caminhava na frente, elegante e sorridente, apontando para as velhas catacumbas com ar de arqueólogo descontraído, enquanto ela segurava as saias de seda para não sujar na relva úmida, sentindo que a cada passo a luz do entardecer ia se tornando mais fria e inexorável."
+    },
+    {
+      "id": 148,
+      "category": "conto_cronica",
+      "textual_genre": "Satire",
+      "genre_id": "satire",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Stanislaw Ponte Preta — Febeapá (Festival de Besteira)",
+      "text": "Naquele memorável município do interior do país, o ilustre delegado de polícia, zeloso da moral e dos bons costumes cívicos, expediu portaria terminante proibindo os cachorros vadios de latirem após as dez horas da noite sob pena de recolhimento sumário à carceragem municipal. A cidade acatou com silêncio aterrado até que o primeiro vira-lata rosnou para a lua cheia."
+    },
+    {
+      "id": 149,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Luis Fernando Verissimo — Comédias da Vida Privada",
+      "text": "O casal estava casado havia vinte e sete anos sem nunca ter tido uma discussão pública relevante, até a noite em que ele decidiu explicar detalhadamente na mesa do restaurante como se dobrava corretamente um mapa rodoviário. O garçom permaneceu imóvel com a garrafa de vinho suspensa no ar enquanto o silêncio entre os dois adquiriu o peso de uma tempestade antártica prestes a desabar."
+    },
+    {
+      "id": 150,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Raduan Nassar — Lavoura Arcaica (fragmento)",
+      "text": "A mesa da casa grande estava posta com o pão de centeio partido sobre a toalha de linho rústico e a jarra de vinho escuro exalando o perfume acre da parreira de outono. Meu pai, sentado à cabeceira alta de espaldar entalhado, ergueu os olhos severos e lentos na nossa direção, e antes de proferir a bênção ritual fez com a mão calejada aquele gesto circular que cobria de poeira e silêncio toda a nossa juventude."
+    },
+    {
+      "id": 151,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Moacyr Scliar — O Carnaval dos Animais",
+      "text": "O velho alfaiate do bairro do Bom Retiro costurava ternos de linho com agulhas finíssimas que tilintavam no dedal de latão. Dizia aos fregueses que cada ponto de linha branca no tecido azul continha uma prece antiga contra os descaminhos do destino. Pela janela entreaberta da sobreloja entrava o rumor alegre dos camelôs e o apito do vendedor de castanhas portuguesas assadas na brasa."
+    },
+    {
+      "id": 152,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Dalton Trevisan — O Vampiro de Curitiba",
+      "text": "Neco acendeu a ponta do cigarro de palha na sombra do portal de pinho da Rua das Flores. O frio de maio descia das araucárias trazendo uma garoa miúda que lustrava o calçamento de pedras irregulares. Olhou a janela do segundo andar do sobrado amarelo: a cortina de renda balançou de leve, sinal conveniado de que o velho tio já ferrara no primeiro sono pesado."
+    },
+    {
+      "id": 153,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "João do Rio — A Alma Encantadora das Ruas",
+      "text": "A rua é um ser vivo que respira, sua e guarda segredos inconfessáveis sob o ruído contínuo dos coches e dos bondes de tração animal. No cais do porto do Rio colonial, marinheiros de terras ignotas fumavam cachimbos curtos de barro, enquanto quitandeiras vestidas de chita alva pregavam suas cocadas pretas e doces de araçá sobre tabuleiros de pau-marfim lustrados pela maresia."
+    },
+    {
+      "id": 154,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Monteiro Lobato — Cidades Mortas",
+      "text": "Naquela cidade esquecida do Vale do Paraíba, onde outrora correram fortunas de café e carruagens de prata, restavam apenas casarões arruinados com sacadas de ferro retorcidas pela ferrugem. Na praça deserta onde as ervas daninhas cobriam o coreto carcomido, um burro magro mastigava vagarosamente as folhas secas caídas de um jacarandá centenário sob a poeira amarela da tarde."
+    },
+    {
+      "id": 155,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Fernando Sabino — O Encontro Marcado",
+      "text": "Eduardo subiu correndo os degraus de pedra da biblioteca pública de Belo Horizonte com o coração batendo na garganta. Sabia que ela estaria sentada na mesa do canto, perto das estantes altas de literatura francesa, folheando distraidamente um volume de Baudelaire com suas luvas de lã azul-escura. Quando empurrou a pesada porta de carvalho, o tilintar suave da sineta ecoou no salão silencioso."
+    },
+    {
+      "id": 156,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Rachel de Queiroz — O Quinze",
+      "text": "A estrada de poeira branca cortava a caatinga cinzenta sob um sol escaldante que tremeluzia no horizonte como brasa viva. Chico Bento caminhava com a trouxa de roupas na cabeça e a vara de ferrão na mão ressequida, vigiando a mulher que carregava o menino miúdo no colo sem forças para chorar. Atrás vinha a cabra magra lambendo os espinhos dos xiquexiques mortos de sede."
+    },
+    {
+      "id": 157,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Graciliano Ramos — Vidas Secas (Baleia)",
+      "text": "A cachorra Baleia queria dormir. Acordaria feliz, num mundo cheio de preás gordos que correriam pelos campos verdes de capim fresco. Sentia que a espingarda de Fabiano ainda cheirava a pólvora no pátio pedregoso, mas a dor na perna ia sumindo devagar, substituída por um calor gostoso que descia do céu estrelado sobre os seus pelos ásperos e seus olhos de bicho fiel."
+    },
+    {
+      "id": 158,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Antônio de Alcântara Machado — Brás, Bexiga e Barra Funda",
+      "text": "Gaetano limpou o suor da testa com o lenço vermelho e olhou a engenhoca de fazer macarrão que roncava no fundo da oficina do Bexiga. Na calçada ensolarada da Rua Treze de Maio, os meninos jogavam bola de meia entre as carroças de verdura e as bandeirinhas coloridas estendidas para a festa da Madonna de Casaluce, enquanto o gramofone do bar vizinho tocava cançonetas napolitanas roucas."
+    },
+    {
+      "id": 159,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Bernardo Élis — Veranico de Janeiro",
+      "text": "O sol do meio-dia caía como chumbo derretido sobre a terra vermelha do cerrado goiano. No rancho de palha de buriti à beira da vereda rasa, Zé da Prata afiava a foice de bico numa pedra-pomes gotejante, ouvindo o canto monótono e estridente da cigarra que anunciava mais quinze dias de calor sem nuvem nem chuva nos brejos ressequidos."
+    },
+    {
+      "id": 160,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "João Guimarães Rosa — Sagarana (O Burrinho Pedrês)",
+      "text": "Sete-de-Ouros era um burrinho pequeno, sarnento e resignado, com manchas brancas espalhadas pelo lombo cinzento como farinha jogada em chão batido. Na hora da travessia do rio enchendo de enxurrada escura e troncos rolando, os vaqueiros hesitaram montados em seus cavalos fogosos; foi ele, com seus passinhos miúdos e seu faro de bicho manso, que achou o fundo firme da restinga e salvou a boiada inteira."
+    },
+    {
+      "id": 161,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Mário Quintana — Porta Giratória",
+      "text": "A porta giratória do grande banco central engolia e cuspia cidadãos apressados com a precisão mecânica de um estômago de aço. Um velho senhor de sobretudo cinza parou exatamente no meio do giro, olhou para o próprio reflexo no vidro temperado e percebeu, com um sorriso divertido, que havia esquecido completamente se estava entrando para depositar um cheque ou saindo para comprar violetas na esquina."
+    },
+    {
+      "id": 162,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Otto Lara Resende — O Braço Direito",
+      "text": "Naquele cartório sombrio do interior de Minas, os livros de assentamento empilhavam-se até o teto em prateleiras carcomidas pelo cupim. O escrivão titular, homem de bigodes brancos caídos e óculos de aro de tartaruga, molhou a pena de aço na tinta nanquim com a gravidade de um sacerdote officiando mistérios seculares que nenhum herdeiro vivo compreenderia jamais."
+    },
+    {
+      "id": 163,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Carlos Drummond de Andrade — Fala, Amendoeira",
+      "text": "A amendoeira plantada na calçada em frente ao meu edifício no Posto Seis perdeu todas as folhas no vendaval de agosto. Durante semanas pareceu um esqueleto de galhos secos estendidos contra o cinza do mar de Copacabana. Hoje de manhã, sem aviso prévio de botânica, acordou coalhada de brotos verde-claros e brilhantes, ensinando aos moradores que a esperança não precisa de alvará para florescer."
+    },
+    {
+      "id": 164,
+      "category": "conto_cronica",
+      "textual_genre": "Crônica (literary chronicle)",
+      "genre_id": "cronica",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Creative Non-Fiction",
+      "source": "Paulo Mendes Campos — O Amor Acaba",
+      "text": "O amor acaba no meio da tarde de uma terça-feira sem chuva, enquanto se espera a condução na esquina da Rua da Quitanda. Não precisa de briga aos gritos nem de pratos partidos na cozinha: basta que um olhe para o outro e perceba que as palavras que outrora incendiavam o quarto tornaram-se tão leves e inofensivas quanto um bilhete esquecido no bolso do paletó."
+    },
+    {
+      "id": 165,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Aníbal Machado — A Morte do Porta-Estandarte",
+      "text": "No domingo de Carnaval, o cortejo do cordão descia a ladeira do Morro da Favela em ondas de azul e ouro. Benedito segurava o mastro do estandarte com as duas mãos calosas, girando sob os aplausos da multidão febril, sem perceber que nos olhos da cabrocha Rosinha, vestida de pastora e coroada de espelhos falsos, brilhava a promessa perigosa de uma traição que custaria sangue antes da quarta-feira de cinzas."
+    },
+    {
+      "id": 166,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Lúcio Cardoso — Crônica da Casa Assassinada",
+      "text": "A carruagem parou diante dos portões enferrujados da chácara dos Meneses ao cair de uma tarde chuvosa e sem vento. Nina desceu com seus baús de couro lavrado, o véu molhado cobrindo o rosto pálido e soberbo, enquanto pelas janelas escuras do casarão colonial os vultos da família espiavam a intrusa que vinha abalar os alicerces morais daquela linhagem decadente."
+    },
+    {
+      "id": 167,
+      "category": "conto_cronica",
+      "textual_genre": "Novel",
+      "genre_id": "novel",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Autran Dourado — Ópera dos Mortos",
+      "text": "O silêncio na casa dos Honório Cota era feito de madeira de lei que rangia nos desvãos do sótão e pêndulos de bronze que batiam com a lentidão dos séculos. Juca Passarinho, sentado no tamborete da cozinha fumando palha de milho, escutava a respiração ofegante da sinhá-dona que descia as escadas segurando o castiçal de prata maciça como se acudisse a um chamado dos mortos da fazenda."
+    },
+    {
+      "id": 168,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Osman Lins — Nove, Novena",
+      "text": "O trem de passageiros parou na estação deserta sob o sol do sertão pernambucano. Do vagão de terceira classe desceu o mestre-escola com uma mala de papelão amarrada por barbante de algodão cru. Ao seu redor, a planície avermelhada estendia-se até as serras azuis do horizonte, vazia de homens e cheia de uma luz tão pura que feria a vista de quem acabara de chegar."
+    },
+    {
+      "id": 169,
+      "category": "conto_cronica",
+      "textual_genre": "Short story",
+      "genre_id": "short_story",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Rubem Fonseca — Feliz Ano Novo",
+      "text": "A cidade ardia sob o calor úmido de dezembro. No apartamento refrigerado do décimo andar, a ceia de réveillon estava posta com cristais importados, salmão defumado e taças de champanhe estalando em gelo picado. Pela sacada panorâmica avistavam-se os fogos de artifício espocando na praia iluminada, enquanto no corredor dos fundos o elevador de serviço subia rangendo sem parar."
+    },
+    {
+      "id": 170,
+      "category": "conto_cronica",
+      "textual_genre": "Fairy tale",
+      "genre_id": "fairy_tale",
+      "genre_domain": "Literature & Creative Writing",
+      "genre_collection": "Narrative Fiction",
+      "source": "Marina Colasanti — Uma Idéia Toda Azul",
+      "text": "O rei acordou com uma ideia azul na cabeça. Não era um pássaro nem uma flor de lavanda: era um pensamento límpido como a água de uma fonte nas montanhas nevadas. Chamou os ministros de manto escarlate e os sábios de barba prateada para guardarem a ideia em redomas de cristal lapidado, temendo que o sopro do vento matinal a dissolvesse no ar como uma bolha de sabão."
+    },
+    {
+      "id": 171,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Feira Livre no Bairro de Santana (São Paulo)",
+      "text": "Na calçada larga da rua inclinada, toldos de lona listrada em azul e amarelo filtram a luz da manhã sobre caixotes de madeira transbordando de mangas rosadas, mamões formosa cortados ao meio e cachos densos de banana-da-terra. Feirantes de avental branco gritam ofertas em coro enquanto senhoras com carrinhos de feira aramados examinam folhas frescas de couve-manteiga respingadas de água cristalina."
+    },
+    {
+      "id": 172,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Tempestade de Verão na Avenida Paulista",
+      "text": "O céu sobre os arranha-céus espelhados da Avenida Paulista escurece repentinamente para um tom chumbo-violáceo denso. Rajadas de vento frio dobram as copas dos ipês plantados nos canteiros centrais e levantam redemoinhos de folhas secas, enquanto os primeiros pingos grossos explodem no asfalto quente da via expressa e relâmpagos ramificados iluminam a silhueta da antena da Gazeta."
+    },
+    {
+      "id": 173,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Entardecer no Pantanal de Miranda",
+      "text": "A linha do horizonte no Pantanal sul-mato-grossense tinge-se de um laranja incandescente refletido na superfície calma de um corixo repleto de camalotes e vitórias-régias. Centenas de tuiuiús pousados nos galhos secos de um piúva centenário observam em silêncio o bater de asas de um bando ruidoso de araras-azuis cruzando o céu crepuscular rumo ao dormitório nos capões de mata."
+    },
+    {
+      "id": 174,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Barco Gaiola no Rio Negro",
+      "text": "Um barco regional de dois andares de madeira branca e verde-esmeralda corta vagarosamente as águas escuras e espelhadas do Rio Negro sob o calor úmido do meio-dia. Dezenas de redes de dormir coloridas de algodão trançado balançam no convés aberto superior, onde ribeirinhos descansam ao som suave do motor a diesel enquanto a muralha verde da floresta amazônica desfila nas margens distantes."
+    },
+    {
+      "id": 175,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Oficina Mecânica no Subúrbio Carioca",
+      "text": "No interior sombreado da garagem de teto alto de telhas de amianto onduladas, a carcaça azul-metálica de um velho Opala repousa sobre cavaletes de aço escuro rodeada por poças de óleo queimado refletindo lâmpadas fluorescentes penduradas por fios desencapados. Chaves de boca cromadas e ferramentas manuais repousam sobre uma bancada de madeira manchada de graxa ao lado de um rádio portátil chiando."
+    },
+    {
+      "id": 176,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Interior da Igreja de Nossa Senhora do Rosário dos Pretos em Salvador",
+      "text": "A nave estreita da igreja barroca do Pelourinho exibe paredes revestidas de azulejos portugueses em azul e branco e retábulos de talha dourada e policromada iluminados por dezenas de velas de cera de abelha acesas nos altares laterais. O cheiro de alfazema e incenso mistura-se à penumbra acolhedora onde fiéis entoam cânticos suaves pontuados pelo toque ritmado de atabaques ancestrais."
+    },
+    {
+      "id": 177,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Noite Chuvosa no Largo da Ordem em Curitiba",
+      "text": "O calçamento colonial de pedras irregulares do Largo da Ordem brilha intensamente sob a chuva fina da noite fria, espelhando as luzes âmbar das antigas luminárias de ferro fundido. Casarões de fachadas neoclássicas restauradas em tons de ocre, verde-oliva e vermelho-rubro abrigam cafés aconchegantes com vitrines embaçadas de onde escapa o aroma reconfortante de café passado e quentão com canela."
+    },
+    {
+      "id": 178,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Revoada de Araras no Jalapão",
+      "text": "Diante das falésias alaranjadas e paredões retos de arenito da Serra do Espírito Santo, dezenas de araras-canindé com penas amarelas e azuis radiantes decolam em espiral veloz contra o azul imaculado do céu tocantinense. Abaixo, as veredas de buritis erguem-se como estandartes verdes ao redor de fervedouros de águas azul-turquesa borbulhantes de areia branca suspensa."
+    },
+    {
+      "id": 179,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Pátio de Manobras Ferroviário em Paranaguá",
+      "text": "Linhas férreas paralelas cruzam-se em agulhas metálicas sobre dormentes escuros de madeira impregnados de creosoto à beira da baía litorânea. Vagões-tremonha carregados de grãos de soja dourados aguardam a manobra de locomotivas diesel-elétricas azuis que soltam baforadas de fumaça cinzenta sob o grasnar contínuo de gaivotas pousadas sobre os armazéns portuários de concreto."
+    },
+    {
+      "id": 180,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Manhã de Cerração nos Canions de Cambará do Sul",
+      "text": "Uma muralha colossal de rocha basáltica escarpada despenca verticalmente por quase mil metros de profundidade no cânion do Itaimbezinho, parcialmente ocultada por grossas nuvens de neblina branca que sobem das florestas de araucária do fundo da garganta. O orvalho gela as folhas finas das gramíneas nativas no topo do penhasco enquanto o silêncio é quebrado pelo murmúrio de uma cascata distante."
+    },
+    {
+      "id": 181,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Sala de Partituras de um Conservatório em São Paulo",
+      "text": "Armários envidraçados de jacarandá guardam centenas de pastas de couro verde com partituras manuscritas amareladas pelas décadas de estudo musical. Ao centro da sala acarpetada em vinho escuro, um piano de cauda negro e brilhante reflete a luz suave de um abajur de latão com cúpula verde, tendo ao lado uma estante de partitura de ferro com anotações a lápis grafite nas margens dos compassos."
+    },
+    {
+      "id": 182,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Mercado Público de Florianópolis ao Meio-Dia",
+      "text": "O vão central do mercado histórico ferve sob o sol brilhante com dezenas de mesas de madeira ocupadas por frequentadores saboreando pastéis de camarão dourados e peixes fritos crocantes servidos com limão e pirão de farinha fina de mandioca. Vendedores de berbigão fresco e ostras cultivadas nas baías da ilha organizam bandejas de gelo picado sob os arcos mouriscos da edificação centenária."
+    },
+    {
+      "id": 183,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Atelier de Gravura no Bairro de Santa Teresa (Rio de Janeiro)",
+      "text": "Grandes prensas manuais de ferro fundido dominam o salão de piso de tábua corrida de uma casa colonial de pé-direito duplo com vista para a Baía de Guanabara. Rolos de borracha preta manchados de tinta de impressão descansam sobre placas de vidro liso ao lado de matrizes de madeira de xilogravura recém-entalhadas com goivas pontiagudas, exalando perfume penetrante de terebintina e óleo de linhaça."
+    },
+    {
+      "id": 184,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Lavoura de Café em Flor em Minas Gerais",
+      "text": "Colinas onduladas na região do Sul de Minas cobrem-se de um manto branco perfumado de milhões de pequenas flores brancas de café recém-abertas após a primeira chuva de primavera. Abelhas nativas zumbem intensamente entre os renques alinhados de arbustos verde-escuros enquanto o sol poente banha a serra distante em tonalidades de âmbar e lilás sobre as estradas de terra alaranjada."
+    },
+    {
+      "id": 185,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Cozinha Caipira com Fogão de Lenha em Cunha",
+      "text": "Numa cozinha de chão de cimento queimado vermelho, uma grande chapa de ferro fundido montada sobre alvenaria de tijolos aparentes estala com chamas vivas de nós de pinho e lenha de eucalipto. Panelas de ferro negro soltam vapor aromático de feijão gordo e cheiro-verde, enquanto tranças de alho roxo e cabaças secas penduram-se nas vigas de madeira do teto rústico."
+    },
+    {
+      "id": 186,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Roda de Choro na Praça São Salvador (Laranjeiras)",
+      "text": "Sob a copa frondosa de um fícus centenário cercado por banquinhos de ferro na praça carioca, músicos amadores e profissionais agrupam-se em círculo com violões, cavaquinhos, pandeiros de couro de cabra e um bandolim prateado. Casais dançam descalços sobre o chão de mosaico português enquanto garçons de camisa social branca equilibram bandejas com tulipas de chope espumante e copos americanos."
+    },
+    {
+      "id": 187,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Enseada dos Naufragados ao Alvorecer",
+      "text": "O mar aberto da ponta sul da Ilha de Santa Catarina arrebenta com ondas fortes e espumantes contra os rochedos arredondados de granito negro salpicados de mexilhões e mariscos. O farol histórico no topo do morro escarpado ainda emite lampejos brancos regulares em meio à bruma salgada da madrugada, enquanto dois barcos de pesca artesanal cortam a enseada rumo ao alto-mar sob gaivotas em voo rasante."
+    },
+    {
+      "id": 188,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Estufa de Plantas Medicinais no Jardim Botânico de Curitiba",
+      "text": "A imponente estrutura metálica curvilínea de ferro branco e painéis de vidro transparente inspirada nos palácios de cristal vitorianos abriga centenas de samambaias gigantes, bromélias de flores escarlates e palmeiras raras sob névoa controlada de microaspersores. O reflexo dos canteiros geométricos franceses de flores coloridas espelha-se nas paredes envidraçadas sob o sol luminoso da tarde."
+    },
+    {
+      "id": 189,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Oficina de Luthiaria em Conservatória (Rio de Janeiro)",
+      "text": "Tampo de pinho suíço, laterais e fundos de jacarandá da Bahia envelhecido repousam sobre bancadas de carpinteiro cobertas por aparas finas de madeira enrolada como fitas de papel. Moldes de violão clássico, grampos de aperto de madeira e pequenos potes de vidro com verniz de goma-laca âmbar preenchem as prateleiras ao lado de rabecas rústicas penduradas por cordas de sisal."
+    },
+    {
+      "id": 190,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Pôr do Sol na Ponta do Humaitá (Salvador)",
+      "text": "O sol alaranjado mergulha nas águas calmas da Baía de Todos os Santos ao lado da capela branca de Monte Serrat com sua sacada de arcadas virada para o poente. Moradores e turistas reúnem-se sentados nos muros de cantaria de pedra enquanto saveiros tradicionais de velas de lona bege recolhidas balançam suavemente no ancoradouro sob o céu que se transforma em púrpura e dourado."
+    },
+    {
+      "id": 191,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Brejo de Altitude em Triunfo (Pernambuco)",
+      "text": "No topo do planalto da Borborema a mais de mil metros de altitude, um oásis verde de bananeiras, cafezais sombreados e hortaliças viçosas ergue-se em contraste surpreendente com a caatinga seca que cobre a planície ao longe. O ar fresco da serra carrega o cheiro de terra molhada e cana moída nos engenhos de rapadura artesanal enquanto casarões de madeira serrana abrigam lareiras acolhedoras."
+    },
+    {
+      "id": 192,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Desfile de Bonecos Gigantes em Olinda",
+      "text": "Ladeiras íngremes de paralelepípedos ladeadas por sobrados coloniais com sacadas floridas de buganvílias roxas são invadidas por bonecos monumentais de até quatro metros de altura esculpidos em papel machê e tecido brilhante. Foliões fantasiados dançam frevo frenético com pequenas sombrinhas coloridas girando nos dedos ao som metálico e acelerado de metais de pistões e trombones de vara."
+    },
+    {
+      "id": 193,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Casa Flutuante no Lago Janauari (Amazonas)",
+      "text": "Construída sobre gigantescas toras de madeira de assacuzeiro que boiam inalteradas nas águas calmas do lago de várzea, a casa de tábuas azuis abriga potes de barro cozido com plantas medicinais e redes de pesca de náilon estendidas para secar ao sol. Meninos ribeirinhos remam pequenas canoas de tronco escavado entre tapetes flutuantes de folhas colossais de vitória-régia com bordas erguidas."
+    },
+    {
+      "id": 194,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Salão de Baile de Gafieira na Lapa (Rio de Janeiro)",
+      "text": "O piso de assoalho de pau-marfim e peroba lustrado por décadas de sapatos de sola de couro reflete os lustres de cristal antigo e espelhos dourados bisotados nas paredes. Casais elegantes vestidos de terno branco de linho e sapatos bicolores giram com precisão milimétrica ao som de um naipe de metais tocando samba sincopado, enquanto ventiladores de teto de quatro pás giram lentos na penumbra."
+    },
+    {
+      "id": 195,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Campo de Dunas nos Lençóis Maranhenses",
+      "text": "Ondulações intermináveis de areia branca de quartzo puríssimo estendem-se até o horizonte sob um sol implacável, desenhadas pelo vento incessante em padrões geométricos perfeitos. Nos vales profundos entre as dunas, lagoas temporárias de águas pluviais cristalinas em tons degradê de esmeralda e turquesa abrigam pequenos peixes prateados que nadam sobre o fundo de areia ondulada."
+    },
+    {
+      "id": 196,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Antigo Armazém de Secos e Molhados no Vale do Paraíba",
+      "text": "Balcão corrido de madeira nobre de lei marcado por sulcos de faca e moedas antigas separa prateleiras altíssimas repletas de latas coloridas de banha de porco, fardos de fumo de rolo amarrados com cipó e sacos de juta com feijão-fradinho e café em grão cru. Uma balança de dois pratos de bronze polido com pesos de ferro fundido repousa ao lado da caixa registradora de manivela prateada."
+    },
+    {
+      "id": 197,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Noite de São João em Caruaru",
+      "text": "A imensa esplanada do pátio do forró transforma-se num mar de camisas xadrez e chapéus de palha desfiada sob milhares de metros de bandeirinhas de papel de seda multicolorido cortando o céu noturno. Fogueiras monumentais de troncos de madeira aquecem a brisa fria do agreste enquanto trios pé-de-serra com sanfona de oito baixos, zabumba e triângulo de aço fazem multidões dançarem forró agarradinho até o raiar do dia."
+    },
+    {
+      "id": 198,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Porto Fluvial de Corumbá no Rio Paraguai",
+      "text": "Chalanas compridas de ferro e empurradores fluviais com comboios de barcaças abarrotadas de minério de manganês manobram vagarosamente na curva larga do Rio Paraguai diante do casario histórico do porto geral. Pescadores artesanais descarregam cuias de pintados e pacus graúdos no cais de pedra sob o calor denso da tarde pantaneira e o bater de asas de biguás pousados nos postes de amarração."
+    },
+    {
+      "id": 199,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Gráfica Tipográfica Tradicional no Brás (São Paulo)",
+      "text": "Pesadas máquinas de impressão tipográfica Heidelberg pretas com engrenagens de ferro brilhante batem ritmicamente num compasso metálico contínuo, espalhando cheiro inconfundível de tinta tipográfica preta e papel off-set novo. Gaveteiros de madeira com dezenas de compartimentos guardam tipos móveis de chumbo fundido de fontes romanas e góticas usados por tipógrafos idosos de avental cinza."
+    },
+    {
+      "id": 200,
+      "category": "descricao_imagem",
+      "textual_genre": "Visual scene description",
+      "genre_id": "visual_scene_description",
+      "genre_domain": "Digital, Web, Interactive & Gaming",
+      "genre_collection": "Web & UX Micro-Genres",
+      "source": "Cena Visual — Farol de Santa Marta em Laguna (Santa Catarina)",
+      "text": "Erguido sobre um promontório rochoso de granito cercado por praias bravias de mar agitado e sítios arqueológicos de sambaquis milenares, o farol quadrado de alvenaria branca projeta sua lente de cristal de Fresnel importada de Paris sobre as ondas escuras da noite do sul. Ao redor da torre, pequenas casas de pescadores artesanais acendem lâmpadas amarelas enquanto redes de tainha repousam estendidas na areia fofa."
+    }
+  ]
+}

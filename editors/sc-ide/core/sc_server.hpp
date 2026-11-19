@@ -67,6 +67,8 @@ public:
     ScServer(ScProcess* scLang, Settings::Manager* settings, QObject* parent);
 
     bool isRunning() { return mPort != 0; }
+    QHostAddress serverAddress() const { return mServerAddress; }
+    int serverPort() const { return mPort; }
 
     QAction* action(ActionRole role) { return mActions[role]; }
 

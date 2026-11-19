@@ -9,6 +9,9 @@ Restrict your architecture to using Ndefs for sound sources, Ndef slots for effe
 - NEVER pass `t_trig` directly to `Decay.ar`/`Decay2.ar` — wrap with `K2A.ar(t_trig)` first.
 - NEVER pre-declare `Ndef(\name).ar(2)` before the source function.
 - In `\filter ->` slots, return ONLY the 100% processed (wet) signal — never `in + processedSignal`.
+- In slot `[1] = \set -> Pbindef(\seqName, ...)`, NEVER declare `\instrument, \name` inside the Pbindef. JITLib automatically routes parameters to the Ndef; declaring `\instrument` triggers an invalid SynthDef lookup and crashes with `Message 'canReleaseSynth' not understood`.
+- **No Unary Minus on Identifiers**: NEVER write `-varName` (e.g. `-spread`, `-pan`, `-freq`). Use `varName.neg` (e.g. `spread.neg`) or `(0 - varName)`.
+- **Stereo vs. Mono Panning**: Use `Pan2.ar(sig, pan, amp)` for mono signals. Use `Balance2.ar(sig[0], sig[1], pan, amp)` ONLY when `sig` is explicitly a 2-channel Array (e.g. `Splay.ar`). Calling `sig[0]` on a mono UGen crashes with `Message 'at' not understood`.
 
 * **Premise:** System sound setup has already been performed, do not concern yourself with booting and audio setup operations.
 

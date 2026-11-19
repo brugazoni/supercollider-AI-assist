@@ -8,8 +8,15 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.documents import Document
 import config
 
+_cached_embedding_func = None
+_cached_db = None
+
+
 def get_embedding_function():
-    return HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
+    global _cached_embedding_func
+    if _cached_embedding_func is None:
+        _cached_embedding_func = HuggingFaceEmbeddings(model_name=config.EMBEDDING_MODEL)
+    return _cached_embedding_func
 
 def load_documents(folder_path, extension, source_label):
     """Load text files from a folder and tag them with a source label."""
@@ -26,8 +33,13 @@ def load_documents(folder_path, extension, source_label):
             raw_docs = loader.load()
 
             for doc in raw_docs:
+                fname = os.path.basename(file_path)
                 doc.metadata["source"] = source_label
-                doc.metadata["filename"] = os.path.basename(file_path)
+                doc.metadata["filename"] = fname
+                if fname.startswith("failsafe-") and fname.endswith(".scd"):
+                    doc.metadata["use_case"] = fname[len("failsafe-"):-len(".scd")]
+                elif fname.startswith("auto-") and fname.endswith("-rag.scd"):
+                    doc.metadata["use_case"] = fname[len("auto-"):-len("-rag.scd")]
                 documents.append(doc)
             
         except Exception:
@@ -73,6 +85,8 @@ def _embed_and_store(chunks, db_path):
 
 def build_knowledge_base_index():
     """Build the vector store for knowledge_base/ (.scd files)."""
+    global _cached_db
+    _cached_db = None
     print("\n--- [rag] building knowledge-base index ---")
     if os.path.exists(config.KNOWLEDGE_DB_PATH):
         shutil.rmtree(config.KNOWLEDGE_DB_PATH)
@@ -94,16 +108,60 @@ def build_all():
     build_knowledge_base_index()
 
 
-def get_retriever():
+def count_chunks_for_text(text: str, metadata: dict = None) -> int:
+    """Deterministically count how many ChromaDB chunks a text block produces."""
+    if not text or not text.strip():
+        return 0
+    doc = Document(page_content=text, metadata=metadata or {})
+    return len(_chunk_documents([doc]))
+
+
+def ingest_documents_incrementally(raw_docs: list[Document]) -> int:
+    """Embed and append new Document objects to the existing ChromaDB store
+    without wiping or re-embedding existing knowledge base files.
+    If the vector DB does not exist yet, builds the full index instead.
+    Returns the number of chunks added.
+    """
+    global _cached_db
+    if not raw_docs:
+        return 0
+
+    if not os.path.exists(config.KNOWLEDGE_DB_PATH):
+        build_knowledge_base_index()
+        return len(_chunk_documents(raw_docs))
+
+    chunks = _chunk_documents(raw_docs)
+    if not chunks:
+        return 0
+
+    embedding_func = get_embedding_function()
+    db = Chroma(persist_directory=config.KNOWLEDGE_DB_PATH, embedding_function=embedding_func)
+    batch_size = 100
+    for start in range(0, len(chunks), batch_size):
+        end = min(start + batch_size, len(chunks))
+        db.add_documents(chunks[start:end])
+
+    _cached_db = None
+    return len(chunks)
+
+
+def get_retriever(mode_filter: str = None):
     """Returns a callable(query) that performs vector retrieval from the knowledge base."""
+    global _cached_db
     embedding_func = get_embedding_function()
 
     db_path = config.KNOWLEDGE_DB_PATH
     if not db_path or not os.path.exists(db_path):
         raise ValueError(f"Knowledge base not found at '{db_path}'. Run the build scripts first.")
 
-    db = Chroma(persist_directory=db_path, embedding_function=embedding_func)
-    retriever = db.as_retriever(search_kwargs={"k": config.RAG_K})
+    if _cached_db is None:
+        _cached_db = Chroma(persist_directory=db_path, embedding_function=embedding_func)
+
+    search_kwargs = {"k": config.RAG_K}
+    if mode_filter:
+        search_kwargs["filter"] = {"filename": f"failsafe-{mode_filter}.scd"}
+
+    retriever = _cached_db.as_retriever(search_kwargs=search_kwargs)
 
     def retrieve(query):
         return retriever.invoke(query)[:config.RAG_K]

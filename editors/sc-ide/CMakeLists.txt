@@ -80,6 +80,8 @@ set ( ide_moc_hdr
     widgets/multi_editor.hpp
     widgets/popup_text_input.hpp
     widgets/post_window.hpp
+    widgets/perf_mixer_widget.hpp
+    widgets/prompt_nav_bar.hpp
     widgets/ai_assist_widget.hpp
     widgets/session_switch_dialog.hpp
     widgets/sessions_dialog.hpp
@@ -135,6 +137,8 @@ set ( ide_src
     widgets/main_window.cpp
     widgets/multi_editor.cpp
     widgets/post_window.cpp
+    widgets/perf_mixer_widget.cpp
+    widgets/prompt_nav_bar.cpp
     widgets/ai_assist_widget.cpp
     widgets/session_switch_dialog.cpp
     widgets/audio_status_box.cpp

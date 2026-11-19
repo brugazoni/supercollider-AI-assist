@@ -40,6 +40,7 @@ namespace ScIDE {
 
 class PostWindow;
 class Document;
+class PromptNavBar;
 
 // SystemMessageDialog removed — replaced by reusable openSysMessageEditor()
 
@@ -53,6 +54,9 @@ public:
     void connectDocumentSignals();
 
     PostWindow* postWindow() const { return mPostWindow; }
+
+signals:
+    void xAppendEvaluated(const QString& mode, int promptIndex, const QString& code);
 
 public slots:
     void setLastEvaluatedCode(const QString& code);
@@ -88,14 +92,15 @@ private slots:
     void onXAppendClicked();
     void onXDictateToggled();
     void onXDictateMuteToggled();
-    void submitCrossAppendForBlock(const QString& prompt, const QString& mode, bool isValidation = false);
-    void processXAppendQueue();
+    void submitCrossAppendForBlock(const QString& prompt, const QString& mode, bool isValidation = false, qint64 enqueuedAtMs = 0);
+    void processXAppendQueue(bool logIfBusy = false);
 
-    // Cross-Append validation buttons (Send / RAG / P presets)
+    // Cross-Append validation buttons (Send / RAG / P presets / random corpus dice)
     void onXTestPresetClicked(const QString& key);
+    void onXTestRandomCorpusClicked(const QString& key);
     void onXTestSendClicked(const QString& mode);
     void onXTestRagClicked(const QString& mode);
-    void submitXRagValidation(const QString& prompt, const QString& mode);
+    void submitXRagValidation(const QString& prompt, const QString& mode, qint64 enqueuedAtMs = 0);
 
     // Fix tab
     void onFixClicked();
@@ -138,9 +143,11 @@ private slots:
     void onBootupClicked();
     void onApiKeysClicked();
     void onStatusClicked();
+    void onCancelClicked();
     void onModelChanged(const QString& modelName);
     void onOpenRouterModelChanged(int index);
     void onOpenRouterBrowseClicked();
+    void onOpenRouterDefaultsClicked();
     void fetchOpenRouterModels();
     void populateOpenRouterCombo(const QJsonArray& models);
     QString currentModelKey() const;
@@ -168,18 +175,30 @@ private:
     void openSysMessageEditor(QStringList& selectedList);
     void saveSysMsgDefaults();
     void loadSysMsgDefaults();
+    void saveOpenRouterDefaults();
+    void loadOpenRouterDefaults();
+    void selectOpenRouterSlot(int slot, bool activateProvider = true);
+    void applyOpenRouterModelToCombo(const QString& modelId, bool triggerModelChanged = false);
+    void updateOpenRouterSlotTooltips();
     void setProcessingState(bool processing);
+    void updateCancelButtonState();
     void updateLatestBlockFields();
     void evaluateCodeBlocks(const QString& code);
     void tryUpdateSessionStats();
 
     // Session persistence
     void saveSessionFor(Document* doc);
-    void restoreSessionFor(const QString& filePath);
+    void restoreSessionFor(const QString& filePath, bool forceNavRestore = false);
     bool hasSessionContent() const;
     bool hasApiKeyForCurrentModel();
     QString sessionFilePath(Document* doc) const;
     void clearSessionFields();
+
+    // Prompt navigation bar helpers
+    PromptNavBar* promptNavBar() const;
+    int registerPromptNavBlock(Document* doc, const QString& mode, const QString& prompt,
+                               int insertPos, const QString& codeText, const QString& model = QString());
+    void removePromptNavEntry(Document* doc, int entryId);
 
     // Persistent daemon backend
     void startDaemon();
@@ -197,9 +216,15 @@ private:
     QComboBox* mModelCombo;
     QRadioButton* mProviderDirectRadio;
     QRadioButton* mProviderOpenRouterRadio;
+    QPushButton* mOpenRouterFastBtn;
+    QPushButton* mOpenRouterBetterBtn;
     QComboBox* mOpenRouterCombo;
     QPushButton* mOpenRouterBrowseBtn;
+    QPushButton* mOpenRouterDefaultsBtn;
     QJsonArray mOpenRouterModels;
+    QString mOpenRouterFastModel = QStringLiteral("openai/gpt-6-luna");
+    QString mOpenRouterBetterModel = QStringLiteral("openai/gpt-6.1-sol");
+    int mActiveOpenRouterSlot = 0; // 0 = Fast, 1 = Better
     // OpenRouter model ID restored from a session before the (async) model list
     // was fetched. Re-applied once populateOpenRouterCombo() runs.
     QString mPendingOpenRouterModel;
@@ -209,6 +234,7 @@ private:
     QPushButton* mBootupBtn;
     QPushButton* mApiKeysBtn;
     QPushButton* mStatusBtn;
+    QPushButton* mCancelBtn = nullptr;
     QPushButton* mEcoLabel;
     QLabel* mTotalWaitLabel;
     QProgressBar* mContextBar;
@@ -283,8 +309,20 @@ private:
     QQueue<QString> mAppendQueue;
 
     QString mRagFallbackCode;
+    QString mPendingFallbackMode;
     bool mWaitingForErrorCheck = false;
     QTimer* mErrorCheckTimer = nullptr;
+    bool mXErrorCheckInFlight = false;
+    QString mXCurrentCandidateCode;
+    QString mXCurrentMode;
+    QString mXCurrentOkTag;
+    int mXCurrentFixAttempt = 0;
+    int mXCurrentMaxFixAttempts = 0;
+    QString mXLastInsertedChunk;
+    QPointer<Document> mXLastNavDoc;
+    int mXLastNavEntryId = 0;
+    QTimer* mXPostErrorFixTimer = nullptr;
+    void onMainServerErrorAutoFix();
 
     // Cross-Append tab widgets
     QPlainTextEdit* mXPrompt;
@@ -296,12 +334,46 @@ private:
     QCheckBox* mXAutoExecuteCheck;
     QCheckBox* mXAutoAppendCheck;
     QCheckBox* mXUseKbCheck;
+    QCheckBox* mXLeanPromptCheck = nullptr;
+    QCheckBox* mXAutoFixCheck = nullptr;
+    QComboBox* mXAutoFixAttemptsCombo = nullptr;
     QPushButton* mXDictateBtn;
     QPushButton* mXDictateMuteBtn;
     QComboBox* mXDictLangCombo;
     QComboBox* mXDictModelCombo;
     QTextEdit* mXAutoAppendLog;
     int mXDictationBlockIndex = 0;
+
+    // Live + final elapsed time counter next to sent prompt logs in X-Append
+    QTimer* mXPromptElapsedTimer = nullptr;
+    int mXPromptTimerSeq = 0;
+    int mXActivePromptId = 0;
+    qint64 mXActivePromptStartMs = 0;
+    QString mXActivePromptToken;
+    QString startXPromptTimer(qint64 startMs = 0);
+    void updateXPromptTimerDisplay();
+    double finishXPromptTimer(const QString& colorHex = QStringLiteral("#2ecc71"));
+
+    // Parallel Validation Server UI & process (X-Append)
+    QLabel* mValServerStatusLabel = nullptr;
+    QPushButton* mValServerConsoleToggleBtn = nullptr;
+    QPushButton* mValServerRestartBtn = nullptr;
+    QTextEdit* mValServerConsole = nullptr;
+    QProcess* mValidationProcess = nullptr;
+    QTimer* mValidationTimeoutTimer = nullptr;
+    QString mValidationOutputBuffer;
+    bool mValidationReady = false;
+    bool mValidationBusy = false;
+    std::function<void(bool, const QString&)> mValidationCallback;
+
+    void startValidationServer();
+    void stopValidationServer();
+    void handleValidationServerOutput(const QString& chunk);
+    void validateCodeOnParallelServer(const QString& code, const QString& mode,
+                                      std::function<void(bool valid, const QString& errorMsg)> callback);
+    void validateAndCommitOrFixXAppend(const QString& candidateCode, const QString& mode,
+                                       const QString& okTag, const QString& fallbackCode,
+                                       int fixAttempt, int maxFixAttempts);
 
     // Cross-Append job queue. Dictation and validation jobs share this queue so
     // they are serialized through the single daemon exactly like voice blocks.
@@ -310,18 +382,46 @@ private:
         QString prompt;
         QString mode;
         XJobKind kind = XJobKind::Dictation;
+        qint64 enqueuedAtMs = 0;
     };
     QQueue<XAppendJob> mXAppendQueue;
+
+    // Failsafe RAG verification & queueing pipeline (Gate 1 + Gate 2 on Val Server)
+    struct PendingRagCandidate {
+        QString code;
+        QString prompt;
+        QString hintMode;
+        bool alreadyValidatedGate1 = false;
+    };
+    QQueue<PendingRagCandidate> mRagVerifyQueue;
+    PendingRagCandidate mActiveRagCandidate;
+    bool mRagVerifyInFlight = false;
+    int mSessionDuplicateRagCount = 0;
+    QString mPendingAppendRagCode;
+    QString mPendingAppendRagPrompt;
+    QString mXCurrentPrompt;
+    QString mXCurrentModel;
+    void enqueueRagCandidate(const QString& code, const QString& prompt,
+                             const QString& hintMode, bool alreadyValidatedGate1);
+    void processRagVerifyQueue();
+    void validateRagExecutableBlocksOnServer(const QStringList& execBlocks,
+                                             const QString& consolidatedBlock,
+                                             const QString& mode,
+                                             std::function<void(bool valid, const QString& errorMsg)> callback);
 
     // Validation preset prompts ("P" buttons), keyed "send_append", "rag_design", ...
     // Persisted in sc-gen-rag/xappend_test_prompts.json across sessions.
     QMap<QString, QString> mXTestPrompts;
+    QVector<QJsonObject> mXCorpusFragments;
     QString xTestPromptsFilePath() const;
+    QString xCorpusFilePath() const;
+    bool loadXCorpusFragments();
     void loadXTestPrompts();
     void saveXTestPrompts();
     QWidget* createXTestCell(const QString& kind, const QString& mode, const QString& label);
     void appendXHistoryBlock(const QString& block);
-    void runRagFailsafeCode(const QString& code, std::function<void()> onDone);
+    void runRagFailsafeCode(const QString& code, const QString& mode, std::function<void()> onDone,
+                            const QString& prompt = QString());
 
     // Fix tab widgets
     QPlainTextEdit* mFixBlock;
@@ -379,6 +479,8 @@ private:
     QByteArray mDaemonOutputBuffer;
     bool mDaemonReady = false;
     bool mDaemonBusy = false;
+    int mRequestSeq = 0;
+    int mActiveRequestId = 0;
 };
 
 } // namespace ScIDE

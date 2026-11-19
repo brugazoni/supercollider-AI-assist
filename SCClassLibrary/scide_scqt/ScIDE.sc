@@ -120,7 +120,15 @@ ScIDE {
 		this.send( \serverAmpRange, "%,%".format(server.volume.min, server.volume.max) );
 		this.send( \serverAmp, server.volume.volume.asString );
 
+		ScPerfMixer.initForIDE(server);
 	}
+
+	*perfMixerInit { |id, data| ScPerfMixer.requestInit(id, data) }
+	*perfMixerSyncNow { |id, data| ScPerfMixer.requestSyncNow(id, data) }
+	*perfMixerSetMeterPort { |id, data| ScPerfMixer.requestSetMeterPort(id, data) }
+	*perfMixerSetEnabled { |id, data| ScPerfMixer.requestSetEnabled(id, data) }
+	*perfMixerSetFxEnabled { |id, data| ScPerfMixer.requestSetFxEnabled(id, data) }
+	*perfMixerStopTrack { |id, data| ScPerfMixer.requestStopTrack(id, data) }
 
 	*request { |id, command, data|
 		this.tryPerform(command, id, data);

@@ -30,6 +30,7 @@
 #include "multi_editor.hpp"
 #include "popup_text_input.hpp"
 #include "post_window.hpp"
+#include "perf_mixer_widget.hpp"
 #include "ai_assist_widget.hpp"
 #include "session_switch_dialog.hpp"
 #include "sessions_dialog.hpp"
@@ -147,6 +148,12 @@ MainWindow::MainWindow(Main* main): mMain(main), mClockLabel(0), mDocDialog(0) {
     mPostDocklet = new PostDocklet(this);
     mPostDocklet->setObjectName("post-dock");
     addDockWidget(Qt::RightDockWidgetArea, mPostDocklet->dockWidget());
+
+    mPerfMixerDocklet = new PerfMixerDocklet(main->scProcess(), main->scServer(), this);
+    mPerfMixerDocklet->setObjectName("perf-mixer-dock");
+    addDockWidget(Qt::BottomDockWidgetArea, mPerfMixerDocklet->dockWidget());
+    connect(mPostDocklet->aiAssist(), &AiAssistWidget::xAppendEvaluated,
+            mPerfMixerDocklet->mixerWidget(), &PerfMixerWidget::onXAppendEvaluated);
 
     // Layout
     QVBoxLayout* center_box = new QVBoxLayout;
@@ -482,6 +489,10 @@ void MainWindow::createActions() {
     action->setStatusTip(tr("Show/hide Post docklet"));
     settings->addAction(mPostDocklet->toggleViewAction(), "ide-docklet-post", ideCategory);
 
+    action = mPerfMixerDocklet->toggleViewAction();
+    action->setStatusTip(tr("Show/hide Performance Mixer docklet"));
+    settings->addAction(mPerfMixerDocklet->toggleViewAction(), "ide-docklet-perf-mixer", ideCategory);
+
     action = mDocumentsDocklet->toggleViewAction();
     action->setIcon(QIcon::fromTheme("text-x-generic"));
     action->setStatusTip(tr("Show/hide Documents docklet"));
@@ -599,6 +610,7 @@ void MainWindow::createMenus() {
     menu = new QMenu(tr("&View"), this);
     submenu = new QMenu(tr("&Docklets"), this);
     submenu->addAction(mPostDocklet->toggleViewAction());
+    submenu->addAction(mPerfMixerDocklet->toggleViewAction());
     submenu->addAction(mDocumentsDocklet->toggleViewAction());
 #ifdef SC_USE_QTWEBENGINE
     submenu->addAction(mHelpBrowserDocklet->toggleViewAction());
@@ -701,6 +713,7 @@ static void saveDetachedState(Docklet* docklet, QVariantMap& data) {
 template <class T> void MainWindow::saveWindowState(T* settings) {
     QVariantMap detachedData;
     saveDetachedState(mPostDocklet, detachedData);
+    saveDetachedState(mPerfMixerDocklet, detachedData);
     saveDetachedState(mDocumentsDocklet, detachedData);
 #ifdef SC_USE_QTWEBENGINE
     saveDetachedState(mHelpBrowserDocklet, detachedData);
@@ -746,6 +759,7 @@ template <class T> void MainWindow::restoreWindowState(T* settings) {
         setWindowState(windowState() & ~Qt::WindowFullScreen | Qt::WindowMaximized);
 
     restoreDetachedState(mPostDocklet, detachedData);
+    restoreDetachedState(mPerfMixerDocklet, detachedData);
     restoreDetachedState(mDocumentsDocklet, detachedData);
 #ifdef SC_USE_QTWEBENGINE
     restoreDetachedState(mHelpBrowserDocklet, detachedData);

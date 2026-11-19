@@ -588,6 +588,7 @@ Server {
 	}
 
 	sync { |condition, bundles, latency| // array of bundles that cause async action
+		if(Platform.ideName == "scval") { ^this };
 		addr.sync(condition, bundles, latency)
 	}
 
@@ -696,6 +697,12 @@ Server {
 	}
 
 	waitForBoot { |onComplete, limit = 100, onFailure, clock|
+		if(Platform.ideName == "scval") {
+			statusWatcher.notified = true;
+			statusWatcher.serverRunning_(true);
+			onComplete.value(this);
+			^this
+		};
 		// onFailure.true: why is this necessary?
 		// this.boot also calls doWhenBooted.
 		// doWhenBooted prints the normal boot failure message.
@@ -706,6 +713,12 @@ Server {
 	}
 
 	doWhenBooted { |onComplete, limit=100, onFailure, clock|
+		if(Platform.ideName == "scval") {
+			statusWatcher.notified = true;
+			statusWatcher.serverRunning_(true);
+			onComplete.value(this);
+			^this
+		};
 		statusWatcher.doWhenBooted(onComplete, limit, onFailure, clock)
 	}
 
@@ -854,6 +867,11 @@ Server {
 	}
 
 	boot { | startAliveThread = true, recover = false, onFailure |
+		if(Platform.ideName == "scval") {
+			statusWatcher.notified = true;
+			statusWatcher.serverRunning_(true);
+			^this
+		};
 
 		if(statusWatcher.unresponsive) {
 			"server '%' unresponsive, rebooting ...".format(this.name).postln;

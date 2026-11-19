@@ -197,6 +197,20 @@ class DaemonTestClient:
             self.process.kill()
 
 
+@pytest.fixture(autouse=True)
+def _isolate_session_logs(tmp_path, monkeypatch):
+    """Redirect utils.LOGS_DIR to an isolated temporary directory during tests
+    so pytest runs never pollute the production use-logs/ folder or sync mock
+    test entries to Google Docs."""
+    import utils
+    test_logs_dir = str(tmp_path / "use-logs")
+    os.makedirs(test_logs_dir, exist_ok=True)
+    monkeypatch.setenv("SC_LOGS_DIR", test_logs_dir)
+    monkeypatch.setattr(utils, "LOGS_DIR", test_logs_dir)
+    monkeypatch.setattr(utils, "append_to_google_doc", lambda *a, **kw: False, raising=False)
+    yield test_logs_dir
+
+
 @pytest.fixture
 def daemon_subprocess():
     client = DaemonTestClient()

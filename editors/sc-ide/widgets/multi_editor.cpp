@@ -19,6 +19,7 @@
 */
 
 #include "multi_editor.hpp"
+#include "prompt_nav_bar.hpp"
 #include "editor_box.hpp"
 #include "main_window.hpp"
 #include "lookup_dialog.hpp"
@@ -289,11 +290,14 @@ MultiEditor::MultiEditor(Main* main, QWidget* parent):
 
     mSplitter->addWidget(defaultBox);
 
+    mPromptNavBar = new PromptNavBar(this);
+
     multiEditorLayout = new QVBoxLayout;
     multiEditorLayout->setContentsMargins(0, 0, 0, 0);
     multiEditorLayout->setSpacing(0);
-    multiEditorLayout->addWidget(mTabs);
-    multiEditorLayout->addWidget(mSplitter);
+    multiEditorLayout->addWidget(mTabs, 0);
+    multiEditorLayout->addWidget(mSplitter, 1);
+    multiEditorLayout->addWidget(mPromptNavBar, 0);
     setLayout(multiEditorLayout);
 
     makeSignalConnections();
@@ -913,7 +917,7 @@ void MultiEditor::switchSession(Session* session) {
         mSplitter->addWidget(firstBox);
     }
 
-    layout()->addWidget(mSplitter);
+    multiEditorLayout->insertWidget(1, mSplitter, 1);
 
     makeSignalConnections();
 
@@ -1017,6 +1021,8 @@ void MultiEditor::onClose(Document* doc) {
     int tabIdx = tabForDocument(doc);
     if (tabIdx != -1)
         mTabs->removeTab(tabIdx);
+    if (mPromptNavBar)
+        mPromptNavBar->onDocumentClosed(doc);
     // TODO: each box should switch document according to their own history
 }
 
@@ -1130,6 +1136,8 @@ void MultiEditor::setCurrentEditor(GenericCodeEditor* editor) {
 
     Document* currentDocument = editor ? editor->document() : 0;
     Main::documentManager()->setActiveDocument(currentDocument);
+    if (mPromptNavBar)
+        mPromptNavBar->setCurrentEditor(editor);
     emit currentDocumentChanged(currentDocument);
 }
 
@@ -1194,7 +1202,7 @@ void MultiEditor::removeAllSplits() {
 
     delete mSplitter;
     mSplitter = newSplitter;
-    layout()->addWidget(mSplitter);
+    multiEditorLayout->insertWidget(1, mSplitter, 1);
 
     emit splitViewDeactivated();
     setMainComboBoxOption();
